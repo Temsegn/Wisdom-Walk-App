@@ -76,6 +76,7 @@ class AnonymousShareComment {
     required this.content,
     this.isModerated = false,
     required this.createdAt,
+    required String userName,
   });
 
   factory AnonymousShareComment.fromJson(Map<String, dynamic> json) {
@@ -85,6 +86,7 @@ class AnonymousShareComment {
       content: json['content'],
       isModerated: json['isModerated'] ?? false,
       createdAt: DateTime.parse(json['createdAt']),
+      userName: '',
     );
   }
 

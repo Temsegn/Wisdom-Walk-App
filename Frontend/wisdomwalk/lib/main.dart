@@ -7,7 +7,6 @@ import 'package:wisdomwalk/providers/prayer_provider.dart';
 import 'package:wisdomwalk/providers/wisdom_circle_provider.dart';
 import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
 import 'package:wisdomwalk/providers/her_move_provider.dart';
-import 'package:wisdomwalk/routing/app_routing.dart';
 import 'package:wisdomwalk/themes/app_theme.dart';
 
 void main() {

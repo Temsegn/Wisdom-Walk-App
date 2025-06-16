@@ -18,16 +18,31 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> {
   void initState() {
     super.initState();
     print('WisdomCirclesTab: initState called');
-    // Fetch circles when the tab loads
+
+    // Try multiple approaches to ensure data is loaded
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      print('WisdomCirclesTab: About to call fetchCircles');
-      context.read<WisdomCircleProvider>().fetchCircles();
+      print('WisdomCirclesTab: PostFrameCallback - calling fetchCircles');
+      final provider = context.read<WisdomCircleProvider>();
+      print(
+        'WisdomCirclesTab: Provider found, circles count: ${provider.circles.length}',
+      );
+
+      // If no circles, force refresh
+      if (provider.circles.isEmpty) {
+        print('WisdomCirclesTab: No circles found, calling fetchCircles');
+        provider.fetchCircles();
+      } else {
+        print(
+          'WisdomCirclesTab: Circles already loaded: ${provider.circles.length}',
+        );
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    print('WisdomCirclesTab: build method called');
+    print('WisdomCirclesTab: build() called');
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -43,9 +58,10 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.black54),
+            icon: const Icon(Icons.refresh, color: Colors.black54),
             onPressed: () {
-              // TODO: Implement search
+              print('WisdomCirclesTab: Manual refresh button pressed');
+              context.read<WisdomCircleProvider>().forceRefresh();
             },
           ),
           IconButton(
@@ -61,18 +77,27 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> {
           print('WisdomCirclesTab: Consumer builder called');
           print('WisdomCirclesTab: isLoading = ${provider.isLoading}');
           print(
-            'WisdomCirclesTab: circles = ${provider.circles.map((c) => c.name).toList()}',
+            'WisdomCirclesTab: circles.length = ${provider.circles.length}',
           );
           print('WisdomCirclesTab: error = ${provider.error}');
 
-          if (provider.isLoading) {
+          // Show loading only if actually loading and no circles
+          if (provider.isLoading && provider.circles.isEmpty) {
             print('WisdomCirclesTab: Showing loading indicator');
             return const Center(
-              child: CircularProgressIndicator(color: Color(0xFFE91E63)),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Color(0xFFE91E63)),
+                  SizedBox(height: 16),
+                  Text('Loading wisdom circles...'),
+                ],
+              ),
             );
           }
 
-          if (provider.error != null) {
+          // Show error only if there's an error and no circles
+          if (provider.error != null && provider.circles.isEmpty) {
             print('WisdomCirclesTab: Showing error state: ${provider.error}');
             return Center(
               child: Column(
@@ -93,7 +118,7 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      print('WisdomCirclesTab: Retry button pressed');
+                      print('WisdomCirclesTab: Error retry button pressed');
                       provider.fetchCircles();
                     },
                     style: ElevatedButton.styleFrom(
@@ -108,11 +133,12 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> {
 
           final circles = provider.circles;
           print(
-            'WisdomCirclesTab: Final circles check - isEmpty: ${circles.isEmpty}',
+            'WisdomCirclesTab: Final check - circles.isEmpty: ${circles.isEmpty}',
           );
 
+          // Show empty state only if truly no circles
           if (circles.isEmpty) {
-            print('WisdomCirclesTab: Showing empty state');
+            print('WisdomCirclesTab: Showing empty state with debug options');
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -129,27 +155,44 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Create or join a wisdom circle',
+                    'This might be a loading issue',
                     style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   ),
                   const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      print('WisdomCirclesTab: Debug fetchCircles');
-                      provider.fetchCircles();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE91E63),
-                    ),
-                    child: const Text('Debug Fetch'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          print('WisdomCirclesTab: Force refresh pressed');
+                          provider.forceRefresh();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE91E63),
+                        ),
+                        child: const Text('Force Refresh'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          print('WisdomCirclesTab: Fetch circles pressed');
+                          provider.fetchCircles();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                        ),
+                        child: const Text('Fetch Circles'),
+                      ),
+                    ],
                   ),
                 ],
               ),
             );
           }
 
+          // Show the grid of circles
           print(
-            'WisdomCirclesTab: Showing grid with ${circles.length} circles',
+            'WisdomCirclesTab: Rendering grid with ${circles.length} circles',
           );
           return RefreshIndicator(
             onRefresh: () => provider.fetchCircles(),
@@ -168,16 +211,14 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> {
                   final circle = circles[index];
                   final isJoined = _joinedCircles.contains(circle.id);
                   print(
-                    'WisdomCirclesTab: Building card for circle: ${circle.name}',
+                    'WisdomCirclesTab: Building card ${index + 1}: ${circle.name}',
                   );
 
                   return WisdomCircleCard(
                     circle: circle,
                     isJoined: isJoined,
                     onTap: () {
-                      print(
-                        'WisdomCirclesTab: Navigating to circle ${circle.id}',
-                      );
+                      print('WisdomCirclesTab: Card tapped: ${circle.name}');
                       context.go('/wisdom-circle/${circle.id}');
                     },
                   );
@@ -188,14 +229,14 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _show_create_circle_dialog,
+        onPressed: _showCreateCircleDialog,
         backgroundColor: const Color(0xFFE91E63),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  void _show_create_circle_dialog() {
+  void _showCreateCircleDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -220,7 +261,7 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE91E63),
+                backgroundColor: const Color.fromARGB(255, 177, 63, 101),
               ),
               child: const Text('Create'),
             ),

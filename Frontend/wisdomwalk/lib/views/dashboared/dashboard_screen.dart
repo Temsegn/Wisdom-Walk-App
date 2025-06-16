@@ -1367,7 +1367,7 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
         children: [
           _buildSisterCard(
             id: 'sarah',
-            name: 'Sarah M.',
+            name: 'Meron Getiye',
             status: 'Online',
             lastMessage: 'Hello sister! How are you doing today?',
             time: '10:30 AM',
@@ -1377,7 +1377,7 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
           const SizedBox(height: 12),
           _buildSisterCard(
             id: 'grace',
-            name: 'Grace K.',
+            name: 'Betlhem Gedion',
             status: '2 hours ago',
             lastMessage: 'Thank you for your prayers 🙏',
             time: '8:15 AM',
@@ -1387,7 +1387,7 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
           const SizedBox(height: 12),
           _buildSisterCard(
             id: 'hannah',
-            name: 'Hannah L.',
+            name: 'Hanna Tsfaye',
             status: 'Online',
             lastMessage: 'See you at Bible study tonight!',
             time: 'Yesterday',
@@ -1397,7 +1397,7 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
           const SizedBox(height: 12),
           _buildSisterCard(
             id: 'ruth',
-            name: 'Ruth W.',
+            name: 'Bersabeh Tadesse',
             status: '1 day ago',
             lastMessage: 'Praying for your family ❤️',
             time: '2 days ago',
@@ -1605,7 +1605,7 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Sarah M.',
+                    'Seble M.',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -1711,7 +1711,9 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
                     ),
                     child: IconButton(
                       icon: const Icon(Icons.send, color: Colors.white),
-                      onPressed: () {},
+                      onPressed: () {
+                        // Handle send message
+                      },
                     ),
                   ),
                 ],

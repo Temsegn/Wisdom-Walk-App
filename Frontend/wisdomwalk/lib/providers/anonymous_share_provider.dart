@@ -6,33 +6,117 @@ class AnonymousShareProvider extends ChangeNotifier {
   final AnonymousShareService _anonymousShareService = AnonymousShareService();
 
   List<AnonymousShareModel> _shares = [];
+  List<AnonymousShareModel> _allShares = []; // Store all shares separately
   AnonymousShareModel? _selectedShare;
   bool _isLoading = false;
   String? _error;
   AnonymousShareType _filter = AnonymousShareType.confession;
+  bool _showingAll = false;
 
   List<AnonymousShareModel> get shares => _shares;
   AnonymousShareModel? get selectedShare => _selectedShare;
   bool get isLoading => _isLoading;
   String? get error => _error;
   AnonymousShareType get filter => _filter;
+  bool get showingAll => _showingAll;
 
-  Future<void> fetchShares({AnonymousShareType? type}) async {
+  // Constructor with immediate mock data
+  AnonymousShareProvider() {
+    print('AnonymousShareProvider: Constructor called');
+    _initializeWithMockData();
+  }
+
+  void _initializeWithMockData() {
+    print('AnonymousShareProvider: Initializing with mock data');
+    try {
+      _allShares = _anonymousShareService.getMockShares();
+      _shares = List.from(_allShares); // Start with all shares
+      _showingAll = true;
+      print(
+        'AnonymousShareProvider: Initialized with ${_shares.length} shares',
+      );
+      notifyListeners();
+    } catch (e) {
+      print('AnonymousShareProvider: Error initializing mock data: $e');
+    }
+  }
+
+  Future<void> fetchAllShares() async {
+    print('AnonymousShareProvider: fetchAllShares called');
     _isLoading = true;
     _error = null;
+    _showingAll = true;
+    notifyListeners();
+
+    try {
+      final fetchedShares =
+          await _anonymousShareService.getAllAnonymousShares();
+      _allShares = fetchedShares;
+      _shares = List.from(_allShares);
+      print(
+        'AnonymousShareProvider: Successfully fetched ${_shares.length} total shares',
+      );
+    } catch (e) {
+      _error = e.toString();
+      print('AnonymousShareProvider: Error fetching all shares: $e');
+      // Fallback to mock data
+      _allShares = _anonymousShareService.getMockShares();
+      _shares = List.from(_allShares);
+      print(
+        'AnonymousShareProvider: Using fallback mock data with ${_shares.length} shares',
+      );
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchShares({AnonymousShareType? type}) async {
+    print('AnonymousShareProvider: fetchShares called with type: $type');
+    _isLoading = true;
+    _error = null;
+    _showingAll = false;
     if (type != null) {
       _filter = type;
     }
     notifyListeners();
 
     try {
-      _shares = await _anonymousShareService.getAnonymousShares(type: _filter);
+      final fetchedShares = await _anonymousShareService.getAnonymousShares(
+        type: _filter,
+      );
+      _shares = fetchedShares;
+      print(
+        'AnonymousShareProvider: Successfully fetched ${_shares.length} shares for type: $_filter',
+      );
     } catch (e) {
       _error = e.toString();
+      print('AnonymousShareProvider: Error fetching shares: $e');
+      // Fallback to filtered mock data
+      final mockShares = _anonymousShareService.getMockShares();
+      _shares = mockShares.where((share) => share.type == _filter).toList();
+      print(
+        'AnonymousShareProvider: Using fallback filtered mock data with ${_shares.length} shares',
+      );
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> forceRefreshAll() async {
+    print('AnonymousShareProvider: forceRefreshAll called');
+    _shares.clear();
+    _allShares.clear();
+    notifyListeners();
+    await fetchAllShares();
+  }
+
+  Future<void> forceRefresh(AnonymousShareType type) async {
+    print('AnonymousShareProvider: forceRefresh called for type: $type');
+    _shares.clear();
+    notifyListeners();
+    await fetchShares(type: type);
   }
 
   Future<void> fetchShareDetails(String shareId) async {
@@ -57,6 +141,7 @@ class AnonymousShareProvider extends ChangeNotifier {
     required String content,
     required AnonymousShareType type,
   }) async {
+    print('AnonymousShareProvider: addShare called');
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -68,13 +153,19 @@ class AnonymousShareProvider extends ChangeNotifier {
         type: type,
       );
 
-      if (type == _filter) {
+      // Add to all shares
+      _allShares.insert(0, share);
+
+      // Add to current view if appropriate
+      if (_showingAll || type == _filter) {
         _shares.insert(0, share);
       }
 
+      print('AnonymousShareProvider: Successfully added share');
       return true;
     } catch (e) {
       _error = e.toString();
+      print('AnonymousShareProvider: Error adding share: $e');
       return false;
     } finally {
       _isLoading = false;
@@ -116,17 +207,14 @@ class AnonymousShareProvider extends ChangeNotifier {
         createdAt: share.createdAt,
       );
 
+      // Update in all shares too
+      final allIndex = _allShares.indexWhere((share) => share.id == shareId);
+      if (allIndex != -1) {
+        _allShares[allIndex] = _shares[index];
+      }
+
       if (_selectedShare?.id == shareId) {
-        _selectedShare = AnonymousShareModel(
-          id: _selectedShare!.id,
-          userId: _selectedShare!.userId,
-          content: _selectedShare!.content,
-          type: _selectedShare!.type,
-          hearts: updatedHearts,
-          comments: _selectedShare!.comments,
-          prayingUsers: _selectedShare!.prayingUsers,
-          createdAt: _selectedShare!.createdAt,
-        );
+        _selectedShare = _shares[index];
       }
 
       notifyListeners();
@@ -171,17 +259,14 @@ class AnonymousShareProvider extends ChangeNotifier {
         createdAt: share.createdAt,
       );
 
+      // Update in all shares too
+      final allIndex = _allShares.indexWhere((share) => share.id == shareId);
+      if (allIndex != -1) {
+        _allShares[allIndex] = _shares[index];
+      }
+
       if (_selectedShare?.id == shareId) {
-        _selectedShare = AnonymousShareModel(
-          id: _selectedShare!.id,
-          userId: _selectedShare!.userId,
-          content: _selectedShare!.content,
-          type: _selectedShare!.type,
-          hearts: _selectedShare!.hearts,
-          comments: _selectedShare!.comments,
-          prayingUsers: updatedPrayingUsers,
-          createdAt: _selectedShare!.createdAt,
-        );
+        _selectedShare = _shares[index];
       }
 
       notifyListeners();
@@ -220,6 +305,12 @@ class AnonymousShareProvider extends ChangeNotifier {
           prayingUsers: share.prayingUsers,
           createdAt: share.createdAt,
         );
+
+        // Update in all shares too
+        final allIndex = _allShares.indexWhere((share) => share.id == shareId);
+        if (allIndex != -1) {
+          _allShares[allIndex] = _shares[index];
+        }
       }
 
       if (_selectedShare?.id == shareId) {
@@ -257,9 +348,6 @@ class AnonymousShareProvider extends ChangeNotifier {
         userId: userId,
       );
 
-      // You could also update local state here if needed
-      // For example, add to a virtualHugs list in the model
-
       return true;
     } catch (e) {
       _error = e.toString();
@@ -269,7 +357,9 @@ class AnonymousShareProvider extends ChangeNotifier {
   }
 
   void setFilter(AnonymousShareType type) {
+    print('AnonymousShareProvider: setFilter called with type: $type');
     _filter = type;
+    _showingAll = false;
     fetchShares();
   }
 

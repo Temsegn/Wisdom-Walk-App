@@ -14,6 +14,7 @@ class WisdomCircleModel {
     required this.description,
     required this.imageUrl,
     this.memberCount = 0,
+
     this.messages = const [],
     this.pinnedMessages = const [],
     this.events = const [],

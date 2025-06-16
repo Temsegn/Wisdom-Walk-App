@@ -75,7 +75,7 @@ class PrayerCard extends StatelessWidget {
                                 context,
                               ).colorScheme.onBackground.withOpacity(0.5),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     Text(
                       '${prayer.prayingUsers.length} praying',
                       style: Theme.of(context).textTheme.bodySmall,
@@ -91,7 +91,7 @@ class PrayerCard extends StatelessWidget {
                         context,
                       ).colorScheme.onBackground.withOpacity(0.5),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     Text(
                       '${prayer.comments.length} comments',
                       style: Theme.of(context).textTheme.bodySmall,
