@@ -363,6 +363,97 @@ const getMyPosts = async (req, res) => {
   }
 };
 
+const updateOnlineStatus = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { isOnline } = req.body;
+
+    if (typeof isOnline !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "isOnline must be a boolean",
+      });
+    }
+
+    await User.findByIdAndUpdate(userId, {
+      isOnline,
+      lastActive: new Date(),
+    });
+
+    res.json({
+      success: true,
+      message: "Online status updated successfully",
+    });
+  } catch (error) {
+    console.error("Update online status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update online status",
+      error: error.message,
+    });
+  }
+};
+
+const blockUser = async (req, res) => {
+  try {
+    const { userIdToBlock } = req.body;
+    const userId = req.user._id;
+
+    if (userIdToBlock === userId.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot block yourself",
+      });
+    }
+
+    const userToBlock = await User.findById(userIdToBlock);
+    if (!userToBlock) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { blockedUsers: userIdToBlock },
+    });
+
+    res.json({
+      success: true,
+      message: "User blocked successfully",
+    });
+  } catch (error) {
+    console.error("Block user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to block user",
+      error: error.message,
+    });
+  }
+};
+
+const unblockUser = async (req, res) => {
+  try {
+    const { userIdToUnblock } = req.body;
+    const userId = req.user._id;
+
+    await User.findByIdAndUpdate(userId, {
+      $pull: { blockedUsers: userIdToUnblock },
+    });
+
+    res.json({
+      success: true,
+      message: "User unblocked successfully",
+    });
+  } catch (error) {
+    console.error("Unblock user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to unblock user",
+      error: error.message,
+    });
+  }
+};
 
 module.exports = {
   getProfile,
@@ -375,4 +466,7 @@ module.exports = {
   updatePreferences,
   deleteAccount,
   getMyPosts,
+  updateOnlineStatus,
+  blockUser,
+  unblockUser
 }
