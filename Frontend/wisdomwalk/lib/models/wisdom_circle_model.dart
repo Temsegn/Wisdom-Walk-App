@@ -14,7 +14,6 @@ class WisdomCircleModel {
     required this.description,
     required this.imageUrl,
     this.memberCount = 0,
-
     this.messages = const [],
     this.pinnedMessages = const [],
     this.events = const [],
@@ -136,5 +135,52 @@ class WisdomCircleEvent {
       'platform': platform,
       'link': link,
     };
+  }
+}
+
+// Extensions for copyWith
+extension WisdomCircleModelExtension on WisdomCircleModel {
+  WisdomCircleModel copyWith({
+    String? id,
+    String? name,
+    String? description,
+    String? imageUrl,
+    int? memberCount,
+    List<WisdomCircleMessage>? messages,
+    List<String>? pinnedMessages,
+    List<WisdomCircleEvent>? events,
+  }) {
+    return WisdomCircleModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
+      memberCount: memberCount ?? this.memberCount,
+      messages: messages ?? this.messages,
+      pinnedMessages: pinnedMessages ?? this.pinnedMessages,
+      events: events ?? this.events,
+    );
+  }
+}
+
+extension WisdomCircleMessageExtension on WisdomCircleMessage {
+  WisdomCircleMessage copyWith({
+    String? id,
+    String? userId,
+    String? userName,
+    String? userAvatar,
+    String? content,
+    DateTime? createdAt,
+    List<String>? likes,
+  }) {
+    return WisdomCircleMessage(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      userName: userName ?? this.userName,
+      userAvatar: userAvatar ?? this.userAvatar,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
+      likes: likes ?? this.likes,
+    );
   }
 }

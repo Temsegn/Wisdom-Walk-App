@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wisdomwalk/models/wisdom_circle_model.dart';
 import 'package:wisdomwalk/providers/wisdom_circle_provider.dart';
 import 'package:wisdomwalk/widgets/wisdom_circle_card.dart';
 
@@ -11,263 +12,267 @@ class WisdomCirclesTab extends StatefulWidget {
   State<WisdomCirclesTab> createState() => _WisdomCirclesTabState();
 }
 
-class _WisdomCirclesTabState extends State<WisdomCirclesTab> {
-  final Set<String> _joinedCircles = {'1', '3'}; // Demo joined circles
+class _WisdomCirclesTabState extends State<WisdomCirclesTab>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    print('WisdomCirclesTab: initState called');
-
-    // Try multiple approaches to ensure data is loaded
+    _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      print('WisdomCirclesTab: PostFrameCallback - calling fetchCircles');
       final provider = context.read<WisdomCircleProvider>();
-      print(
-        'WisdomCirclesTab: Provider found, circles count: ${provider.circles.length}',
-      );
-
-      // If no circles, force refresh
       if (provider.circles.isEmpty) {
-        print('WisdomCirclesTab: No circles found, calling fetchCircles');
         provider.fetchCircles();
-      } else {
-        print(
-          'WisdomCirclesTab: Circles already loaded: ${provider.circles.length}',
-        );
       }
     });
   }
 
   @override
-  Widget build(BuildContext context) {
-    print('WisdomCirclesTab: build() called');
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text(
           'Wisdom Circles',
           style: TextStyle(
+            fontSize: 24,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
-            fontSize: 24,
           ),
         ),
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black54),
-            onPressed: () {
-              print('WisdomCirclesTab: Manual refresh button pressed');
-              context.read<WisdomCircleProvider>().forceRefresh();
-            },
+            icon: const Icon(Icons.search, color: Colors.black54),
+            onPressed: () {},
           ),
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.black54),
-            onPressed: () {
-              context.go('/settings');
-            },
+            icon: const Icon(Icons.more_vert, color: Colors.black54),
+            onPressed: () {},
           ),
         ],
       ),
-      body: Consumer<WisdomCircleProvider>(
-        builder: (context, provider, child) {
-          print('WisdomCirclesTab: Consumer builder called');
-          print('WisdomCirclesTab: isLoading = ${provider.isLoading}');
-          print(
-            'WisdomCirclesTab: circles.length = ${provider.circles.length}',
-          );
-          print('WisdomCirclesTab: error = ${provider.error}');
-
-          // Show loading only if actually loading and no circles
-          if (provider.isLoading && provider.circles.isEmpty) {
-            print('WisdomCirclesTab: Showing loading indicator');
-            return const Center(
+      body: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              'Join topic-based communities for deeper connection',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircularProgressIndicator(color: Color(0xFFE91E63)),
-                  SizedBox(height: 16),
-                  Text('Loading wisdom circles...'),
-                ],
-              ),
-            );
-          }
+                  // My Circles Section
+                  const Text(
+                    'My Circles',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  Consumer<WisdomCircleProvider>(
+                    builder: (context, provider, child) {
+                      final myCircles =
+                          provider.circles
+                              .where(
+                                (circle) =>
+                                    provider.joinedCircles.contains(circle.id),
+                              )
+                              .toList();
 
-          // Show error only if there's an error and no circles
-          if (provider.error != null && provider.circles.isEmpty) {
-            print('WisdomCirclesTab: Showing error state: ${provider.error}');
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error loading circles',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    provider.error!,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      print('WisdomCirclesTab: Error retry button pressed');
-                      provider.fetchCircles();
+                      if (myCircles.isEmpty && provider.isLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      return Column(
+                        children:
+                            myCircles.map((circle) {
+                              return WisdomCircleCard(
+                                circle: circle,
+                                isJoined: true,
+                                onTap:
+                                    () => context.push('/circle/${circle.id}'),
+                              );
+                            }).toList(),
+                      );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE91E63),
-                    ),
-                    child: const Text('Retry'),
                   ),
-                ],
-              ),
-            );
-          }
+                  const SizedBox(height: 20),
 
-          final circles = provider.circles;
-          print(
-            'WisdomCirclesTab: Final check - circles.isEmpty: ${circles.isEmpty}',
-          );
-
-          // Show empty state only if truly no circles
-          if (circles.isEmpty) {
-            print('WisdomCirclesTab: Showing empty state with debug options');
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No circles available',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
-                    ),
+                  // Discover New Circles Section
+                  const Text(
+                    'Discover New Circles',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'This might be a loading issue',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      ElevatedButton(
-                        onPressed: () {
-                          print('WisdomCirclesTab: Force refresh pressed');
-                          provider.forceRefresh();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE91E63),
-                        ),
-                        child: const Text('Force Refresh'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () {
-                          print('WisdomCirclesTab: Fetch circles pressed');
-                          provider.fetchCircles();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                        ),
-                        child: const Text('Fetch Circles'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          }
+                  const SizedBox(height: 12),
+                  Consumer<WisdomCircleProvider>(
+                    builder: (context, provider, child) {
+                      final discoverCircles =
+                          provider.circles
+                              .where(
+                                (circle) =>
+                                    !provider.joinedCircles.contains(circle.id),
+                              )
+                              .toList();
 
-          // Show the grid of circles
-          print(
-            'WisdomCirclesTab: Rendering grid with ${circles.length} circles',
-          );
-          return RefreshIndicator(
-            onRefresh: () => provider.fetchCircles(),
-            color: const Color(0xFFE91E63),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 0.85,
-                ),
-                itemCount: circles.length,
-                itemBuilder: (context, index) {
-                  final circle = circles[index];
-                  final isJoined = _joinedCircles.contains(circle.id);
-                  print(
-                    'WisdomCirclesTab: Building card ${index + 1}: ${circle.name}',
-                  );
+                      if (discoverCircles.isEmpty && provider.isLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                  return WisdomCircleCard(
-                    circle: circle,
-                    isJoined: isJoined,
-                    onTap: () {
-                      print('WisdomCirclesTab: Card tapped: ${circle.name}');
-                      context.go('/wisdom-circle/${circle.id}');
+                      return Column(
+                        children:
+                            discoverCircles.map((circle) {
+                              return WisdomCircleCard(
+                                circle: circle,
+                                isJoined: false,
+                                onTap:
+                                    () => provider.joinCircle(
+                                      circleId: circle.id,
+                                      userId: 'user123',
+                                    ),
+                              );
+                            }).toList(),
+                      );
                     },
-                  );
-                },
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Upcoming Live Chats Section
+                  const Text(
+                    'Upcoming Live Chats',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildLiveChatItem(
+                    'Marriage & Ministry',
+                    'Building Strong Foundations',
+                    'Tonight 8PM',
+                    Colors.purple,
+                  ),
+                  _buildLiveChatItem(
+                    'Healing & Hope',
+                    'Finding Peace in Storms',
+                    'Tomorrow 7PM',
+                    Colors.blue,
+                  ),
+                ],
               ),
             ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateCircleDialog,
-        backgroundColor: const Color(0xFFE91E63),
-        child: const Icon(Icons.add, color: Colors.white),
+          ),
+          // Bottom Navigation Bar
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.home, color: Colors.grey),
+                  onPressed: () {},
+                ),
+                IconButton(
+                  icon: const Icon(Icons.favorite, color: Colors.grey),
+                  onPressed: () {},
+                ),
+                IconButton(
+                  icon: const Icon(Icons.group, color: Colors.orange),
+                  onPressed: () {},
+                ),
+                IconButton(
+                  icon: const Icon(Icons.share, color: Colors.grey),
+                  onPressed: () {},
+                ),
+                IconButton(
+                  icon: const Icon(Icons.map, color: Colors.grey),
+                  onPressed: () {},
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chat, color: Colors.grey),
+                  onPressed: () {},
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  void _showCreateCircleDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Create New Circle'),
-          content: const Text(
-            'This feature will allow you to create your own wisdom circle for specific topics and discussions.',
+  Widget _buildLiveChatItem(
+    String title,
+    String subtitle,
+    String time,
+    Color color,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('🎉 Circle creation feature coming soon!'),
-                    backgroundColor: Color(0xFFE91E63),
+            child: Icon(Icons.videocam, color: color, size: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 177, 63, 101),
-              ),
-              child: const Text('Create'),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
             ),
-          ],
-        );
-      },
+          ),
+          Text(
+            time,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

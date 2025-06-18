@@ -4,7 +4,7 @@ import 'package:wisdomwalk/services/wisdom_circle_service.dart';
 
 class WisdomCircleProvider extends ChangeNotifier {
   final WisdomCircleService _wisdomCircleService = WisdomCircleService();
-
+  final Set<String> _joinedCircles = {'1', '3'};
   List<WisdomCircleModel> _circles = [];
   WisdomCircleModel? _selectedCircle;
   bool _isLoading = false;
@@ -12,19 +12,16 @@ class WisdomCircleProvider extends ChangeNotifier {
 
   // Getters
   List<WisdomCircleModel> get circles => _circles;
+  Set<String> get joinedCircles => _joinedCircles;
   WisdomCircleModel? get selectedCircle => _selectedCircle;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  // Constructor - Initialize with mock data immediately
   WisdomCircleProvider() {
-    print('WisdomCircleProvider: Constructor called');
     _initializeWithMockData();
   }
 
-  // Initialize with mock data immediately (no async needed)
   void _initializeWithMockData() {
-    print('WisdomCircleProvider: Initializing with mock data');
     _circles = [
       WisdomCircleModel(
         id: '1',
@@ -87,67 +84,19 @@ class WisdomCircleProvider extends ChangeNotifier {
         events: [],
       ),
     ];
-    print(
-      'WisdomCircleProvider: Mock data initialized with ${_circles.length} circles',
-    );
     notifyListeners();
   }
 
   Future<void> fetchCircles() async {
-    print('WisdomCircleProvider: fetchCircles() called');
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      print('WisdomCircleProvider: About to call service.getWisdomCircles()');
-      final fetchedCircles = await _wisdomCircleService.getWisdomCircles();
-      print(
-        'WisdomCircleProvider: Service returned ${fetchedCircles.length} circles',
-      );
-
-      _circles = fetchedCircles;
-      print(
-        'WisdomCircleProvider: Successfully set ${_circles.length} circles',
-      );
+      _circles = await _wisdomCircleService.getWisdomCircles();
     } catch (e) {
-      print('WisdomCircleProvider: Error in fetchCircles: $e');
       _error = e.toString();
-
-      // Fallback to mock data if service fails
-      print('WisdomCircleProvider: Using fallback mock data');
       _initializeWithMockData();
-    } finally {
-      _isLoading = false;
-      print(
-        'WisdomCircleProvider: fetchCircles completed, notifying listeners',
-      );
-      notifyListeners();
-    }
-  }
-
-  // Force refresh method for debugging
-  void forceRefresh() {
-    print('WisdomCircleProvider: forceRefresh() called');
-    _initializeWithMockData();
-  }
-
-  Future<void> fetchCircleDetails(String circleId) async {
-    print('WisdomCircleProvider: fetchCircleDetails($circleId) called');
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      _selectedCircle = await _wisdomCircleService.getWisdomCircleDetails(
-        circleId,
-      );
-      print(
-        'WisdomCircleProvider: Circle details fetched for ${_selectedCircle?.name}',
-      );
-    } catch (e) {
-      print('WisdomCircleProvider: Error fetching circle details: $e');
-      _error = e.toString();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -160,26 +109,18 @@ class WisdomCircleProvider extends ChangeNotifier {
   }) async {
     try {
       await _wisdomCircleService.joinCircle(circleId: circleId, userId: userId);
-
-      // Update the circle member count
+      _joinedCircles.add(circleId);
       final index = _circles.indexWhere((circle) => circle.id == circleId);
       if (index != -1) {
-        _circles[index] = WisdomCircleModel(
-          id: _circles[index].id,
-          name: _circles[index].name,
-          description: _circles[index].description,
-          imageUrl: _circles[index].imageUrl,
+        _circles[index] = _circles[index].copyWith(
           memberCount: _circles[index].memberCount + 1,
-          messages: _circles[index].messages,
-          pinnedMessages: _circles[index].pinnedMessages,
-          events: _circles[index].events,
         );
       }
-
       notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+      notifyListeners();
       return false;
     }
   }
@@ -193,27 +134,36 @@ class WisdomCircleProvider extends ChangeNotifier {
         circleId: circleId,
         userId: userId,
       );
-
-      // Update the circle member count
+      _joinedCircles.remove(circleId);
       final index = _circles.indexWhere((circle) => circle.id == circleId);
       if (index != -1) {
-        _circles[index] = WisdomCircleModel(
-          id: _circles[index].id,
-          name: _circles[index].name,
-          description: _circles[index].description,
-          imageUrl: _circles[index].imageUrl,
+        _circles[index] = _circles[index].copyWith(
           memberCount: _circles[index].memberCount - 1,
-          messages: _circles[index].messages,
-          pinnedMessages: _circles[index].pinnedMessages,
-          events: _circles[index].events,
         );
       }
-
       notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
+      notifyListeners();
       return false;
+    }
+  }
+
+  Future<void> fetchCircleDetails(String circleId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      _selectedCircle = await _wisdomCircleService.getWisdomCircleDetails(
+        circleId,
+      );
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -237,25 +187,70 @@ class WisdomCircleProvider extends ChangeNotifier {
         final updatedMessages = List<WisdomCircleMessage>.from(
           _selectedCircle!.messages,
         )..add(message);
-
-        _selectedCircle = WisdomCircleModel(
-          id: _selectedCircle!.id,
-          name: _selectedCircle!.name,
-          description: _selectedCircle!.description,
-          imageUrl: _selectedCircle!.imageUrl,
-          memberCount: _selectedCircle!.memberCount,
-          messages: updatedMessages,
-          pinnedMessages: _selectedCircle!.pinnedMessages,
-          events: _selectedCircle!.events,
-        );
-
+        _selectedCircle = _selectedCircle!.copyWith(messages: updatedMessages);
         notifyListeners();
       }
-
       return true;
     } catch (e) {
       _error = e.toString();
+      notifyListeners();
       return false;
+    }
+  }
+
+  Future<bool> toggleLikeMessage({
+    required String circleId,
+    required String messageId,
+    required String userId,
+  }) async {
+    try {
+      final circle = _selectedCircle;
+      if (circle == null || circle.id != circleId) return false;
+
+      final updatedMessages =
+          circle.messages.map((message) {
+            if (message.id == messageId) {
+              final updatedLikes = List<String>.from(message.likes);
+              if (updatedLikes.contains(userId)) {
+                updatedLikes.remove(userId);
+              } else {
+                updatedLikes.add(userId);
+              }
+              return message.copyWith(likes: updatedLikes);
+            }
+            return message;
+          }).toList();
+
+      _selectedCircle = circle.copyWith(messages: updatedMessages);
+      notifyListeners();
+
+      await updateMessageLikes(
+        circleId: circleId,
+        messageId: messageId,
+        likes: updatedMessages.firstWhere((m) => m.id == messageId).likes,
+      );
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> updateMessageLikes({
+    required String circleId,
+    required String messageId,
+    required List<String> likes,
+  }) async {
+    try {
+      await _wisdomCircleService.updateMessageLikes(
+        circleId: circleId,
+        messageId: messageId,
+        likes: likes,
+      );
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
     }
   }
 
@@ -268,10 +263,4 @@ class WisdomCircleProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
   }
-
-  void toggleLikeMessage({
-    required String circleId,
-    required String messageId,
-    required String userId,
-  }) {}
 }

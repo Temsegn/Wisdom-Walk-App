@@ -1,13 +1,27 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wisdomwalk/models/chat_model.dart';
+import 'package:wisdomwalk/models/wisdom_circle_model.dart';
 import 'package:wisdomwalk/providers/auth_provider.dart';
+import 'package:wisdomwalk/providers/chat_provider.dart';
+import 'package:wisdomwalk/providers/chat_view_model.dart';
 import 'package:wisdomwalk/providers/prayer_provider.dart';
 import 'package:wisdomwalk/providers/wisdom_circle_provider.dart';
 import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
 import 'package:wisdomwalk/providers/her_move_provider.dart';
 import 'package:wisdomwalk/models/prayer_model.dart';
-import 'package:wisdomwalk/widgets/add_anonymous_share_button.dart';
+import 'package:wisdomwalk/widgets/add_prayer_modal.dart';
+import 'package:wisdomwalk/widgets/chat_card.dart';
+
+import 'package:universal_html/html.dart' as html; // For browser file picking
+import 'package:video_player/video_player.dart';
+
+import 'dart:async';
+
+// For browser file picking
+import 'package:flutter/foundation.dart'; // For kIsWeb
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -101,7 +115,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// Home Tab Implementation (keeping existing code)
+// HomeTab Implementation
 class HomeTab extends StatelessWidget {
   const HomeTab({Key? key}) : super(key: key);
 
@@ -512,7 +526,7 @@ class HomeTab extends StatelessWidget {
   }
 }
 
-// Updated Prayer Wall Tab Implementation
+// PrayerWallTab Implementation
 class PrayerWallTab extends StatefulWidget {
   const PrayerWallTab({Key? key}) : super(key: key);
 
@@ -805,111 +819,354 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
   }
 }
 
-// Keep existing implementations for other tabs...
+// WisdomCirclesTab Implementation
 class WisdomCirclesTab extends StatelessWidget {
   const WisdomCirclesTab({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text(
-          'Wisdom Circles',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(icon: const Icon(Icons.search), onPressed: () {}),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              context.go('/settings');
-            },
-          ),
-        ],
-      ),
-      body: Consumer<WisdomCircleProvider>(
-        builder: (context, circleProvider, child) {
-          if (circleProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (circleProvider.circles.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No circles yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Create or join a wisdom circle',
-                    style: TextStyle(color: Colors.grey[500]),
-                  ),
-                ],
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'Join topic-based communities for deeper connection',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+                textAlign: TextAlign.center,
               ),
-            );
-          }
+            ),
+            const Text(
+              'My Circles',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Consumer<WisdomCircleProvider>(
+              builder: (context, provider, child) {
+                final myCircles =
+                    provider.circles
+                        .where(
+                          (circle) =>
+                              provider.joinedCircles.contains(circle.id),
+                        )
+                        .toList();
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              await circleProvider.fetchCircles();
-            },
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: circleProvider.circles.length,
-              itemBuilder: (context, index) {
-                final circle = circleProvider.circles[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: const Color(0xFFE6E1F5),
-                      child: Text(
-                        circle.name[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Color(0xFFD4A017),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    title: Text(
-                      circle.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text('${circle.memberCount} members'),
-                    trailing: const Icon(Icons.arrow_forward_ios),
-                    onTap: () {
-                      context.go('/wisdom-circle/${circle.id}');
-                    },
-                  ),
+                if (myCircles.isEmpty && provider.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                return Column(
+                  children:
+                      myCircles.map((circle) {
+                        return WisdomCircleCard(
+                          circle: circle,
+                          isJoined: true,
+                          onTap:
+                              () => context.push('/wisdom-circle/${circle.id}'),
+                        );
+                      }).toList(),
                 );
               },
             ),
-          );
-        },
+            const SizedBox(height: 20),
+            const Text(
+              'Discover New Circles',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Consumer<WisdomCircleProvider>(
+              builder: (context, provider, child) {
+                final discoverCircles =
+                    provider.circles
+                        .where(
+                          (circle) =>
+                              !provider.joinedCircles.contains(circle.id),
+                        )
+                        .toList();
+
+                if (discoverCircles.isEmpty && provider.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                return Column(
+                  children:
+                      discoverCircles.map((circle) {
+                        return WisdomCircleCard(
+                          circle: circle,
+                          isJoined: false,
+                          onTap: () {
+                            final provider = Provider.of<WisdomCircleProvider>(
+                              context,
+                              listen: false,
+                            );
+                            provider.joinCircle(
+                              circleId: circle.id,
+                              userId: 'user123',
+                            );
+                          },
+                        );
+                      }).toList(),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Upcoming Live Chats',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            _buildLiveChatItem(
+              'Marriage & Ministry',
+              'Building Strong Foundations',
+              'Tonight 8PM',
+              Colors.purple,
+            ),
+            _buildLiveChatItem(
+              'Healing & Hope',
+              'Finding Peace in Storms',
+              'Tomorrow 7PM',
+              Colors.blue,
+            ),
+          ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Show create circle dialog
-        },
-        backgroundColor: const Color(0xFFD4A017),
-        child: const Icon(Icons.add),
+    );
+  }
+
+  Widget _buildLiveChatItem(
+    String title,
+    String subtitle,
+    String time,
+    Color color,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.videocam, color: color, size: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            time,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+// WisdomCircleCard Implementation
+class WisdomCircleCard extends StatefulWidget {
+  final WisdomCircleModel circle;
+  final bool isJoined;
+  final VoidCallback onTap;
+
+  const WisdomCircleCard({
+    Key? key,
+    required this.circle,
+    required this.isJoined,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  State<WisdomCircleCard> createState() => _WisdomCircleCardState();
+}
+
+class _WisdomCircleCardState extends State<WisdomCircleCard> {
+  @override
+  Widget build(BuildContext context) {
+    final provider = Provider.of<WisdomCircleProvider>(context, listen: false);
+    final hasNewMessages = true; // Simulate new messages for demo
+    final sampleMessage =
+        'Sarah: "Thank you all for the prayers! ✨"'; // Sample message
+
+    Color cardColor = _getCardColor();
+    String buttonText = widget.isJoined ? 'Open' : 'Join';
+    Color buttonColor = widget.isJoined ? Colors.green : Colors.grey[300]!;
+
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: _getIconColor(),
+                  child: Text(
+                    widget.circle.name[0],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.circle.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        widget.circle.description,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (widget.isJoined) {
+                      widget.onTap();
+                    } else {
+                      await provider.joinCircle(
+                        circleId: widget.circle.id,
+                        userId: 'user123',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('✅ Joined ${widget.circle.name}!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: buttonColor,
+                    foregroundColor:
+                        widget.isJoined ? Colors.white : Colors.black87,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                  ),
+                  child: Text(buttonText, style: const TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'ⓘ ${widget.circle.memberCount} members ${hasNewMessages ? '⭕ 3 new messages' : ''}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              sampleMessage,
+              style: TextStyle(fontSize: 12, color: Colors.black87),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getCardColor() {
+    switch (widget.circle.id) {
+      case '1': // Single & Purposeful
+        return const Color(0xFFFFE4E6); // Light pink
+      case '2': // Marriage & Ministry
+        return const Color(0xFFE8E4FF); // Light purple
+      case '3': // Motherhood in Christ
+        return const Color(0xFFE4F3FF); // Light blue
+      case '4': // Healing & Forgiveness
+        return const Color(0xFFE4FFE8); // Light green
+      case '5': // Mental Health & Faith
+        return const Color(0xFFFFF4E4); // Light orange
+      default:
+        return const Color(0xFFF5F5F5); // Light gray
+    }
+  }
+
+  Color _getIconColor() {
+    switch (widget.circle.id) {
+      case '1':
+        return const Color(0xFFE91E63); // Pink
+      case '2':
+        return const Color(0xFF9C27B0); // Purple
+      case '3':
+        return const Color(0xFF2196F3); // Blue
+      case '4':
+        return const Color(0xFF4CAF50); // Green
+      case '5':
+        return const Color(0xFFFF9800); // Orange
+      default:
+        return Colors.grey;
+    }
+  }
+}
+
+// AnonymousShareTab Implementation
 class AnonymousShareTab extends StatefulWidget {
   const AnonymousShareTab({Key? key}) : super(key: key);
 
@@ -1151,6 +1408,7 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
   }
 }
 
+// HerMoveTab Implementation
 class HerMoveTab extends StatelessWidget {
   const HerMoveTab({Key? key}) : super(key: key);
 
@@ -1317,7 +1575,12 @@ class HerMoveTab extends StatelessWidget {
   }
 }
 
-// New Personal Chat Tab Implementation - Mobile Friendly
+// PersonalChatTab Implementation
+
+// Define custom color constants
+const Color grey600 = Color(0xFF757575); // Approximate grey[600]
+const Color blue700 = Color(0xFF1976D2); // Exact blue[700]
+
 class PersonalChatTab extends StatefulWidget {
   const PersonalChatTab({Key? key}) : super(key: key);
 
@@ -1326,18 +1589,38 @@ class PersonalChatTab extends StatefulWidget {
 }
 
 class _PersonalChatTabState extends State<PersonalChatTab> {
-  String? selectedChatId;
+  final TextEditingController _messageController = TextEditingController();
+  dynamic _selectedFile; // Use dynamic for both html.File and File
+  VideoPlayerController? _videoController; // For video playback
+  bool _isDebug = true; // Manual debug flag
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _videoController?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (selectedChatId != null) {
-      return _buildChatScreen();
-    }
-
-    return _buildSistersListScreen();
+    return Consumer<ChatProvider>(
+      builder: (context, chatProvider, child) {
+        if (chatProvider.selectedChat != null) {
+          return _buildChatScreen(context, chatProvider);
+        }
+        return _buildSistersListScreen(context, chatProvider);
+      },
+    );
   }
 
-  Widget _buildSistersListScreen() {
+  Widget _buildSistersListScreen(
+    BuildContext context,
+    ChatProvider chatProvider,
+  ) {
+    if (chatProvider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -1354,61 +1637,35 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search, color: Colors.black),
-            onPressed: () {},
+            onPressed: () {
+              if (_isDebug) print('Search button pressed');
+            },
           ),
           IconButton(
             icon: const Icon(Icons.more_vert, color: Colors.black),
-            onPressed: () {},
+            onPressed: () {
+              if (_isDebug) print('More options button pressed');
+            },
           ),
         ],
       ),
-      body: ListView(
+      body: ListView.builder(
         padding: const EdgeInsets.all(16),
-        children: [
-          _buildSisterCard(
-            id: 'sarah',
-            name: 'Meron Getiye',
-            status: 'Online',
-            lastMessage: 'Hello sister! How are you doing today?',
-            time: '10:30 AM',
-            isOnline: true,
-            unreadCount: 2,
-          ),
-          const SizedBox(height: 12),
-          _buildSisterCard(
-            id: 'grace',
-            name: 'Betlhem Gedion',
-            status: '2 hours ago',
-            lastMessage: 'Thank you for your prayers 🙏',
-            time: '8:15 AM',
-            isOnline: false,
-            unreadCount: 0,
-          ),
-          const SizedBox(height: 12),
-          _buildSisterCard(
-            id: 'hannah',
-            name: 'Hanna Tsfaye',
-            status: 'Online',
-            lastMessage: 'See you at Bible study tonight!',
-            time: 'Yesterday',
-            isOnline: true,
-            unreadCount: 1,
-          ),
-          const SizedBox(height: 12),
-          _buildSisterCard(
-            id: 'ruth',
-            name: 'Bersabeh Tadesse',
-            status: '1 day ago',
-            lastMessage: 'Praying for your family ❤️',
-            time: '2 days ago',
-            isOnline: false,
-            unreadCount: 0,
-          ),
-        ],
+        itemCount: chatProvider.chats.length,
+        itemBuilder: (context, index) {
+          final chat = chatProvider.chats[index];
+          return ChatCard(
+            chat: chat,
+            onTap: () {
+              if (_isDebug) print('Tapped ${chat.name} with id: ${chat.id}');
+              chatProvider.selectChat(chat.id);
+            },
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Show new chat dialog
+          if (_isDebug) print('New chat button pressed');
         },
         backgroundColor: const Color(0xFFE91E63),
         child: const Icon(Icons.chat, color: Colors.white),
@@ -1416,205 +1673,59 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
     );
   }
 
-  Widget _buildSisterCard({
-    required String id,
-    required String name,
-    required String status,
-    required String lastMessage,
-    required String time,
-    required bool isOnline,
-    required int unreadCount,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Stack(
-          children: [
-            CircleAvatar(
-              backgroundColor: Colors.grey[300],
-              radius: 25,
-              child: Text(
-                name[0],
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black54,
-                  fontSize: 18,
-                ),
-              ),
-            ),
-            if (isOnline)
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            Text(time, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    lastMessage,
-                    style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (unreadCount > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFE91E63),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      unreadCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text(
-                  status,
-                  style: TextStyle(
-                    color: isOnline ? Colors.green : Colors.grey[500],
-                    fontSize: 12,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.phone, size: 20),
-                  onPressed: () {},
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.videocam, size: 20),
-                  onPressed: () {},
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-          ],
-        ),
-        onTap: () {
-          setState(() {
-            selectedChatId = id;
-          });
-        },
-      ),
-    );
-  }
-
-  Widget _buildChatScreen() {
+  Widget _buildChatScreen(BuildContext context, ChatProvider chatProvider) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.blueGrey[50],
         elevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () {
+            chatProvider.selectChat(null);
             setState(() {
-              selectedChatId = null;
+              _selectedFile = null;
+              _videoController?.dispose();
+              _videoController = null;
             });
           },
         ),
         title: Row(
           children: [
-            Stack(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Colors.grey[300],
-                  radius: 20,
-                  child: const Text(
-                    'S',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black54,
-                    ),
-                  ),
+            CircleAvatar(
+              backgroundColor: Colors.blueGrey[200],
+              radius: 20,
+              child: Text(
+                chatProvider.selectedChat!.name[0],
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                  fontSize: 18,
                 ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: Colors.green,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Seble M.',
-                    style: TextStyle(
+                    chatProvider.selectedChat!.name,
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
-                      color: Colors.black,
+                      color: Colors.black87,
                     ),
                   ),
                   Text(
-                    'Online',
-                    style: TextStyle(color: Colors.green, fontSize: 12),
+                    chatProvider.selectedChat!.status,
+                    style: TextStyle(
+                      color:
+                          chatProvider.selectedChat!.isOnline
+                              ? Colors.green[700]
+                              : grey600,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -1623,101 +1734,172 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.phone, color: Colors.black),
-            onPressed: () {},
+            icon: const Icon(Icons.phone, color: Colors.black87),
+            onPressed: chatProvider.makeCall,
           ),
           IconButton(
-            icon: const Icon(Icons.videocam, color: Colors.black),
-            onPressed: () {},
+            icon: const Icon(Icons.videocam, color: Colors.black87),
+            onPressed: chatProvider.startVideoCall,
           ),
           IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
-            onPressed: () {},
+            icon: const Icon(Icons.more_vert, color: Colors.black87),
+            onPressed: () {
+              if (_isDebug) print('More options in chat screen pressed');
+            },
           ),
         ],
       ),
       body: Column(
         children: [
           Expanded(
-            child: ListView(
+            child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              children: [
-                _buildMessage(
-                  message: 'Hello sister! How are you doing today?',
-                  time: '10:30 AM',
-                  isMe: false,
-                ),
-                const SizedBox(height: 16),
-                _buildMessage(
-                  message:
-                      'I\'m doing well, thank you! Praying for you today 🙏',
-                  time: '10:32 AM',
-                  isMe: true,
-                ),
-                const SizedBox(height: 16),
-                _buildMessage(
-                  message:
-                      'That means so much to me. How is your family doing?',
-                  time: '10:33 AM',
-                  isMe: false,
-                ),
-                const SizedBox(height: 16),
-                _buildMessage(
-                  message:
-                      'They\'re doing well, thank you for asking! My mom\'s surgery went great.',
-                  time: '10:35 AM',
-                  isMe: true,
-                ),
-              ],
+              itemCount: chatProvider.selectedChat!.messages.length,
+              itemBuilder: (context, index) {
+                final message = chatProvider.selectedChat!.messages[index];
+                return _buildMessage(message);
+              },
             ),
           ),
           Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: const BoxDecoration(
               color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey[200]!)),
+              border: Border(
+                top: BorderSide(color: Color(0xFFB0BEC5)),
+              ), // grey[300] approximated
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey,
+                  blurRadius: 4,
+                  offset: Offset(0, -2),
+                ),
+              ],
             ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.attach_file, color: Colors.grey),
-                    onPressed: () {},
-                  ),
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          hintText: 'Type your message...',
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.attach_file, color: grey600),
+                  onPressed: () async {
+                    if (kIsWeb) {
+                      // Browser file picking
+                      html.FileUploadInputElement input =
+                          html.FileUploadInputElement()
+                            ..accept = '.jpg,.jpeg,.png,.mp4,.pdf';
+                      input.click();
+                      input.onChange.listen((event) {
+                        final files = input.files;
+                        if (files != null && files.isNotEmpty) {
+                          final file = files[0];
+                          final reader = html.FileReader();
+                          reader.readAsArrayBuffer(file);
+                          reader.onLoadEnd.listen((event) {
+                            int fileSizeInBytes = file.size;
+                            const maxSizeInBytes = 16 * 1024 * 1024; // 16MB
+                            if (fileSizeInBytes <= maxSizeInBytes) {
+                              setState(() {
+                                _selectedFile = file; // Store as html.File
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('File selected successfully!'),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'File size exceeds 16MB limit.',
+                                  ),
+                                ),
+                              );
+                            }
+                          });
+                        }
+                      });
+                    } else {
+                      // Native file picking (for non-browser, though not applicable here)
+                      // This block won't run in browser, but kept for completeness
+                      FilePickerResult? result = await FilePicker.platform
+                          .pickFiles(
+                            type: FileType.custom,
+                            allowedExtensions: [
+                              'jpg',
+                              'jpeg',
+                              'png',
+                              'mp4',
+                              'pdf',
+                            ],
+                          );
+                      if (result != null) {
+                        setState(() {
+                          _selectedFile =
+                              result
+                                  .files
+                                  .single; // Use FilePickerResult for native
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('File selected successfully!'),
                           ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Color(0xFFF5F5F5), // grey[100] approximated
+                      borderRadius: BorderRadius.circular(
+                        20,
+                      ), // Fixed with const
+                    ),
+                    child: TextField(
+                      controller: _messageController,
+                      decoration: const InputDecoration(
+                        hintText: 'Type your message...',
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          vertical: 10,
+                          horizontal: 12,
                         ),
-                        maxLines: null,
                       ),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                      maxLines: null,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFE91E63),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.send, color: Colors.white),
-                      onPressed: () {
-                        // Handle send message
-                      },
-                    ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  decoration: const BoxDecoration(
+                    color: blue700,
+                    shape: BoxShape.circle,
                   ),
-                ],
-              ),
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    onPressed: () async {
+                      if (_messageController.text.isNotEmpty) {
+                        chatProvider.sendMessage(_messageController.text);
+                        _messageController.clear();
+                      }
+                      if (_selectedFile != null) {
+                        await chatProvider.sendFile(
+                          chatProvider.selectedChat!.id,
+                          _selectedFile,
+                        );
+                        setState(() {
+                          _selectedFile = null;
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1725,83 +1907,185 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
     );
   }
 
-  Widget _buildMessage({
-    required String message,
-    required String time,
-    required bool isMe,
-  }) {
-    return Row(
-      mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        if (!isMe) ...[
-          CircleAvatar(
-            backgroundColor: Colors.grey[300],
-            radius: 16,
-            child: const Text(
-              'S',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.black54,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-        Flexible(
-          child: Container(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.7,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: isMe ? const Color(0xFFE91E63) : Colors.grey[100],
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(20),
-                topRight: const Radius.circular(20),
-                bottomLeft: Radius.circular(isMe ? 20 : 4),
-                bottomRight: Radius.circular(isMe ? 4 : 20),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  message,
-                  style: TextStyle(
-                    color: isMe ? Colors.white : Colors.black87,
-                    fontSize: 15,
+  Widget _buildMessage(MessageModel message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment:
+            message.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!message.isMe)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: CircleAvatar(
+                backgroundColor: Colors.blueGrey[200],
+                radius: 16,
+                child: Text(
+                  message.senderId[0],
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  time,
-                  style: TextStyle(
-                    color: isMe ? Colors.white70 : Colors.grey[600],
-                    fontSize: 11,
+              ),
+            ),
+          Flexible(
+            child: Column(
+              crossAxisAlignment:
+                  message.isMe
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
+              children: [
+                if (message.filePath != null) _buildFileAttachment(message),
+                Container(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.65,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color:
+                        message.isMe
+                            ? blue700
+                            : const Color(0xFFECEFF1), // grey[200] approximated
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(12),
+                      topRight: const Radius.circular(12),
+                      bottomLeft: Radius.circular(message.isMe ? 12 : 4),
+                      bottomRight: Radius.circular(message.isMe ? 4 : 12),
+                    ),
+                  ),
+                  child: Text(
+                    message.content,
+                    style: TextStyle(
+                      color: message.isMe ? Colors.white : Colors.black87,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2.0),
+                  child: Text(
+                    message.time,
+                    style: TextStyle(
+                      color: message.isMe ? Colors.white70 : grey600,
+                      fontSize: 10,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-        if (isMe) ...[
-          const SizedBox(width: 8),
-          CircleAvatar(
-            backgroundColor: const Color(0xFFE91E63).withOpacity(0.2),
-            radius: 16,
-            child: const Text(
-              'M',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFFE91E63),
+          if (message.isMe)
+            Padding(
+              padding: const EdgeInsets.only(left: 8.0),
+              child: CircleAvatar(
+                backgroundColor: Colors.blue[100],
+                radius: 12,
+                child: const Text(
+                  'M',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
               ),
             ),
-          ),
         ],
-      ],
+      ),
     );
+  }
+
+  Widget _buildFileAttachment(MessageModel message) {
+    if (message.fileType == 'video') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8.0),
+        child: SizedBox(
+          height: 200,
+          child:
+              _videoController == null || !_videoController!.value.isInitialized
+                  ? FutureBuilder(
+                    future: _initializeVideoController(message.filePath!),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.done) {
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            VideoPlayer(_videoController!),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.play_arrow,
+                                color: Colors.white,
+                                size: 40,
+                              ),
+                              onPressed: () {
+                                _videoController!.play();
+                              },
+                            ),
+                          ],
+                        );
+                      } else {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                    },
+                  )
+                  : Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      VideoPlayer(_videoController!),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.play_arrow,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                        onPressed: () {
+                          _videoController!.play();
+                        },
+                      ),
+                    ],
+                  ),
+        ),
+      );
+    } else if (message.fileType == 'image') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8.0),
+        child: Image.network(
+          message.filePath!, // Use network image for browser
+          height: 200,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+        ),
+      );
+    } else if (message.fileType == 'pdf') {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8.0),
+        child: Container(
+          height: 200,
+          color: Colors.grey[300],
+          child: const Center(child: Text('PDF Preview')),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Future<void> _initializeVideoController(String filePath) async {
+    _videoController?.dispose();
+    _videoController = VideoPlayerController.network(
+        filePath,
+      ) // Use network for browser
+      ..initialize()
+          .then((_) {
+            setState(() {});
+          })
+          .catchError((error) {
+            if (_isDebug) print('Video initialization error: $error');
+          });
   }
 }

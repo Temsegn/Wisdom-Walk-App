@@ -18,13 +18,16 @@ class WisdomCircleDetailScreen extends StatefulWidget {
 class _WisdomCircleDetailScreenState extends State<WisdomCircleDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  bool _isJoined = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<WisdomCircleProvider>().fetchCircleDetails(widget.circleId);
+      final provider = context.read<WisdomCircleProvider>();
+      if (provider.selectedCircle == null ||
+          provider.selectedCircle!.id != widget.circleId) {
+        provider.fetchCircleDetails(widget.circleId);
+      }
     });
   }
 
@@ -87,8 +90,10 @@ class _WisdomCircleDetailScreenState extends State<WisdomCircleDetailScreen> {
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed:
-                        () => provider.fetchCircleDetails(widget.circleId),
+                    onPressed: () {
+                      provider.clearError();
+                      provider.fetchCircleDetails(widget.circleId);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE91E63),
                     ),
@@ -103,6 +108,12 @@ class _WisdomCircleDetailScreenState extends State<WisdomCircleDetailScreen> {
           if (circle == null) {
             return const Center(child: Text('Circle not found'));
           }
+
+          final authProvider = Provider.of<AuthProvider>(
+            context,
+            listen: false,
+          );
+          final isJoined = provider.joinedCircles.contains(widget.circleId);
 
           return Column(
             children: [
@@ -145,15 +156,16 @@ class _WisdomCircleDetailScreenState extends State<WisdomCircleDetailScreen> {
                           ),
                         ),
                         ElevatedButton(
-                          onPressed: _toggleJoinStatus,
+                          onPressed:
+                              () => _toggleJoinStatus(provider, authProvider),
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
-                                _isJoined
+                                isJoined
                                     ? Colors.grey[400]
                                     : const Color(0xFFE91E63),
                             foregroundColor: Colors.white,
                           ),
-                          child: Text(_isJoined ? 'Joined' : 'Join'),
+                          child: Text(isJoined ? 'Joined' : 'Join'),
                         ),
                       ],
                     ),
@@ -204,6 +216,9 @@ class _WisdomCircleDetailScreenState extends State<WisdomCircleDetailScreen> {
                           itemCount: circle.messages.length,
                           itemBuilder: (context, index) {
                             final message = circle.messages[index];
+                            final isLiked = message.likes.contains(
+                              authProvider.currentUser?.id ?? 'current_user',
+                            );
                             return Container(
                               margin: const EdgeInsets.only(bottom: 16),
                               padding: const EdgeInsets.all(16),
@@ -270,16 +285,19 @@ class _WisdomCircleDetailScreenState extends State<WisdomCircleDetailScreen> {
                                   Row(
                                     children: [
                                       InkWell(
-                                        onTap: () => _toggleLike(message.id),
+                                        onTap:
+                                            () => _toggleLike(
+                                              provider,
+                                              message.id,
+                                              isLiked,
+                                            ),
                                         child: Row(
                                           children: [
                                             Icon(
                                               Icons.favorite,
                                               size: 16,
                                               color:
-                                                  message.likes.contains(
-                                                        'current_user',
-                                                      )
+                                                  isLiked
                                                       ? Colors.red
                                                       : Colors.grey[400],
                                             ),
@@ -304,7 +322,7 @@ class _WisdomCircleDetailScreenState extends State<WisdomCircleDetailScreen> {
               ),
 
               // Message Input
-              if (_isJoined)
+              if (isJoined)
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -345,54 +363,78 @@ class _WisdomCircleDetailScreenState extends State<WisdomCircleDetailScreen> {
     );
   }
 
-  void _toggleJoinStatus() {
-    setState(() {
-      _isJoined = !_isJoined;
-    });
-
+  void _toggleJoinStatus(
+    WisdomCircleProvider provider,
+    AuthProvider authProvider,
+  ) async {
+    final isJoined = provider.joinedCircles.contains(widget.circleId);
+    if (isJoined) {
+      await provider.leaveCircle(
+        circleId: widget.circleId,
+        userId: authProvider.currentUser?.id ?? 'current_user',
+      );
+    } else {
+      await provider.joinCircle(
+        circleId: widget.circleId,
+        userId: authProvider.currentUser?.id ?? 'current_user',
+      );
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          _isJoined ? '🎉 Joined the circle!' : '👋 Left the circle',
+          isJoined ? '👋 Left the circle' : '🎉 Joined the circle!',
         ),
-        backgroundColor: _isJoined ? const Color(0xFFE91E63) : Colors.orange,
+        backgroundColor: isJoined ? Colors.orange : const Color(0xFFE91E63),
       ),
     );
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
-    final authProvider = context.read<AuthProvider>();
-    final circleProvider = context.read<WisdomCircleProvider>();
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final circleProvider = Provider.of<WisdomCircleProvider>(
+      context,
+      listen: false,
+    );
 
-    circleProvider.sendMessage(
+    final success = circleProvider.sendMessage(
       circleId: widget.circleId,
       userId: authProvider.currentUser?.id ?? 'current_user',
       userName: authProvider.currentUser?.fullName ?? 'You',
       content: _messageController.text.trim(),
     );
 
-    _messageController.clear();
-
-    // Scroll to bottom
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
+    if (await success) {
+      _messageController.clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to send message'),
+          backgroundColor: Colors.red,
+        ),
       );
-    });
+    }
   }
 
-  void _toggleLike(String messageId) {
-    final authProvider = context.read<AuthProvider>();
-    final circleProvider = context.read<WisdomCircleProvider>();
-
-    circleProvider.toggleLikeMessage(
+  void _toggleLike(
+    WisdomCircleProvider provider,
+    String messageId,
+    bool isLiked,
+  ) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.currentUser?.id ?? 'current_user';
+    await provider.toggleLikeMessage(
       circleId: widget.circleId,
       messageId: messageId,
-      userId: authProvider.currentUser?.id ?? 'current_user',
+      userId: userId,
     );
   }
 

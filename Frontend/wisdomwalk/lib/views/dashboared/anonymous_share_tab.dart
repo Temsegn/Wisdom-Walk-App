@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
 import 'package:wisdomwalk/providers/auth_provider.dart';
 import 'package:wisdomwalk/models/anonymous_share_model.dart';
-import 'package:wisdomwalk/widgets/anonymous_share_card.dart';
-import 'package:go_router/go_router.dart';
 
 class AnonymousShareTab extends StatefulWidget {
   const AnonymousShareTab({Key? key}) : super(key: key);
@@ -16,17 +14,13 @@ class AnonymousShareTab extends StatefulWidget {
 class _AnonymousShareTabState extends State<AnonymousShareTab>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final TextEditingController _shareController = TextEditingController();
-  AnonymousShareType _selectedType = AnonymousShareType.confession;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this); // Changed to 4 tabs
-    _tabController.addListener(_handleTabChange);
+    _tabController = TabController(length: 4, vsync: this);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Start with "All" tab showing all shares
       Provider.of<AnonymousShareProvider>(
         context,
         listen: false,
@@ -36,437 +30,534 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
 
   @override
   void dispose() {
-    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
-    _shareController.dispose();
     super.dispose();
-  }
-
-  void _handleTabChange() {
-    if (!_tabController.indexIsChanging) {
-      final provider = Provider.of<AnonymousShareProvider>(
-        context,
-        listen: false,
-      );
-      switch (_tabController.index) {
-        case 0:
-          provider.fetchAllShares(); // All shares
-          break;
-        case 1:
-          provider.setFilter(AnonymousShareType.confession);
-          break;
-        case 2:
-          provider.setFilter(AnonymousShareType.testimony);
-          break;
-        case 3:
-          provider.setFilter(AnonymousShareType.struggle);
-          break;
-      }
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final shareProvider = Provider.of<AnonymousShareProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context);
-    final shares = shareProvider.shares;
-    final isLoading = shareProvider.isLoading;
-    final error = shareProvider.error;
-
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
-      appBar: AppBar(
-        title: const Text(
-          'Anonymous Share',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              // Force refresh based on current tab
-              switch (_tabController.index) {
-                case 0:
-                  shareProvider.fetchAllShares();
-                  break;
-                case 1:
-                  shareProvider.setFilter(AnonymousShareType.confession);
-                  break;
-                case 2:
-                  shareProvider.setFilter(AnonymousShareType.testimony);
-                  break;
-                case 3:
-                  shareProvider.setFilter(AnonymousShareType.struggle);
-                  break;
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              context.go('/settings');
-            },
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Theme.of(context).primaryColor,
-          unselectedLabelColor: Theme.of(
-            context,
-          ).colorScheme.onBackground.withOpacity(0.7),
-          indicatorColor: Theme.of(context).primaryColor,
-          isScrollable: true,
-          tabs: const [
-            Tab(text: 'All'),
-            Tab(text: 'Confessions'),
-            Tab(text: 'Testimonies'),
-            Tab(text: 'Struggles'),
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(color: Colors.white),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF9C27B0).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.lock_outline,
+                          color: Color(0xFF9C27B0),
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Anonymous Share',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'A safe space to share your heart anonymously',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => _showAnonymousShareDialog(context),
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Share Anonymously'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF9C27B0),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Tab Bar
+            Container(
+              color: Colors.white,
+              child: TabBar(
+                controller: _tabController,
+                labelColor: const Color(0xFF9C27B0),
+                unselectedLabelColor: Colors.grey[600],
+                indicatorColor: const Color(0xFF9C27B0),
+                indicatorWeight: 3,
+                isScrollable: true,
+                tabs: const [
+                  Tab(text: 'All'),
+                  Tab(text: 'Testimony'),
+                  Tab(text: 'Struggle'),
+                  Tab(text: 'Confession'),
+                ],
+              ),
+            ),
+
+            // Content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildSharesList(null),
+                  _buildSharesList(AnonymousShareType.testimony),
+                  _buildSharesList(AnonymousShareType.struggle),
+                  _buildSharesList(AnonymousShareType.confession),
+                ],
+              ),
+            ),
           ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildShareList(
-            shares,
-            isLoading,
-            error,
-            shareProvider,
-            authProvider,
-            null, // All shares
-          ),
-          _buildShareList(
-            shares,
-            isLoading,
-            error,
-            shareProvider,
-            authProvider,
-            AnonymousShareType.confession,
-          ),
-          _buildShareList(
-            shares,
-            isLoading,
-            error,
-            shareProvider,
-            authProvider,
-            AnonymousShareType.testimony,
-          ),
-          _buildShareList(
-            shares,
-            isLoading,
-            error,
-            shareProvider,
-            authProvider,
-            AnonymousShareType.struggle,
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showAddAnonymousShareDialog(context);
-        },
-        backgroundColor: const Color(0xFFD4A017),
-        child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildShareList(
-    List<AnonymousShareModel> shares,
-    bool isLoading,
-    String? error,
-    AnonymousShareProvider shareProvider,
-    AuthProvider authProvider,
-    AnonymousShareType? type,
-  ) {
-    return isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : error != null
-        ? Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Error loading shares',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                error,
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  if (type == null) {
-                    shareProvider.fetchAllShares();
-                  } else {
-                    shareProvider.fetchShares(type: type);
-                  }
-                },
-                child: const Text('Retry'),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () {
-                  if (type == null) {
-                    shareProvider.forceRefreshAll();
-                  } else {
-                    shareProvider.forceRefresh(type);
-                  }
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                child: const Text('Force Refresh'),
-              ),
-            ],
-          ),
-        )
-        : shares.isEmpty
-        ? Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.mail_outline,
-                size: 64,
-                color: Theme.of(context).primaryColor.withOpacity(0.5),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                type == null
-                    ? 'No shares yet'
-                    : 'No ${_getTypeDisplayName(type)} yet',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Be the first to share anonymously',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  if (type == null) {
-                    shareProvider.fetchAllShares();
-                  } else {
-                    shareProvider.fetchShares(type: type);
-                  }
-                },
-                child: const Text('Refresh'),
-              ),
-            ],
-          ),
-        )
-        : RefreshIndicator(
+  Widget _buildSharesList(AnonymousShareType? filterType) {
+    return Consumer<AnonymousShareProvider>(
+      builder: (context, provider, child) {
+        // Get shares based on filter
+        List shares;
+        if (filterType == null) {
+          shares = _getMockShares();
+        } else {
+          shares =
+              _getMockShares()
+                  .where((share) => share['type'] == filterType)
+                  .toList();
+        }
+
+        if (shares.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lock_outline, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'No ${filterType?.toString().split('.').last ?? 'anonymous'} shares yet',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Be the first to share anonymously',
+                  style: TextStyle(color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
           onRefresh: () async {
-            if (type == null) {
-              await shareProvider.fetchAllShares();
-            } else {
-              await shareProvider.fetchShares(type: type);
-            }
+            await provider.fetchAllShares();
           },
-          color: Theme.of(context).primaryColor,
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: shares.length,
             itemBuilder: (context, index) {
               final share = shares[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: AnonymousShareCard(
-                  share: share,
-                  currentUserId: authProvider.currentUser?.id ?? '',
-                  onTap: () {
-                    context.go('/anonymous-share/${share.id}');
-                  },
-                ),
-              );
+              return _buildShareCard(share);
             },
           ),
         );
-  }
-
-  String _getTypeDisplayName(AnonymousShareType type) {
-    switch (type) {
-      case AnonymousShareType.confession:
-        return 'confessions';
-      case AnonymousShareType.testimony:
-        return 'testimonies';
-      case AnonymousShareType.struggle:
-        return 'struggles';
-    }
-  }
-
-  void _showAddAnonymousShareDialog(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (context) => Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Share Anonymously',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Type Selection
-                  const Text(
-                    'Select Type:',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTypeChip(
-                          'Confession',
-                          AnonymousShareType.confession,
-                          const Color(0xFFE91E63),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildTypeChip(
-                          'Testimony',
-                          AnonymousShareType.testimony,
-                          const Color(0xFF4CAF50),
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildTypeChip(
-                          'Struggle',
-                          AnonymousShareType.struggle,
-                          const Color(0xFFFF9800),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextField(
-                    controller: _shareController,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      hintText: 'Share what\'s on your heart anonymously...',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (_shareController.text.trim().isNotEmpty) {
-                            final authProvider = Provider.of<AuthProvider>(
-                              context,
-                              listen: false,
-                            );
-                            final shareProvider =
-                                Provider.of<AnonymousShareProvider>(
-                                  context,
-                                  listen: false,
-                                );
-
-                            final success = await shareProvider.addShare(
-                              userId:
-                                  authProvider.currentUser?.id ?? 'anonymous',
-                              content: _shareController.text.trim(),
-                              type: _selectedType,
-                            );
-
-                            Navigator.pop(context);
-                            _shareController.clear();
-
-                            if (success) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('✅ Shared anonymously'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('❌ Failed to share'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFD4A017),
-                        ),
-                        child: const Text('Share'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+      },
     );
   }
 
-  Widget _buildTypeChip(String label, AnonymousShareType type, Color color) {
-    final isSelected = _selectedType == type;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedType = type;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? color : color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color, width: isSelected ? 2 : 1),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : color,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 12,
+  Widget _buildShareCard(Map<String, dynamic> share) {
+    final typeColor = _getTypeColor(share['type']);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-          textAlign: TextAlign.center,
-        ),
+        ],
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: const Color(0xFF9C27B0).withOpacity(0.2),
+                child: const Text(
+                  'A',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF9C27B0),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Anonymous',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: typeColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  share['type'].toString().split('.').last.toUpperCase(),
+                  style: TextStyle(
+                    color: typeColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                share['time'],
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Content
+          Text(
+            share['content'],
+            style: const TextStyle(fontSize: 15, height: 1.4),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Actions
+          Row(
+            children: [
+              _buildActionButton(
+                icon: Icons.pan_tool,
+                label: '${share['prayingCount']}',
+                color: const Color(0xFF9C27B0),
+                onTap: () {},
+              ),
+              const SizedBox(width: 16),
+              _buildActionButton(
+                icon: Icons.favorite_outline,
+                label: '${share['heartsCount']}',
+                color: Colors.red,
+                onTap: () {},
+              ),
+              const SizedBox(width: 16),
+              _buildActionButton(
+                icon: Icons.chat_bubble_outline,
+                label: '${share['commentsCount']}',
+                color: Colors.grey[600]!,
+                onTap: () {},
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getTypeColor(AnonymousShareType type) {
+    switch (type) {
+      case AnonymousShareType.testimony:
+        return Colors.green;
+      case AnonymousShareType.struggle:
+        return Colors.orange;
+      case AnonymousShareType.confession:
+        return const Color(0xFF9C27B0);
+    }
+  }
+
+  List<Map<String, dynamic>> _getMockShares() {
+    return [
+      {
+        'type': AnonymousShareType.struggle,
+        'content':
+            'I\'ve been struggling with forgiveness. Someone hurt me deeply and I know God calls us to forgive, but my heart feels so heavy. How do you forgive when the pain is still so fresh?',
+        'time': '3 hours ago',
+        'prayingCount': 12,
+        'heartsCount': 15,
+        'commentsCount': 8,
+      },
+      {
+        'type': AnonymousShareType.testimony,
+        'content':
+            'Testimony: After years of infertility, God blessed us with our miracle baby. I want to encourage anyone waiting - His timing is perfect, even when we can\'t see it.',
+        'time': '1 day ago',
+        'prayingCount': 45,
+        'heartsCount': 67,
+        'commentsCount': 23,
+      },
+      {
+        'type': AnonymousShareType.confession,
+        'content':
+            'I need to confess that I\'ve been struggling with jealousy towards other women in my church. Their lives seem so perfect while mine feels like a mess. Please pray for my heart.',
+        'time': '2 days ago',
+        'prayingCount': 8,
+        'heartsCount': 12,
+        'commentsCount': 5,
+      },
+    ];
+  }
+
+  void _showAnonymousShareDialog(BuildContext context) {
+    final TextEditingController contentController = TextEditingController();
+    AnonymousShareType selectedType = AnonymousShareType.testimony;
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => Dialog(
+            backgroundColor: Colors.transparent,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.all(24),
+              child: StatefulBuilder(
+                builder:
+                    (context, setState) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF9C27B0).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.lock_outline,
+                                color: Color(0xFF9C27B0),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'Share Anonymously',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Category Dropdown
+                        const Text(
+                          'Category',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<AnonymousShareType>(
+                          value: selectedType,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                          ),
+                          items:
+                              AnonymousShareType.values.map((type) {
+                                return DropdownMenuItem(
+                                  value: type,
+                                  child: Text(
+                                    type
+                                        .toString()
+                                        .split('.')
+                                        .last
+                                        .toUpperCase(),
+                                  ),
+                                );
+                              }).toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                selectedType = value;
+                              });
+                            }
+                          },
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Content Input
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: TextField(
+                            controller: contentController,
+                            maxLines: 5,
+                            decoration: const InputDecoration(
+                              hintText: 'Share your heart...',
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.all(16),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Privacy Notice
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF9C27B0).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.lock_outline,
+                                color: Color(0xFF9C27B0),
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Your identity is completely protected. All posts are reviewed for safety.',
+                                  style: TextStyle(
+                                    color: const Color(0xFF9C27B0),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Action Buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text(
+                                  'Cancel',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 2,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  // Handle anonymous share submission
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Your anonymous share has been posted',
+                                      ),
+                                      backgroundColor: Color(0xFF9C27B0),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF9C27B0),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: const Text('Share Anonymously'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+              ),
+            ),
+          ),
     );
   }
 }

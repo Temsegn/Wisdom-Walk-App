@@ -1,4 +1,4 @@
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
 
 const messageSchema = new mongoose.Schema(
   {
@@ -7,56 +7,54 @@ const messageSchema = new mongoose.Schema(
       ref: "Chat",
       required: true,
     },
-
     sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-
     content: {
       type: String,
-      required: true,
-      maxlength: 2000,
+            required: true, // Kept as required
+      minlength: 1,
+      maxlength: 2000, // Removed required: true to allow encryptedContent-only messages
     },
-
+    encryptedContent: {
+      type: String, // Placeholder for encrypted message content
+    },
     messageType: {
       type: String,
-      enum: ["text", "image", "scripture", "prayer"],
+      enum: ["text", "image", "scripture", "prayer", "video", "document"],
       default: "text",
     },
-
-    // Media attachments
     attachments: [
       {
-        type: String, // URL to file
-        fileType: String,
+        type: { type: String }, // URL to file
+        fileType: { type: String, enum: ["image", "video", "document"] },
         fileName: String,
       },
     ],
-
-    // Scripture sharing
     scripture: {
       verse: String,
       reference: String,
     },
-
-    // Message status
+    forwardedFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message", // Reference to original message if forwarded
+    },
+    isPinned: {
+      type: Boolean,
+      default: false,
+    },
     isEdited: {
       type: Boolean,
       default: false,
     },
-
     editedAt: Date,
-
     isDeleted: {
       type: Boolean,
       default: false,
     },
-
     deletedAt: Date,
-
-    // Read receipts
     readBy: [
       {
         user: {
@@ -69,8 +67,6 @@ const messageSchema = new mongoose.Schema(
         },
       },
     ],
-
-    // Reactions
     reactions: [
       {
         user: {
@@ -84,8 +80,6 @@ const messageSchema = new mongoose.Schema(
         },
       },
     ],
-
-    // Reply to message
     replyTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",
@@ -93,11 +87,12 @@ const messageSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
-)
+  }
+);
 
 // Indexes
-messageSchema.index({ chat: 1, createdAt: -1 })
-messageSchema.index({ sender: 1 })
+messageSchema.index({ chat: 1, createdAt: -1 });
+messageSchema.index({ sender: 1 });
+messageSchema.index({ content: "text" }); // For message search
 
-module.exports = mongoose.model("Message", messageSchema)
+module.exports = mongoose.model("Message", messageSchema);

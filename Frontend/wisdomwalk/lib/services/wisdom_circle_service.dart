@@ -1,7 +1,6 @@
 import 'package:wisdomwalk/models/wisdom_circle_model.dart';
 
 class WisdomCircleService {
-  // Static mock data that's always available
   static final List<WisdomCircleModel> _mockCircles = [
     WisdomCircleModel(
       id: '1',
@@ -66,38 +65,22 @@ class WisdomCircleService {
   ];
 
   Future<List<WisdomCircleModel>> getWisdomCircles() async {
-    print('WisdomCircleService: getWisdomCircles() called');
-
-    // Simulate network delay
     await Future.delayed(const Duration(milliseconds: 100));
-
-    print('WisdomCircleService: Returning ${_mockCircles.length} circles');
-
-    // Return a copy of the mock data
-    final result = List<WisdomCircleModel>.from(_mockCircles);
-    print('WisdomCircleService: Created copy with ${result.length} circles');
-
-    return result;
+    return List<WisdomCircleModel>.from(_mockCircles);
   }
 
   Future<WisdomCircleModel> getWisdomCircleDetails(String circleId) async {
-    print('WisdomCircleService: getWisdomCircleDetails($circleId) called');
     await Future.delayed(const Duration(milliseconds: 100));
-
-    final circle = _mockCircles.firstWhere(
+    return _mockCircles.firstWhere(
       (circle) => circle.id == circleId,
       orElse: () => throw Exception('Circle not found'),
     );
-
-    print('WisdomCircleService: Found circle: ${circle.name}');
-    return circle;
   }
 
   Future<void> joinCircle({
     required String circleId,
     required String userId,
   }) async {
-    print('WisdomCircleService: joinCircle($circleId, $userId)');
     await Future.delayed(const Duration(milliseconds: 100));
   }
 
@@ -105,7 +88,6 @@ class WisdomCircleService {
     required String circleId,
     required String userId,
   }) async {
-    print('WisdomCircleService: leaveCircle($circleId, $userId)');
     await Future.delayed(const Duration(milliseconds: 100));
   }
 
@@ -116,9 +98,7 @@ class WisdomCircleService {
     String? userAvatar,
     required String content,
   }) async {
-    print('WisdomCircleService: sendMessage called');
     await Future.delayed(const Duration(milliseconds: 100));
-
     return WisdomCircleMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       userId: userId,
@@ -135,7 +115,7 @@ class WisdomCircleService {
     required String messageId,
     required List<String> likes,
   }) async {
-    print('WisdomCircleService: updateMessageLikes called');
     await Future.delayed(const Duration(milliseconds: 100));
+    // Simulate API update
   }
 }
