@@ -4,8 +4,12 @@ const adminController = require("../controllers/adminController")
 const { authenticateToken, requireAdmin, requirePermission } = require("../middleware/auth")
 
 // All routes require authentication and admin access
+router.get("/users", adminController.getAllUsers)
+
 router.use(authenticateToken)
+
 router.use(requireAdmin)
+
 
 // User verification
 router.get("/verifications/pending", requirePermission("verify_users"), adminController.getPendingVerifications)

@@ -5,7 +5,6 @@ const Notification = require("../models/Notification");
 const { getPaginationMeta } = require("../utils/helpers");
 const { saveMultipleFiles } = require("../utils/localStorageService");
 
-// Get user's chats
 const getUserChats = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -27,12 +26,9 @@ const getUserChats = async (req, res) => {
       isActive: true,
     });
 
-    // Format chats with unread count
     const formattedChats = await Promise.all(
       chats.map(async (chat) => {
         const chatObj = chat.toObject();
-
-        // Get unread messages count
         const userSettings = chat.participantSettings.find(
           (setting) => setting.user.toString() === userId.toString()
         );
@@ -54,7 +50,6 @@ const getUserChats = async (req, res) => {
 
         chatObj.unreadCount = unreadCount;
 
-        // For direct chats, get the other participant
         if (chat.type === "direct") {
           const otherParticipant = chat.participants.find(
             (p) => p._id.toString() !== userId.toString()
@@ -84,7 +79,6 @@ const getUserChats = async (req, res) => {
   }
 };
 
-// Create or get direct chat
 const createDirectChat = async (req, res) => {
   try {
     const { participantId } = req.body;
@@ -97,7 +91,6 @@ const createDirectChat = async (req, res) => {
       });
     }
 
-    // Check if user has blocked the participant
     const user = await User.findById(userId);
     if (user.blockedUsers.includes(participantId)) {
       return res.status(403).json({
@@ -106,7 +99,6 @@ const createDirectChat = async (req, res) => {
       });
     }
 
-    // Check if participant exists and is verified
     const participant = await User.findById(participantId);
     if (!participant || !participant.canAccess()) {
       return res.status(404).json({
@@ -115,14 +107,12 @@ const createDirectChat = async (req, res) => {
       });
     }
 
-    // Check if chat already exists
     let chat = await Chat.findOne({
       type: "direct",
       participants: { $all: [userId, participantId], $size: 2 },
     }).populate("participants", "firstName lastName profilePicture");
 
     if (!chat) {
-      // Create new chat
       chat = new Chat({
         type: "direct",
         participants: [userId, participantId],
@@ -151,7 +141,6 @@ const createDirectChat = async (req, res) => {
   }
 };
 
-// Get chat messages
 const getChatMessages = async (req, res) => {
   try {
     const { chatId } = req.params;
@@ -159,7 +148,6 @@ const getChatMessages = async (req, res) => {
     const userId = req.user._id;
     const skip = (page - 1) * limit;
 
-    // Check if user is participant in the chat
     const chat = await Chat.findOne({
       _id: chatId,
       participants: userId,
@@ -188,40 +176,30 @@ const getChatMessages = async (req, res) => {
       isDeleted: false,
     });
 
-    // Mark messages as read
-    const unreadMessages = await Message.find({
-      chat: chatId,
-      sender: { $ne: userId },
-      "readBy.user": { $ne: userId },
-    });
-
-    if (unreadMessages.length > 0) {
-      await Message.updateMany(
-        {
-          chat: chatId,
-          sender: { $ne: userId },
-          "readBy.user": { $ne: userId },
+    await Message.updateMany(
+      {
+        chat: chatId,
+        sender: { $ne: userId },
+        "readBy.user": { $ne: userId },
+      },
+      {
+        $push: {
+          readBy: {
+            user: userId,
+            readAt: new Date(),
+          },
         },
-        {
-          $push: {
-            readBy: {
-              user: userId,
-              readAt: new Date(),
-            },
-          },
-        }
-      );
+      }
+    );
 
-      // Update user's last read message
-      await Chat.updateOne(
-        { _id: chatId, "participantSettings.user": userId },
-        {
-          $set: {
-            "participantSettings.$.lastReadMessage": messages[0]?._id,
-          },
-        }
-      );
-    }
+    await Chat.updateOne(
+      { _id: chatId, "participantSettings.user": userId },
+      {
+        $set: {
+          "participantSettings.$.lastReadMessage": messages[0]?._id,
+        },
+      }
+    );
 
     res.json({
       success: true,
@@ -238,14 +216,13 @@ const getChatMessages = async (req, res) => {
   }
 };
 
-// Send message
 const sendMessage = async (req, res) => {
   try {
     const { chatId } = req.params;
     const { content, messageType = "text", scripture, replyToId, encryptedContent } = req.body;
     const userId = req.user._id;
+    const io = req.app.get("io");
 
-    // Check if user is participant in the chat
     const chat = await Chat.findOne({
       _id: chatId,
       participants: userId,
@@ -258,7 +235,6 @@ const sendMessage = async (req, res) => {
       });
     }
 
-    // Check if user has blocked any participant
     const user = await User.findById(userId);
     const otherParticipants = chat.participants.filter(
       (p) => p.toString() !== userId.toString()
@@ -275,15 +251,13 @@ const sendMessage = async (req, res) => {
       sender: userId,
       content,
       messageType,
-      encryptedContent, // Store encrypted content if provided
+      encryptedContent,
     };
 
-    // Handle scripture message
     if (messageType === "scripture" && scripture) {
       messageData.scripture = scripture;
     }
 
-    // Handle reply
     if (replyToId) {
       const replyToMessage = await Message.findById(replyToId);
       if (replyToMessage && replyToMessage.chat.toString() === chatId) {
@@ -291,12 +265,11 @@ const sendMessage = async (req, res) => {
       }
     }
 
-    // Handle file attachments
     if (req.files && req.files.length > 0) {
       const uploadResults = await saveMultipleFiles(req.files, "messages");
       messageData.attachments = uploadResults.map((result) => ({
         type: result.url,
-        fileType: result.fileType || "image", // Support image, video, document
+        fileType: result.fileType || "image",
         fileName: result.fileName,
       }));
     }
@@ -304,12 +277,10 @@ const sendMessage = async (req, res) => {
     const message = new Message(messageData);
     await message.save();
 
-    // Update chat's last message and activity
     chat.lastMessage = message._id;
     chat.lastActivity = new Date();
     await chat.save();
 
-    // Populate message data
     await message.populate("sender", "firstName lastName profilePicture");
     if (message.replyTo) {
       await message.populate("replyTo", "content sender");
@@ -318,24 +289,25 @@ const sendMessage = async (req, res) => {
       await message.populate("forwardedFrom", "content sender");
     }
 
-    // Create notifications for other participants (if not muted)
-    const notifications = otherParticipants
-      .filter(async (participantId) => {
-        const settings = chat.participantSettings.find(
-          (s) => s.user.toString() === participantId.toString()
-        );
-        return !settings.isMuted;
-      })
-      .map((participantId) => ({
-        recipient: participantId,
-        sender: userId,
-        type: "message",
-        title: "New message",
-        message: `${req.user.firstName} sent you a message`,
-        relatedChat: chatId,
-      }));
-
+    const notifications = [];
+    for (const participantId of otherParticipants) {
+      const settings = chat.participantSettings.find(
+        (s) => s.user.toString() === participantId.toString()
+      );
+      if (!settings.isMuted) {
+        notifications.push({
+          recipient: participantId,
+          sender: userId,
+          type: "message",
+          title: "New message",
+          message: `${req.user.firstName} sent you a message`,
+          relatedChat: chatId,
+        });
+      }
+    }
     await Notification.insertMany(notifications);
+
+    io.to(chatId).emit("newMessage", message);
 
     res.status(201).json({
       success: true,
@@ -352,12 +324,12 @@ const sendMessage = async (req, res) => {
   }
 };
 
-// Edit message
 const editMessage = async (req, res) => {
   try {
     const { messageId } = req.params;
     const { content, encryptedContent } = req.body;
     const userId = req.user._id;
+    const io = req.app.get("io");
 
     const message = await Message.findById(messageId);
     if (!message) {
@@ -374,7 +346,7 @@ const editMessage = async (req, res) => {
       });
     }
 
-    const timeLimit = 15 * 60 * 1000; // 15 minutes
+    const timeLimit = 15 * 60 * 1000;
     if (new Date() - new Date(message.createdAt) > timeLimit) {
       return res.status(403).json({
         success: false,
@@ -396,6 +368,8 @@ const editMessage = async (req, res) => {
       await message.populate("forwardedFrom", "content sender");
     }
 
+    io.to(message.chat.toString()).emit("messageEdited", message);
+
     res.json({
       success: true,
       message: "Message edited successfully",
@@ -411,12 +385,12 @@ const editMessage = async (req, res) => {
   }
 };
 
-// Add reaction to message
 const addReaction = async (req, res) => {
   try {
     const { messageId } = req.params;
     const { emoji } = req.body;
     const userId = req.user._id;
+    const io = req.app.get("io");
 
     const message = await Message.findById(messageId);
     if (!message) {
@@ -455,6 +429,8 @@ const addReaction = async (req, res) => {
 
     await message.save();
 
+    io.to(message.chat.toString()).emit("messageReaction", { messageId, reactions: message.reactions });
+
     res.json({
       success: true,
       message: existingReaction ? "Reaction removed" : "Reaction added",
@@ -472,11 +448,11 @@ const addReaction = async (req, res) => {
   }
 };
 
-// Delete message
 const deleteMessage = async (req, res) => {
   try {
     const { messageId } = req.params;
     const userId = req.user._id;
+    const io = req.app.get("io");
 
     const message = await Message.findById(messageId);
     if (!message) {
@@ -497,6 +473,8 @@ const deleteMessage = async (req, res) => {
     message.deletedAt = new Date();
     await message.save();
 
+    io.to(message.chat.toString()).emit("messageDeleted", { messageId });
+
     res.json({
       success: true,
       message: "Message deleted successfully",
@@ -511,7 +489,6 @@ const deleteMessage = async (req, res) => {
   }
 };
 
-// Block user
 const blockUser = async (req, res) => {
   try {
     const { userIdToBlock } = req.body;
@@ -550,7 +527,6 @@ const blockUser = async (req, res) => {
   }
 };
 
-// Unblock user
 const unblockUser = async (req, res) => {
   try {
     const { userIdToUnblock } = req.body;
@@ -574,14 +550,13 @@ const unblockUser = async (req, res) => {
   }
 };
 
-// Forward message
 const forwardMessage = async (req, res) => {
   try {
     const { messageId } = req.params;
     const { targetChatId } = req.body;
     const userId = req.user._id;
+    const io = req.app.get("io");
 
-    // Verify original message
     const originalMessage = await Message.findById(messageId);
     if (!originalMessage) {
       return res.status(404).json({
@@ -590,7 +565,6 @@ const forwardMessage = async (req, res) => {
       });
     }
 
-    // Verify target chat
     const targetChat = await Chat.findOne({
       _id: targetChatId,
       participants: userId,
@@ -602,7 +576,6 @@ const forwardMessage = async (req, res) => {
       });
     }
 
-    // Check for blocked users in target chat
     const user = await User.findById(userId);
     const otherParticipants = targetChat.participants.filter(
       (p) => p.toString() !== userId.toString()
@@ -614,7 +587,6 @@ const forwardMessage = async (req, res) => {
       });
     }
 
-    // Create forwarded message
     const forwardedMessage = new Message({
       chat: targetChatId,
       sender: userId,
@@ -628,35 +600,34 @@ const forwardMessage = async (req, res) => {
 
     await forwardedMessage.save();
 
-    // Update target chat
     targetChat.lastMessage = forwardedMessage._id;
     targetChat.lastActivity = new Date();
     await targetChat.save();
 
-    // Populate forwarded message
     await forwardedMessage.populate("sender", "firstName lastName profilePicture");
     if (forwardedMessage.forwardedFrom) {
       await forwardedMessage.populate("forwardedFrom", "content sender");
     }
 
-    // Create notifications for other participants (if not muted)
-    const notifications = otherParticipants
-      .filter(async (participantId) => {
-        const settings = targetChat.participantSettings.find(
-          (s) => s.user.toString() === participantId.toString()
-        );
-        return !settings.isMuted;
-      })
-      .map((participantId) => ({
-        recipient: participantId,
-        sender: userId,
-        type: "message",
-        title: "New forwarded message",
-        message: `${req.user.firstName} forwarded a message`,
-        relatedChat: targetChatId,
-      }));
-
+    const notifications = [];
+    for (const participantId of otherParticipants) {
+      const settings = targetChat.participantSettings.find(
+        (s) => s.user.toString() === participantId.toString()
+      );
+      if (!settings.isMuted) {
+        notifications.push({
+          recipient: participantId,
+          sender: userId,
+          type: "message",
+          title: "New forwarded message",
+          message: `${req.user.firstName} forwarded a message`,
+          relatedChat: targetChatId,
+        });
+      }
+    }
     await Notification.insertMany(notifications);
+
+    io.to(targetChatId).emit("newMessage", forwardedMessage);
 
     res.status(201).json({
       success: true,
@@ -673,7 +644,6 @@ const forwardMessage = async (req, res) => {
   }
 };
 
-// Delete chat
 const deleteChat = async (req, res) => {
   try {
     const { chatId } = req.params;
@@ -691,7 +661,6 @@ const deleteChat = async (req, res) => {
       });
     }
 
-    // For direct chats, mark as inactive for the user
     await Chat.updateOne(
       { _id: chatId, "participantSettings.user": userId },
       {
@@ -716,11 +685,11 @@ const deleteChat = async (req, res) => {
   }
 };
 
-// Pin message
 const pinMessage = async (req, res) => {
   try {
     const { chatId, messageId } = req.params;
     const userId = req.user._id;
+    const io = req.app.get("io");
 
     const chat = await Chat.findOne({
       _id: chatId,
@@ -756,6 +725,8 @@ const pinMessage = async (req, res) => {
       $addToSet: { pinnedMessages: messageId },
     });
 
+    io.to(chatId).emit("messagePinned", { messageId });
+
     res.json({
       success: true,
       message: "Message pinned successfully",
@@ -770,11 +741,11 @@ const pinMessage = async (req, res) => {
   }
 };
 
-// Unpin message
 const unpinMessage = async (req, res) => {
   try {
     const { chatId, messageId } = req.params;
     const userId = req.user._id;
+    const io = req.app.get("io");
 
     const chat = await Chat.findOne({
       _id: chatId,
@@ -803,6 +774,8 @@ const unpinMessage = async (req, res) => {
       $pull: { pinnedMessages: messageId },
     });
 
+    io.to(chatId).emit("messageUnpinned", { messageId });
+
     res.json({
       success: true,
       message: "Message unpinned successfully",
@@ -817,7 +790,6 @@ const unpinMessage = async (req, res) => {
   }
 };
 
-// Mute chat notifications
 const muteChat = async (req, res) => {
   try {
     const { chatId } = req.params;
@@ -856,7 +828,6 @@ const muteChat = async (req, res) => {
   }
 };
 
-// Unmute chat notifications
 const unmuteChat = async (req, res) => {
   try {
     const { chatId } = req.params;
@@ -895,7 +866,6 @@ const unmuteChat = async (req, res) => {
   }
 };
 
-// Search messages in a chat
 const searchMessages = async (req, res) => {
   try {
     const { chatId } = req.params;
@@ -948,35 +918,6 @@ const searchMessages = async (req, res) => {
   }
 };
 
-// Handle typing (placeholder, no real-time logic)
-const handleTyping = async (req, res) => {
-  try {
-    const { chatId } = req.params;
-    const userId = req.user._id;
-
-    const chat = await Chat.findOne({
-      _id: chatId,
-      participants: userId,
-    });
-
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: "Chat not found or access denied",
-      });
-    }
-
-    res.json({ success: true, message: "Typing event recorded" });
-  } catch (error) {
-    console.error("Typing event error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to record typing event",
-      error: error.message,
-    });
-  }
-};
-
 module.exports = {
   getUserChats,
   createDirectChat,
@@ -984,7 +925,6 @@ module.exports = {
   sendMessage,
   addReaction,
   deleteMessage,
-  handleTyping,
   editMessage,
   blockUser,
   unblockUser,

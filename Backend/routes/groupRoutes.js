@@ -45,4 +45,4 @@ router.delete("/:groupType/chats/:chatId/messages/:messageId", groupController.d
 // Toggle pin post (any member can pin/unpin)
 router.post("/:groupType/posts/:postId/pin", groupController.togglePinPost)
 
-module.exports = router
+module.exports = router 
