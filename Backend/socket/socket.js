@@ -106,7 +106,7 @@ module.exports = (io) => {
     });
 
     socket.on("stopTyping", ({ chatId }) => {
-      socket.to(chatId).emit("stopTyping", { userId: socket.user._id });
+      socket.to(chatId).emit("stopTypings", { userId: socket.user._id });
     });
   });
 };
