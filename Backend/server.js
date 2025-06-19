@@ -22,20 +22,12 @@ const reportRoutes = require("./routes/reportRoutes");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:5000",
-    credentials: true,
-  },
+  cors: { origin: '*', credentials: true },
 });
 
 app.use(cookieParser());
 app.use(helmet());
-app.use(
-  cors({
-    origin: "http://localhost:5000",
-    credentials: true,
-  })
-);
+app.use(cors({ origin: '*', credentials: true }));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,

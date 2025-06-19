@@ -29,7 +29,7 @@ router.post("/unblock", chatController.unblockUser);
 router.post("/messages/:messageId/forward", chatController.forwardMessage);
 router.delete("/:chatId", chatController.deleteChat);
 router.post("/:chatId/pin/:messageId", chatController.pinMessage);
-router.delete("/:chatId/pin/:messageId", chatController.unpinMessage);
+router.put("/:chatId/unpin/:messageId", chatController.unpinMessage);
 router.post("/:chatId/mute", chatController.muteChat);
 router.post("/:chatId/unmute", chatController.unmuteChat);
 router.get("/:chatId/messages/search", chatController.searchMessages);

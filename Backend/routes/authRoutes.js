@@ -3,7 +3,7 @@ const router = express.Router()
 const authController = require("../controllers/authController")
 const { validateRegistration, validateLogin } = require("../middleware/validation")
 const { uploadFields, handleUploadError } = require("../middleware/upload")
-   
+const {authenticateToken} = require("../middleware/auth")
 
 router.post(
   "/register",
@@ -27,7 +27,11 @@ router.post("/reset-password", authController.resetPassword)
 
 // Resend verification email
 router.post("/resend-verification", authController.resendVerificationEmail)
+
+// Change password
+router.post("/change-password", authenticateToken, authController.changePassword)
 router.post("/logout", authController.logout)
+
 module.exports = router
 
 

@@ -5,7 +5,13 @@ const User = require("../models/User")
 // Middleware to verify JWT stored in cookie
 const authenticateToken = async (req, res, next) => {
   try {
-    const token = req.cookies.token; // Get JWT from cookie
+    // Try cookie first
+    let token = req.cookies?.token;
+
+    // If no token in cookie, check Authorization header
+    if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+      token = req.headers.authorization.split(" ")[1];
+    }
 
     if (!token) {
       return res.status(401).json({
@@ -14,7 +20,8 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token,"wisdom");
+    // Verify token
+    const decoded = jwt.verify(token, "wisdom"); // ideally use process.env.JWT_SECRET
     const user = await User.findById(decoded.userId).select("-password");
 
     if (!user) {
@@ -24,7 +31,6 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Check user access rules
     if (!user.canAccess()) {
       return res.status(403).json({
         success: false,
@@ -38,30 +44,21 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    req.user = user; // Attach user to request
+    req.user = user;
     next();
   } catch (error) {
     if (error.name === "JsonWebTokenError") {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid token",
-      });
+      return res.status(401).json({ success: false, message: "Invalid token" });
     }
-
     if (error.name === "TokenExpiredError") {
-      return res.status(401).json({
-        success: false,
-        message: "Token expired",
-      });
+      return res.status(401).json({ success: false, message: "Token expired" });
     }
 
     console.error("Auth middleware error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Authentication failed",
-    });
+    res.status(500).json({ success: false, message: "Authentication failed" });
   }
 };
+
 
 
 // Check if user is admin

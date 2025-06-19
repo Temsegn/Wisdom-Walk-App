@@ -1,22 +1,22 @@
-const multer = require("multer")
-const path = require("path")
+const multer = require("multer");
+const path = require("path");
 
 // Configure multer for memory storage
-const storage = multer.memoryStorage()
+const storage = multer.memoryStorage();
 
 // File filter function
 const fileFilter = (req, file, cb) => {
   // Check file type
-  const allowedTypes = /jpeg|jpg|png|gif/
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase())
-  const mimetype = allowedTypes.test(file.mimetype)
+  const allowedTypes = /jpeg|jpg|png|gif/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
 
   if (mimetype && extname) {
-    return cb(null, true)
+    return cb(null, true);
   } else {
-    cb(new Error("Only images (JPEG, JPG, PNG, GIF) and PDF files are allowed"))
+    cb(new Error("Only images (JPEG, JPG, PNG, GIF) are allowed"));
   }
-}
+};
 
 // Configure multer
 const upload = multer({
@@ -25,16 +25,17 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: fileFilter,
-})
+});
 
 // Different upload configurations
-const uploadSingle = upload.single("file")
-const uploadMultiple = upload.array("files", 5) // Max 5 files
+const uploadSingle = upload.single("file"); // Generic single file upload
+const uploadProfilePicture = upload.single("profilePicture"); // For updateProfilePhoto
+const uploadMultiple = upload.array("files", 5); // Max 5 files
 const uploadFields = upload.fields([
   { name: "livePhoto", maxCount: 1 },
   { name: "nationalId", maxCount: 1 },
   { name: "profilePicture", maxCount: 1 },
-])
+]);
 
 // Error handling middleware for multer
 const handleUploadError = (err, req, res, next) => {
@@ -43,13 +44,19 @@ const handleUploadError = (err, req, res, next) => {
       return res.status(400).json({
         success: false,
         message: "File too large. Maximum size is 10MB.",
-      })
+      });
     }
     if (err.code === "LIMIT_FILE_COUNT") {
       return res.status(400).json({
         success: false,
         message: "Too many files. Maximum is 5 files.",
-      })
+      });
+    }
+    if (err.code === "LIMIT_UNEXPECTED_FILE") {
+      return res.status(400).json({
+        success: false,
+        message: `Unexpected field. Expected field name: ${err.field || "unknown"}`,
+      });
     }
   }
 
@@ -57,15 +64,16 @@ const handleUploadError = (err, req, res, next) => {
     return res.status(400).json({
       success: false,
       message: err.message,
-    })
+    });
   }
 
-  next(err)
-}
+  next(err);
+};
 
 module.exports = {
   uploadSingle,
+  uploadProfilePicture,
   uploadMultiple,
   uploadFields,
   handleUploadError,
-}
+};
