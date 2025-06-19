@@ -96,7 +96,6 @@ const register = async (req, res) => {
   }
 }
 
-module.exports = { register }
 
 
 // Verify email
@@ -386,6 +385,77 @@ const logout = async (req, res) => {
 };
 
 
+// Change password
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user._id; // From authenticate middleware
+
+    // Find user and include password for comparison
+    const user = await User.findById(userId).select("+password");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Verify current password
+    if (!(await user.comparePassword(currentPassword))) {
+      return res.status(401).json({
+        success: false,
+        message: "Current password is incorrect",
+      });
+    }
+
+    // Check if new password is same as current
+    if (await user.comparePassword(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        message: "New password cannot be the same as current password",
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    // Clear existing token cookie
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+    });
+
+    // Generate new token
+    const newToken = generateJWT(user._id);
+
+    res.cookie('token', newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    });
+
+    res.json({
+      success: true,
+      message: "Password changed successfully",
+      data: {
+        token: newToken,
+        user: formatUserResponse(user),
+      },
+    });
+  } catch (error) {
+    console.error("Change password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Password change failed",
+      error: error.message,
+    });
+  }
+};
+
 
 
 module.exports = {
@@ -395,5 +465,6 @@ module.exports = {
   requestPasswordReset,
   resetPassword,
   resendVerificationEmail,
+  changePassword,
   logout
 }

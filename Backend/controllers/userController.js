@@ -454,8 +454,38 @@ const unblockUser = async (req, res) => {
     });
   }
 };
+const updateProfilePhoto = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: "No photo uploaded" });
+        }
+        
+        const userId = req.user.id; // Assuming user ID is available from authenticateToken middleware
+        const photoUrl = `/uploads/${req.file.originalname}`; // Generate a simple URL based on original filename
 
+        // Update user's profile photo in the database
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { profilePicture: photoUrl },
+            { new: true, select: "profilePicture" }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json({
+            message: "Profile picture updated successfully",
+            profilePicture: updatedUser.profilePicture
+        });
+    } catch (error) {
+        console.error("Error updating profile picture:", error);
+        res.status(500).json({ message: "Server error while updating profile picture" });
+    }
+};
+ 
 module.exports = {
+  updateProfilePhoto,
   getProfile,
   updateProfile,
   joinGroup,

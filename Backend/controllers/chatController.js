@@ -82,7 +82,7 @@ const getUserChats = async (req, res) => {
 const createDirectChat = async (req, res) => {
   try {
     const { participantId } = req.body;
-    const userId = req.user._id;
+    const userId = req.user._id; 
 
     if (participantId === userId.toString()) {
       return res.status(400).json({
@@ -143,14 +143,14 @@ const createDirectChat = async (req, res) => {
 
 const getChatMessages = async (req, res) => {
   try {
-    const { chatId } = req.params;
+    const { chatId } = req.params; 
     const { page = 1, limit = 50 } = req.query;
     const userId = req.user._id;
     const skip = (page - 1) * limit;
 
     const chat = await Chat.findOne({
       _id: chatId,
-      participants: userId,
+      participants: userId, 
     });
 
     if (!chat) {
@@ -323,6 +323,7 @@ const sendMessage = async (req, res) => {
     });
   }
 };
+
 
 const editMessage = async (req, res) => {
   try {

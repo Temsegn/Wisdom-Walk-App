@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
 const { authenticateToken } = require("../middleware/auth");
-const { uploadSingle, handleUploadError } = require("../middleware/upload");
+const {uploadProfilePicture,uploadSingle, handleUploadError } = require("../middleware/upload");
 
 router.use(authenticateToken);
 
@@ -19,5 +19,5 @@ router.get("/posts/my", userController.getMyPosts);
 router.get("/search", userController.searchUsers);
 router.get("/:userId", userController.getUserById);
 router.get("/:userId/posts", userController.getUserPosts);
-
+router.put("/profile/photo", uploadProfilePicture, handleUploadError, userController.updateProfilePhoto);
 module.exports = router;
