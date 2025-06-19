@@ -54,7 +54,7 @@ class MessageModel {
   final String content;
   final String time;
   final bool isMe;
-  final String? filePath; // New field for file path or URL
+  final String? filePath; // New field for file path or Data URL
   final String? fileType; // New field for file type (e.g., image, video, pdf)
 
   MessageModel({

@@ -36,11 +36,15 @@ class ChatProvider with ChangeNotifier {
   }
 
   void selectChat(String? chatId) {
-    _selectedChat = _chats.firstWhere(
-      (chat) => chat.id == chatId,
-      orElse: () => _chats[0],
-    );
-    notifyListeners();
+    if (chatId == null) {
+      _selectedChat = null;
+    } else {
+      _selectedChat = _chats.firstWhere(
+        (chat) => chat.id == chatId,
+        orElse: () => _chats[0],
+      );
+    }
+    notifyListeners(); // <-- Keeps your UI updated
   }
 
   Future<void> sendMessage(String content) async {
@@ -87,7 +91,12 @@ class ChatProvider with ChangeNotifier {
           notifyListeners();
         }
       } else if (file is html.File) {
-        // Browser platform (placeholder, needs server upload)
+        // Browser platform
+        final reader = html.FileReader();
+        reader.readAsDataUrl(file);
+        await reader.onLoadEnd.first; // Wait for Data URL
+        final dataUrl = reader.result as String;
+
         if (_selectedChat != null) {
           final newMessage = MessageModel(
             id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -95,7 +104,7 @@ class ChatProvider with ChangeNotifier {
             content: 'File attached: ${file.name}',
             time: _formatTime(DateTime.now()),
             isMe: true,
-            filePath: 'https://example.com/${file.name}', // Placeholder URL
+            filePath: dataUrl, // Use Data URL for preview
             fileType: _getFileType(file.name),
           );
           _selectedChat!.messages.add(newMessage);

@@ -6,7 +6,7 @@ class AnonymousShareProvider extends ChangeNotifier {
   final AnonymousShareService _anonymousShareService = AnonymousShareService();
 
   List<AnonymousShareModel> _shares = [];
-  List<AnonymousShareModel> _allShares = []; // Store all shares separately
+  List<AnonymousShareModel> _allShares = [];
   AnonymousShareModel? _selectedShare;
   bool _isLoading = false;
   String? _error;
@@ -20,7 +20,6 @@ class AnonymousShareProvider extends ChangeNotifier {
   AnonymousShareType get filter => _filter;
   bool get showingAll => _showingAll;
 
-  // Constructor with immediate mock data
   AnonymousShareProvider() {
     print('AnonymousShareProvider: Constructor called');
     _initializeWithMockData();
@@ -30,7 +29,7 @@ class AnonymousShareProvider extends ChangeNotifier {
     print('AnonymousShareProvider: Initializing with mock data');
     try {
       _allShares = _anonymousShareService.getMockShares();
-      _shares = List.from(_allShares); // Start with all shares
+      _shares = List.from(_allShares);
       _showingAll = true;
       print(
         'AnonymousShareProvider: Initialized with ${_shares.length} shares',
@@ -59,7 +58,6 @@ class AnonymousShareProvider extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
       print('AnonymousShareProvider: Error fetching all shares: $e');
-      // Fallback to mock data
       _allShares = _anonymousShareService.getMockShares();
       _shares = List.from(_allShares);
       print(
@@ -92,7 +90,6 @@ class AnonymousShareProvider extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
       print('AnonymousShareProvider: Error fetching shares: $e');
-      // Fallback to filtered mock data
       final mockShares = _anonymousShareService.getMockShares();
       _shares = mockShares.where((share) => share.type == _filter).toList();
       print(
@@ -153,10 +150,7 @@ class AnonymousShareProvider extends ChangeNotifier {
         type: type,
       );
 
-      // Add to all shares
       _allShares.insert(0, share);
-
-      // Add to current view if appropriate
       if (_showingAll || type == _filter) {
         _shares.insert(0, share);
       }
@@ -207,7 +201,6 @@ class AnonymousShareProvider extends ChangeNotifier {
         createdAt: share.createdAt,
       );
 
-      // Update in all shares too
       final allIndex = _allShares.indexWhere((share) => share.id == shareId);
       if (allIndex != -1) {
         _allShares[allIndex] = _shares[index];
@@ -259,7 +252,6 @@ class AnonymousShareProvider extends ChangeNotifier {
         createdAt: share.createdAt,
       );
 
-      // Update in all shares too
       final allIndex = _allShares.indexWhere((share) => share.id == shareId);
       if (allIndex != -1) {
         _allShares[allIndex] = _shares[index];
@@ -306,7 +298,6 @@ class AnonymousShareProvider extends ChangeNotifier {
           createdAt: share.createdAt,
         );
 
-        // Update in all shares too
         final allIndex = _allShares.indexWhere((share) => share.id == shareId);
         if (allIndex != -1) {
           _allShares[allIndex] = _shares[index];
@@ -347,7 +338,6 @@ class AnonymousShareProvider extends ChangeNotifier {
         shareId: shareId,
         userId: userId,
       );
-
       return true;
     } catch (e) {
       _error = e.toString();

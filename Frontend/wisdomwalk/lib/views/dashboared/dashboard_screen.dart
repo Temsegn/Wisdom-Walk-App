@@ -5,8 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:wisdomwalk/models/chat_model.dart';
 import 'package:wisdomwalk/models/wisdom_circle_model.dart';
 import 'package:wisdomwalk/providers/auth_provider.dart';
+
 import 'package:wisdomwalk/providers/chat_provider.dart';
-import 'package:wisdomwalk/providers/chat_view_model.dart';
+
 import 'package:wisdomwalk/providers/prayer_provider.dart';
 import 'package:wisdomwalk/providers/wisdom_circle_provider.dart';
 import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
@@ -19,6 +20,13 @@ import 'package:universal_html/html.dart' as html; // For browser file picking
 import 'package:video_player/video_player.dart';
 
 import 'dart:async';
+import 'package:wisdomwalk/models/anonymous_share_model.dart';
+
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:wisdomwalk/models/anonymous_share_model.dart';
+import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
 
 // For browser file picking
 import 'package:flutter/foundation.dart'; // For kIsWeb
@@ -1167,6 +1175,7 @@ class _WisdomCircleCardState extends State<WisdomCircleCard> {
 }
 
 // AnonymousShareTab Implementation
+
 class AnonymousShareTab extends StatefulWidget {
   const AnonymousShareTab({Key? key}) : super(key: key);
 
@@ -1181,7 +1190,7 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this); // Add "All" tab
   }
 
   @override
@@ -1192,60 +1201,73 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text(
-          'Anonymous Share',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              context.go('/settings');
-            },
+    return Consumer<AnonymousShareProvider>(
+      builder: (context, shareProvider, child) {
+        return Scaffold(
+          backgroundColor: Colors.grey[50],
+          appBar: AppBar(
+            title: const Text(
+              'Anonymous Share',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () {
+                  context.go('/settings');
+                },
+              ),
+            ],
+            bottom: TabBar(
+              controller: _tabController,
+              labelColor: const Color(0xFFD4A017),
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: const Color(0xFFD4A017),
+              tabs: const [
+                Tab(text: 'All'),
+                Tab(text: 'Confessions'),
+                Tab(text: 'Testimonies'),
+                Tab(text: 'Struggles'),
+              ],
+            ),
           ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFFD4A017),
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: const Color(0xFFD4A017),
-          tabs: const [
-            Tab(text: 'Confessions'),
-            Tab(text: 'Testimonies'),
-            Tab(text: 'Struggles'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildShareList('confession'),
-          _buildShareList('testimony'),
-          _buildShareList('struggle'),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Show add anonymous share dialog
-        },
-        backgroundColor: const Color(0xFFD4A017),
-        child: const Icon(Icons.add),
-      ),
+          body: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildShareList(null), // All shares
+              _buildShareList('confession'),
+              _buildShareList('testimony'),
+              _buildShareList('struggle'),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              _showShareAnonymouslyModal(context, shareProvider);
+            },
+            backgroundColor: const Color(0xFFD4A017),
+            child: const Icon(Icons.add),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildShareList(String type) {
+  Widget _buildShareList(String? type) {
     return Consumer<AnonymousShareProvider>(
       builder: (context, shareProvider, child) {
-        final shares =
-            shareProvider.shares
-                .where((share) => share.type.toString().split('.').last == type)
-                .toList();
+        if (type == null) {
+          shareProvider.fetchAllShares(); // Fetch all shares for "All" tab
+        } else {
+          shareProvider.fetchShares(
+            type: AnonymousShareType.values.firstWhere(
+              (t) => t.toString().split('.').last == type,
+            ),
+          );
+        }
+
+        final shares = shareProvider.shares;
 
         if (shares.isEmpty) {
           return Center(
@@ -1255,7 +1277,7 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
                 Icon(Icons.mail_outline, size: 64, color: Colors.grey[400]),
                 const SizedBox(height: 16),
                 Text(
-                  'No ${type}s yet',
+                  'No ${type ?? 'shares'} yet',
                   style: TextStyle(
                     fontSize: 18,
                     color: Colors.grey[600],
@@ -1274,101 +1296,119 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
 
         return RefreshIndicator(
           onRefresh: () async {
-            await shareProvider.fetchShares();
+            if (type == null) {
+              await shareProvider.fetchAllShares();
+            } else {
+              await shareProvider.fetchShares(
+                type: AnonymousShareType.values.firstWhere(
+                  (t) => t.toString().split('.').last == type,
+                ),
+              );
+            }
           },
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: shares.length,
             itemBuilder: (context, index) {
               final share = shares[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getTypeColor(
-                                share.type.toString().split('.').last,
-                              ).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              share.type
-                                  .toString()
-                                  .split('.')
-                                  .last
-                                  .toUpperCase(),
-                              style: TextStyle(
+              return GestureDetector(
+                onTap: () {
+                  context.push('/anonymous-share/${share.id}');
+                },
+                child: Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
                                 color: _getTypeColor(
                                   share.type.toString().split('.').last,
+                                ).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                share.type
+                                    .toString()
+                                    .split('.')
+                                    .last
+                                    .toUpperCase(),
+                                style: TextStyle(
+                                  color: _getTypeColor(
+                                    share.type.toString().split('.').last,
+                                  ),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            _formatTimeAgo(share.createdAt),
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 12,
+                            const Spacer(),
+                            Text(
+                              _formatTimeAgo(share.createdAt),
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 12,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(share.content, style: const TextStyle(fontSize: 16)),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          TextButton.icon(
-                            onPressed: () {
-                              // Handle heart reaction
-                            },
-                            icon: const Icon(Icons.favorite_border, size: 18),
-                            label: Text('${share.heartCount}'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          share.content,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            TextButton.icon(
+                              onPressed: () {
+                                // Handle heart reaction (to be implemented)
+                              },
+                              icon: const Icon(Icons.favorite_border, size: 18),
+                              label: Text(
+                                '${share.heartCount} Hearts',
+                              ), // Updated to show "Hearts"
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          TextButton.icon(
-                            onPressed: () {
-                              // Handle prayer reaction
-                            },
-                            icon: const Icon(
-                              Icons.volunteer_activism_outlined,
-                              size: 18,
+                            const SizedBox(width: 16),
+                            TextButton.icon(
+                              onPressed: () {
+                                // Handle prayer reaction (to be implemented)
+                              },
+                              icon: const Icon(
+                                Icons.volunteer_activism_outlined,
+                                size: 18,
+                              ),
+                              label: Text('${share.prayerCount} Prayers'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFFD4A017),
+                              ),
                             ),
-                            label: Text('${share.prayerCount}'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFFD4A017),
+                            const SizedBox(width: 16),
+                            TextButton.icon(
+                              onPressed: () {
+                                // Handle virtual hug (to be implemented)
+                              },
+                              icon: const Icon(Icons.favorite, size: 18),
+                              label: Text('${share.hugCount} Hugs'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.pink,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          TextButton.icon(
-                            onPressed: () {
-                              // Handle virtual hug
-                            },
-                            icon: const Icon(Icons.favorite, size: 18),
-                            label: Text('${share.hugCount}'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.pink,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -1376,6 +1416,18 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
           ),
         );
       },
+    );
+  }
+
+  void _showShareAnonymouslyModal(
+    BuildContext context,
+    AnonymousShareProvider shareProvider,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ShareAnonymouslyModal(shareProvider: shareProvider),
     );
   }
 
@@ -1405,6 +1457,170 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
     } else {
       return 'Just now';
     }
+  }
+}
+
+class ShareAnonymouslyModal extends StatefulWidget {
+  final AnonymousShareProvider shareProvider;
+
+  const ShareAnonymouslyModal({Key? key, required this.shareProvider})
+    : super(key: key);
+
+  @override
+  State<ShareAnonymouslyModal> createState() => _ShareAnonymouslyModalState();
+}
+
+class _ShareAnonymouslyModalState extends State<ShareAnonymouslyModal> {
+  final _formKey = GlobalKey<FormState>();
+  final _contentController = TextEditingController();
+  AnonymousShareType _selectedType = AnonymousShareType.testimony;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Share Anonymously',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Your identity is completely protected. All posts are reviewed for safety.',
+              style: TextStyle(color: Colors.purple),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<AnonymousShareType>(
+              value: _selectedType,
+              decoration: const InputDecoration(labelText: 'Category'),
+              items:
+                  AnonymousShareType.values.map((type) {
+                    return DropdownMenuItem<AnonymousShareType>(
+                      value: type,
+                      child: Text(type.toString().split('.').last.capitalize()),
+                    );
+                  }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedType = value!;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _contentController,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                hintText: 'Share your heart...',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty)
+                  return 'Please enter your content';
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _submitShare,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                  ),
+                  child:
+                      _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('Share Anonymously'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _submitShare() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please log in to share')));
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    final success = await widget.shareProvider.addShare(
+      userId: user.id,
+      content: _contentController.text.trim(),
+      type: _selectedType,
+    );
+
+    setState(() => _isLoading = false);
+    if (success) {
+      Navigator.pop(context); // Close the modal
+      final newShare = widget.shareProvider.shares.firstWhere(
+        (share) =>
+            share.userId == user.id &&
+            share.content == _contentController.text.trim(),
+      );
+      context.push(
+        '/anonymous-share/${newShare.id}',
+      ); // Navigate to the new share's detail page
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Share posted successfully')),
+      );
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to post share')));
+    }
+  }
+}
+
+extension StringExtension on String {
+  String capitalize() {
+    return "${this[0].toUpperCase()}${this.substring(1).toLowerCase()}";
   }
 }
 
@@ -1654,10 +1870,12 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
         itemCount: chatProvider.chats.length,
         itemBuilder: (context, index) {
           final chat = chatProvider.chats[index];
+
           return ChatCard(
             chat: chat,
             onTap: () {
               if (_isDebug) print('Tapped ${chat.name} with id: ${chat.id}');
+
               chatProvider.selectChat(chat.id);
             },
           );
@@ -1785,7 +2003,7 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
                       // Browser file picking
                       html.FileUploadInputElement input =
                           html.FileUploadInputElement()
-                            ..accept = '.jpg,.jpeg,.png,.mp4,.pdf';
+                            ..accept = '.jpg,.jpeg,.png,.mp4,.mp3,.pdf';
                       input.click();
                       input.onChange.listen((event) {
                         final files = input.files;

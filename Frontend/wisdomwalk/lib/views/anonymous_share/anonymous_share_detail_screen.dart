@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:wisdomwalk/models/anonymous_share_model.dart';
 import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
 import 'package:wisdomwalk/providers/auth_provider.dart';
-import 'package:wisdomwalk/models/anonymous_share_model.dart';
 import 'package:intl/intl.dart';
 
 class AnonymousShareDetailScreen extends StatefulWidget {
@@ -222,7 +222,6 @@ class _AnonymousShareDetailScreenState
         ),
         OutlinedButton.icon(
           onPressed: () {
-            // Send virtual hug
             _sendVirtualHug(context, shareProvider, currentUserId);
           },
           icon: const Icon(Icons.favorite),
@@ -315,7 +314,7 @@ class _AnonymousShareDetailScreenState
                 Row(
                   children: [
                     Text(
-                      'Anonymous Sister',
+                      comment.userName ?? 'Anonymous Sister',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
