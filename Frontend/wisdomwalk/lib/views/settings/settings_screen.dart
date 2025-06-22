@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:wisdomwalk/providers/auth_provider.dart';
+import 'package:wisdomwalk/views/settings/profile_settings_screen.dart';
 import 'package:go_router/go_router.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -22,10 +23,15 @@ class SettingsScreen extends StatelessWidget {
               _buildSettingsTile(
                 context,
                 icon: Icons.person,
-                title: 'Profile',
-                subtitle: 'Edit your profile information',
+                title: 'Profile & Settings',
+                subtitle: 'Edit your profile and preferences',
                 onTap: () {
-                  context.go('/edit-profile');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfileSettingsScreen(),
+                    ),
+                  );
                 },
               ),
               _buildSettingsTile(

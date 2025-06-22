@@ -16,167 +16,191 @@ class LocationRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMyRequest = request.userId == currentUserId;
+    final dateFormat = DateFormat('MMM d, yyyy');
     final timeAgo = _getTimeAgo(request.createdAt);
-    final moveDate = DateFormat('MMM d, yyyy').format(request.moveDate);
 
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardTheme.color,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: const Color(0xFFE8E2DB)),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                _buildAvatar(context),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        request.userName,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        timeAgo,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with user info
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundImage:
+                        request.userAvatar != null
+                            ? NetworkImage(request.userAvatar!)
+                            : null,
+                    backgroundColor: const Color(0xFFE91E63).withOpacity(0.2),
+                    child:
+                        request.userAvatar == null
+                            ? const Icon(
+                              Icons.person,
+                              color: Color(0xFFE91E63),
+                              size: 20,
+                            )
+                            : null,
                   ),
-                ),
-                if (isMyRequest)
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          request.userName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          timeAgo,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Move date badge
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
+                      color: const Color(0xFFE91E63).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'Your Request',
-                      style: TextStyle(
-                        color: Theme.of(context).primaryColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                      dateFormat.format(request.moveDate),
+                      style: const TextStyle(
+                        color: Color(0xFFE91E63),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  Icons.location_on,
-                  size: 16,
-                  color: Theme.of(context).primaryColor,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${request.city}, ${request.country}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 16,
-                  color: Theme.of(context).primaryColor,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Moving on $moveDate',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              request.description,
-              style: Theme.of(context).textTheme.bodyMedium,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.comment_outlined,
-                      size: 16,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onBackground.withOpacity(0.5),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${request.responses.length} responses',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                OutlinedButton(
-                  onPressed: onTap,
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Destination
+              Row(
+                children: [
+                  const Icon(
+                    Icons.location_on,
+                    color: Color(0xFFE91E63),
+                    size: 16,
                   ),
-                  child: Text(isMyRequest ? 'View Responses' : 'Respond'),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Moving to ${request.city}, ${request.country}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Description
+              Text(
+                request.description,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: Colors.black87,
                 ),
-              ],
-            ),
-          ],
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 16),
+
+              // Bottom row with responses and action button
+              Row(
+                children: [
+                  Icon(
+                    Icons.comment_outlined,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${request.responses.length} ${request.responses.length == 1 ? 'response' : 'responses'}',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+                  const Spacer(),
+                  if (request.userId != currentUserId)
+                    ElevatedButton(
+                      onPressed: onTap,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE91E63),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Offer Help',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Your Request',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
-  }
-
-  Widget _buildAvatar(BuildContext context) {
-    if (request.userAvatar == null) {
-      return Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Center(
-          child: Icon(
-            Icons.person,
-            color: Theme.of(context).primaryColor,
-            size: 24,
-          ),
-        ),
-      );
-    } else {
-      return CircleAvatar(
-        radius: 20,
-        backgroundImage: NetworkImage(request.userAvatar!),
-      );
-    }
   }
 
   String _getTimeAgo(DateTime dateTime) {

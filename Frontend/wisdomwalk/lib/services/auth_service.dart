@@ -152,6 +152,7 @@ class AuthService {
     String? country,
     String? avatarPath,
     List<String>? wisdomCircleInterests,
+    String? bio,
   }) async {
     // Simulate API call delay
     await Future.delayed(const Duration(seconds: 2));
