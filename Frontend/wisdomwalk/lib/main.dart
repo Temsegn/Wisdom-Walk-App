@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:wisdomwalk/providers/chat_provider.dart';
 import 'package:wisdomwalk/providers/chat_view_model.dart';
+import 'package:wisdomwalk/providers/notification_provider.dart';
 import 'package:wisdomwalk/routing/app_routing.dart';
 import 'package:provider/provider.dart';
 import 'package:wisdomwalk/providers/auth_provider.dart';
@@ -33,6 +34,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AnonymousShareProvider()),
         ChangeNotifierProvider(create: (_) => HerMoveProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {

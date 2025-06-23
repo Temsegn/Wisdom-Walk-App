@@ -22,11 +22,8 @@ import 'package:video_player/video_player.dart';
 import 'dart:async';
 import 'package:wisdomwalk/models/anonymous_share_model.dart';
 
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
-import 'package:wisdomwalk/models/anonymous_share_model.dart';
-import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
+import 'package:wisdomwalk/providers/notification_provider.dart';
+import 'package:url_launcher/url_launcher.dart'; // For sharing links
 
 // For browser file picking
 import 'package:flutter/foundation.dart'; // For kIsWeb
@@ -124,6 +121,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 // HomeTab Implementation
+
+// HomeTab Implementation
 class HomeTab extends StatelessWidget {
   const HomeTab({Key? key}) : super(key: key);
 
@@ -142,13 +141,49 @@ class HomeTab extends StatelessWidget {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.notifications_outlined,
-              color: Color(0xFF4A4A4A),
-            ),
-            onPressed: () {},
+          Consumer<NotificationProvider>(
+            builder: (context, notificationProvider, child) {
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_outlined,
+                      color: Color(0xFF4A4A4A),
+                    ),
+                    onPressed: () {
+                      context.go('/notifications');
+                    },
+                  ),
+                  if (notificationProvider.unreadCount > 0)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE91E63),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          '${notificationProvider.unreadCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
+          const SizedBox(width: 10),
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: Color(0xFF4A4A4A)),
             onPressed: () {
@@ -164,7 +199,7 @@ class HomeTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildDailyVerse(),
+                _buildDailyVerse(context),
                 const SizedBox(height: 24),
                 _buildFeaturedTestimony(),
                 const SizedBox(height: 24),
@@ -179,7 +214,13 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildDailyVerse() {
+  Widget _buildDailyVerse(BuildContext context) {
+    const String verseText =
+        '"She is clothed with strength and dignity, and she laughs without fear of the future."';
+    const String verseReference = 'Proverbs 31:25';
+    const String shareMessage =
+        'Check out today\'s Daily Verse from WisdomWalk:\n\n$verseText\n$verseReference\n\nJoin me on WisdomWalk for more inspiration! https://wisdomwalk.app';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -204,7 +245,7 @@ class HomeTab extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           const Text(
-            '"She is clothed with strength and dignity, and she laughs without fear of the future."',
+            verseText,
             style: TextStyle(
               fontSize: 18,
               fontStyle: FontStyle.italic,
@@ -213,7 +254,7 @@ class HomeTab extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           const Text(
-            'Proverbs 31:25',
+            verseReference,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -225,7 +266,9 @@ class HomeTab extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: () {
+                  _showShareModal(context, shareMessage);
+                },
                 icon: const Icon(Icons.share, size: 16),
                 label: const Text('Share'),
                 style: OutlinedButton.styleFrom(
@@ -254,6 +297,156 @@ class HomeTab extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showShareModal(BuildContext context, String shareMessage) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Share Daily Verse',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF4A4A4A),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildShareIcon(
+                    context: context,
+                    iconPath: 'assets/images/whatsapp_icon.png',
+                    label: 'WhatsApp',
+                    onTap: () => _shareToWhatsApp(context, shareMessage),
+                  ),
+                  _buildShareIcon(
+                    context: context,
+                    iconPath: 'assets/images/facebook_icon.png',
+                    label: 'Facebook',
+                    onTap: () => _shareToFacebook(context, shareMessage),
+                  ),
+                  _buildShareIcon(
+                    context: context,
+                    iconPath: 'assets/images/twitter_icon.png',
+                    label: 'Twitter',
+                    onTap: () => _shareToTwitter(context, shareMessage),
+                  ),
+                  _buildShareIcon(
+                    context: context,
+                    iconPath: 'assets/images/telegram_icon.png',
+                    label: 'Telegram',
+                    onTap: () => _shareToTelegram(context, shareMessage),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Color(0xFFD4A017), fontSize: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildShareIcon({
+    required BuildContext context,
+    required String iconPath,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.grey[100],
+            ),
+            child: Image.asset(iconPath, width: 40, height: 40),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF4A4A4A)),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _shareToWhatsApp(BuildContext context, String message) async {
+    final encodedMessage = Uri.encodeComponent(message);
+    final url = 'https://wa.me/?text=$encodedMessage';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+      Navigator.pop(context); // Close the modal
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open WhatsApp')));
+    }
+  }
+
+  Future<void> _shareToFacebook(BuildContext context, String message) async {
+    final encodedMessage = Uri.encodeComponent(message);
+    final url =
+        'https://www.facebook.com/sharer/sharer.php?))^=$encodedMessage';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+      Navigator.pop(context); // Close the modal
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open Facebook')));
+    }
+  }
+
+  Future<void> _shareToTwitter(BuildContext context, String message) async {
+    final encodedMessage = Uri.encodeComponent(message);
+    final url = 'https://twitter.com/intent/tweet?text=$encodedMessage';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+      Navigator.pop(context); // Close the modal
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open Twitter')));
+    }
+  }
+
+  Future<void> _shareToTelegram(BuildContext context, String message) async {
+    final encodedMessage = Uri.encodeComponent(message);
+    final url = 'https://t.me/share/url?url=&text=$encodedMessage';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+      Navigator.pop(context); // Close the modal
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open Telegram')));
+    }
   }
 
   Widget _buildFeaturedTestimony() {
@@ -362,7 +555,11 @@ class HomeTab extends StatelessWidget {
                 onTap: () {
                   final dashboardState =
                       context.findAncestorStateOfType<_DashboardScreenState>();
-                  dashboardState?._onTabTapped(1);
+                  if (dashboardState != null) {
+                    dashboardState._onTabTapped(1);
+                  } else {
+                    debugPrint('DashboardScreenState not found');
+                  }
                 },
               ),
             ),
@@ -375,7 +572,11 @@ class HomeTab extends StatelessWidget {
                 onTap: () {
                   final dashboardState =
                       context.findAncestorStateOfType<_DashboardScreenState>();
-                  dashboardState?._onTabTapped(2);
+                  if (dashboardState != null) {
+                    dashboardState._onTabTapped(2);
+                  } else {
+                    debugPrint('DashboardScreenState not found');
+                  }
                 },
               ),
             ),
@@ -388,7 +589,11 @@ class HomeTab extends StatelessWidget {
                 onTap: () {
                   final dashboardState =
                       context.findAncestorStateOfType<_DashboardScreenState>();
-                  dashboardState?._onTabTapped(5);
+                  if (dashboardState != null) {
+                    dashboardState._onTabTapped(5);
+                  } else {
+                    debugPrint('DashboardScreenState not found');
+                  }
                 },
               ),
             ),
@@ -434,6 +639,7 @@ class HomeTab extends StatelessWidget {
   }
 
   Widget _buildUpcomingEvents() {
+    final now = DateTime.now();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -448,14 +654,16 @@ class HomeTab extends StatelessWidget {
         const SizedBox(height: 16),
         _buildEventCard(
           title: 'Virtual Prayer Night',
-          date: 'June 15, 2023',
+          date:
+              '${now.add(Duration(days: 1)).day}/${now.add(Duration(days: 1)).month}/${now.add(Duration(days: 1)).year}',
           time: '7:00 PM',
           platform: 'Zoom',
         ),
         const SizedBox(height: 16),
         _buildEventCard(
           title: 'Bible Study: Proverbs',
-          date: 'June 18, 2023',
+          date:
+              '${now.add(Duration(days: 4)).day}/${now.add(Duration(days: 4)).month}/${now.add(Duration(days: 4)).year}',
           time: '6:30 PM',
           platform: 'Telegram',
         ),

@@ -370,7 +370,7 @@ class _HerMoveTabState extends State<HerMoveTab> {
                                   child: const Text('Offer Help'),
                                 ),
                               ),
-                            ],
+                            ], 
                           ],
                         ),
                       ],

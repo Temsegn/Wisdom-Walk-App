@@ -47,6 +47,7 @@ dependencies:
   path_provider: ^2.1.5
   http: ^1.4.0
   universal_html: ^2.2.4
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -76,6 +77,10 @@ flutter:
     - assets/images/google.png
     - assets/images/linkedin.png
     - assets/images/x.png 
+    - assets/images/whatsapp_icon.png
+    - assets/images/facebook_icon.png
+    - assets/images/twitter_icon.png
+    - assets/images/telegram_icon.png
 
   #   - images/a_dot_ham.jpeg
 
