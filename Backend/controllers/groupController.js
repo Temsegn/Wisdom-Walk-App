@@ -104,7 +104,7 @@ const getUserGroups = async (req, res) => {
 // Join a group type
 const joinGroup = async (req, res) => {
   try {
-    const { groupType } = req.body
+    const { groupType } = req.body 
     const userId = req.user._id
 
     const validGroups = ["single", "marriage", "healing", "motherhood"]
@@ -460,7 +460,7 @@ const getGroupMembers = async (req, res) => {
     const { page = 1, limit = 20 } = req.query
     const userId = req.user._id
     const skip = (page - 1) * limit
-
+  
     // Check if user is member of the group
     const userInGroup = req.user.joinedGroups.some((group) => group.groupType === groupType)
     if (!userInGroup) {

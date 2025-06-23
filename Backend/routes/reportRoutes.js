@@ -1,14 +1,18 @@
-const express = require("express")
+const express = require('express')
 const router = express.Router()
-const reportController = require("../controllers/reportController")
-const { authenticateToken } = require("../middleware/auth")
-const { validateReport } = require("../middleware/validation")
+const reportController = require('../controllers/reportController')
+const { authenticateToken } = require('../middleware/auth')
 
-// All routes require authentication
-router.use(authenticateToken)
+// Create a report (general route: supports post or user)
+router.post('/', authenticateToken, reportController.createReport)
 
-// General report routes
-router.post("/", validateReport, reportController.createReport)
-router.get("/my-reports", reportController.getUserReports)
+// Get all reports submitted by the logged-in user
+router.get('/my-reports', authenticateToken, reportController.getUserReports)
+
+// Quick report a post (shortcut)
+router.post('/posts/:postId', authenticateToken, reportController.reportPost)
+
+// Quick report a user (new route)
+router.post('/users/:userId', authenticateToken, reportController.reportUser)
 
 module.exports = router
