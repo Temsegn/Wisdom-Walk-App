@@ -154,12 +154,25 @@ const deleteNotification = async (req, res) => {
   }
 };
 
-// Clear all notifications for the user
 const clearAllNotifications = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is missing",
+      });
+    }
 
     const result = await Notification.deleteMany({ recipient: userId });
+
+    if (result.deletedCount === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No notifications to delete",
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -174,6 +187,7 @@ const clearAllNotifications = async (req, res) => {
     });
   }
 };
+
 
 // Get user notification settings/preferences
 const getNotificationSettings = async (req, res) => {

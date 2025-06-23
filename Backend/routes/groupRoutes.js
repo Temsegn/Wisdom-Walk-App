@@ -9,7 +9,7 @@ const { uploadMultiple, handleUploadError } = require("../middleware/upload")
 router.use(authenticateToken)
 
 // ===== GROUP MEMBERSHIP ROUTES =====
-// Get user's joined groups
+// Get user's joined groups 
 router.get("/my-groups", groupController.getUserGroups)
 
 // Join/leave group types

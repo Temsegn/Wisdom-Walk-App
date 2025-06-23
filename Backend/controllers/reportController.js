@@ -7,7 +7,7 @@ const Notification = require("../models/Notification")
 const { getPaginationMeta } = require("../utils/helpers")
 
 // Create a report
-const createReport = async (req, res) => {
+const createReport = async (req, res) => { 
   try {
     const { type, reason, evidence, reportedUserId, reportedPostId, reportedCommentId, reportedMessageId } = req.body
     const reporterId = req.user._id
@@ -300,9 +300,91 @@ const reportPost = async (req, res) => {
     })
   }
 }
+const reportUser = async (req, res) => {
+  try {
+    const { type, reason } = req.body
+    const reportedUserId = req.params.userId
+    const reporterId = req.user._id
+
+    if (!reason || reason.trim().length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid reason for reporting the user",
+      })
+    }
+
+    const user = await User.findById(reportedUserId)
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      })
+    }
+
+    // Check for duplicate report
+    const existingReport = await Report.findOne({
+      reporter: reporterId,
+      reportedUser: reportedUserId,
+      status: { $in: ["pending", "investigating"] },
+    })
+
+    if (existingReport) {
+      return res.status(400).json({
+        success: false,
+        message: "You have already reported this user",
+      })
+    }
+
+    const report = new Report({
+      reporter: reporterId,
+      reportedUser: reportedUserId,
+      type,
+      reason,
+    })
+
+    await report.save()
+
+    // Notify admins
+    const admins = await User.find({
+      $or: [{ isGlobalAdmin: true }, { adminPermissions: "manage_users" }],
+    }).select("_id")
+
+    const adminNotifications = admins.map((admin) => ({
+      recipient: admin._id,
+      sender: reporterId,
+      type: "admin_message",
+      title: "User Reported",
+      message: `A user has been reported for ${type}`,
+      priority: "high",
+      data: {
+        reportId: report._id,
+        reportType: type,
+        contentType: "user",
+      },
+    }))
+
+    await Notification.insertMany(adminNotifications)
+
+    res.status(201).json({
+      success: true,
+      message: "User reported successfully.",
+      data: {
+        reportId: report._id,
+      },
+    })
+  } catch (error) {
+    console.error("Report user error:", error)
+    res.status(500).json({
+      success: false,
+      message: "Failed to report user",
+      error: error.message,
+    })
+  }
+}
 
 module.exports = {
   createReport,
   getUserReports,
   reportPost,
+  reportUser
 }
