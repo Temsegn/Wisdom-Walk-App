@@ -18,7 +18,7 @@ const groupRoutes = require("./routes/groupRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const reportRoutes = require("./routes/reportRoutes");
-
+const movementRoutes = require("./routes/movementRoute");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -57,6 +57,8 @@ app.use("/api/groups", groupRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/movements", movementRoutes);
+
  
 // Health check
 app.get("/api/health", (req, res) => {
