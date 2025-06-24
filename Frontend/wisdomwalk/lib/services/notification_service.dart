@@ -2,7 +2,7 @@ import 'package:wisdomwalk/models/notification_model.dart';
 
 class NotificationService {
   // Mock notifications data
-  static List<NotificationModel> _mockNotifications = [
+  static List<NotificationModel> mockNotifications = [
     NotificationModel(
       id: '1',
       userId: 'current_user',
@@ -34,14 +34,14 @@ class NotificationService {
 
   Future<List<NotificationModel>> getNotifications(String userId) async {
     await Future.delayed(const Duration(milliseconds: 500));
-    return _mockNotifications.where((n) => n.userId == userId).toList();
+    return mockNotifications.where((n) => n.userId == userId).toList();
   }
 
   Future<void> markAsRead(String notificationId) async {
     await Future.delayed(const Duration(milliseconds: 200));
-    final index = _mockNotifications.indexWhere((n) => n.id == notificationId);
+    final index = mockNotifications.indexWhere((n) => n.id == notificationId);
     if (index != -1) {
-      _mockNotifications[index] = _mockNotifications[index].copyWith(
+      mockNotifications[index] = mockNotifications[index].copyWith(
         isRead: true,
       );
     }
@@ -49,21 +49,21 @@ class NotificationService {
 
   Future<void> markAllAsRead(String userId) async {
     await Future.delayed(const Duration(milliseconds: 300));
-    for (int i = 0; i < _mockNotifications.length; i++) {
-      if (_mockNotifications[i].userId == userId) {
-        _mockNotifications[i] = _mockNotifications[i].copyWith(isRead: true);
+    for (int i = 0; i < mockNotifications.length; i++) {
+      if (mockNotifications[i].userId == userId) {
+        mockNotifications[i] = mockNotifications[i].copyWith(isRead: true);
       }
     }
   }
 
   Future<void> deleteNotification(String notificationId) async {
     await Future.delayed(const Duration(milliseconds: 200));
-    _mockNotifications.removeWhere((n) => n.id == notificationId);
+    mockNotifications.removeWhere((n) => n.id == notificationId);
   }
 
   Future<void> addNotification(NotificationModel notification) async {
     await Future.delayed(const Duration(milliseconds: 200));
-    _mockNotifications.insert(0, notification);
+    mockNotifications.insert(0, notification);
   }
 
   // Create notification when someone responds to a request
@@ -83,7 +83,7 @@ class NotificationService {
       createdAt: DateTime.now(),
     );
 
-    _mockNotifications.insert(0, notification);
+    mockNotifications.insert(0, notification);
   }
 
   // Create notification for new requests in user's area
@@ -103,6 +103,6 @@ class NotificationService {
       createdAt: DateTime.now(),
     );
 
-    _mockNotifications.insert(0, notification);
+    mockNotifications.insert(0, notification);
   }
 }

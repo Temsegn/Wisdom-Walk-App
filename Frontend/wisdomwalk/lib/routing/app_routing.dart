@@ -244,6 +244,10 @@ class AppRouter {
             ),
       ),
       GoRoute(
+        path: '/search-requests',
+        builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
         path: '/add-location-request',
         builder: (context, state) => const AddLocationRequestScreen(),
       ),

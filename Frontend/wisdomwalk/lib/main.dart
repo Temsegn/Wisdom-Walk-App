@@ -11,6 +11,7 @@ import 'package:wisdomwalk/providers/wisdom_circle_provider.dart';
 import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
 import 'package:wisdomwalk/providers/her_move_provider.dart';
 import 'package:wisdomwalk/themes/app_theme.dart';
+import 'package:wisdomwalk/providers/reflection_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,6 +36,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => HerMoveProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => ReflectionProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {

@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wisdomwalk/models/chat_model.dart';
@@ -9,13 +10,13 @@ import 'package:wisdomwalk/providers/auth_provider.dart';
 import 'package:wisdomwalk/providers/chat_provider.dart';
 
 import 'package:wisdomwalk/providers/prayer_provider.dart';
+import 'package:wisdomwalk/providers/reflection_provider.dart';
 import 'package:wisdomwalk/providers/wisdom_circle_provider.dart';
 import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
 import 'package:wisdomwalk/providers/her_move_provider.dart';
 import 'package:wisdomwalk/models/prayer_model.dart';
 import 'package:wisdomwalk/widgets/add_prayer_modal.dart';
 import 'package:wisdomwalk/widgets/chat_card.dart';
-
 import 'package:universal_html/html.dart' as html; // For browser file picking
 import 'package:video_player/video_player.dart';
 
@@ -122,9 +123,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 // HomeTab Implementation
 
-// HomeTab Implementation
-class HomeTab extends StatelessWidget {
+class HomeTab extends StatefulWidget {
   const HomeTab({Key? key}) : super(key: key);
+
+  @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  final TextEditingController _reflectionController = TextEditingController();
+
+  @override
+  void dispose() {
+    _reflectionController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -281,7 +294,9 @@ class HomeTab extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: () {
+                  _showReflectModal(context, verseReference);
+                },
                 icon: const Icon(Icons.menu_book, size: 16),
                 label: const Text('Reflect'),
                 style: ElevatedButton.styleFrom(
@@ -296,6 +311,127 @@ class HomeTab extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showReflectModal(BuildContext context, String verseReference) {
+    final _formKey = GlobalKey<FormState>();
+    bool _isLoading = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 16,
+                right: 16,
+                top: 16,
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Reflect on the Daily Verse',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4A4A4A),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _reflectionController,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        hintText: 'Write your reflection...',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter your reflection';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(color: Color(0xFFD4A017)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed:
+                              _isLoading
+                                  ? null
+                                  : () async {
+                                    if (_formKey.currentState!.validate()) {
+                                      setState(() => _isLoading = true);
+                                      final reflectionProvider =
+                                          Provider.of<ReflectionProvider>(
+                                            context,
+                                            listen: false,
+                                          );
+                                      reflectionProvider.addReflection(
+                                        verseReference,
+                                        _reflectionController.text.trim(),
+                                      );
+                                      setState(() => _isLoading = false);
+                                      Navigator.pop(context);
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Reflection saved successfully',
+                                          ),
+                                        ),
+                                      );
+                                      _showShareModal(
+                                        context,
+                                        'My reflection on $verseReference:\n\n${_reflectionController.text.trim()}\n\nJoin me on WisdomWalk: https://wisdomwalk.app',
+                                      );
+                                      _reflectionController
+                                          .clear(); // Clear after saving
+                                    }
+                                  },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD4A017),
+                            foregroundColor: Colors.white,
+                          ),
+                          child:
+                              _isLoading
+                                  ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                  : const Text('Save & Share'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -314,7 +450,7 @@ class HomeTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Share Daily Verse',
+                'Share',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -329,25 +465,25 @@ class HomeTab extends StatelessWidget {
                     context: context,
                     iconPath: 'assets/images/whatsapp_icon.png',
                     label: 'WhatsApp',
-                    onTap: () => _shareToWhatsApp(context, shareMessage),
+                    onTap: () => _shareTo(context, shareMessage, 'whatsapp'),
                   ),
                   _buildShareIcon(
                     context: context,
                     iconPath: 'assets/images/facebook_icon.png',
                     label: 'Facebook',
-                    onTap: () => _shareToFacebook(context, shareMessage),
+                    onTap: () => _shareTo(context, shareMessage, 'facebook'),
                   ),
                   _buildShareIcon(
                     context: context,
                     iconPath: 'assets/images/twitter_icon.png',
                     label: 'Twitter',
-                    onTap: () => _shareToTwitter(context, shareMessage),
+                    onTap: () => _shareTo(context, shareMessage, 'twitter'),
                   ),
                   _buildShareIcon(
                     context: context,
                     iconPath: 'assets/images/telegram_icon.png',
                     label: 'Telegram',
-                    onTap: () => _shareToTelegram(context, shareMessage),
+                    onTap: () => _shareTo(context, shareMessage, 'telegram'),
                   ),
                 ],
               ),
@@ -396,56 +532,42 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  Future<void> _shareToWhatsApp(BuildContext context, String message) async {
+  Future<void> _shareTo(
+    BuildContext context,
+    String message,
+    String platform,
+  ) async {
     final encodedMessage = Uri.encodeComponent(message);
-    final url = 'https://wa.me/?text=$encodedMessage';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-      Navigator.pop(context); // Close the modal
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open WhatsApp')));
-    }
-  }
+    String url;
 
-  Future<void> _shareToFacebook(BuildContext context, String message) async {
-    final encodedMessage = Uri.encodeComponent(message);
-    final url =
-        'https://www.facebook.com/sharer/sharer.php?))^=$encodedMessage';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-      Navigator.pop(context); // Close the modal
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open Facebook')));
+    switch (platform) {
+      case 'whatsapp':
+        url = 'https://wa.me/?text=$encodedMessage';
+        break;
+      case 'facebook':
+        url =
+            'https://www.facebook.com/sharer/sharer.php?quote=$encodedMessage';
+        break;
+      case 'twitter':
+        url = 'https://twitter.com/intent/tweet?text=$encodedMessage';
+        break;
+      case 'telegram':
+        url = 'https://t.me/share/url?url=&text=$encodedMessage';
+        break;
+      default:
+        return;
     }
-  }
 
-  Future<void> _shareToTwitter(BuildContext context, String message) async {
-    final encodedMessage = Uri.encodeComponent(message);
-    final url = 'https://twitter.com/intent/tweet?text=$encodedMessage';
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));
-      Navigator.pop(context); // Close the modal
+      Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open Twitter')));
-    }
-  }
-
-  Future<void> _shareToTelegram(BuildContext context, String message) async {
-    final encodedMessage = Uri.encodeComponent(message);
-    final url = 'https://t.me/share/url?url=&text=$encodedMessage';
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-      Navigator.pop(context); // Close the modal
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open Telegram')));
+      await Clipboard.setData(ClipboardData(text: message));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open $platform. Copied to clipboard.'),
+        ),
+      );
     }
   }
 
@@ -655,7 +777,7 @@ class HomeTab extends StatelessWidget {
         _buildEventCard(
           title: 'Virtual Prayer Night',
           date:
-              '${now.add(Duration(days: 1)).day}/${now.add(Duration(days: 1)).month}/${now.add(Duration(days: 1)).year}',
+              '${now.add(const Duration(days: 1)).day}/${now.add(const Duration(days: 1)).month}/${now.add(const Duration(days: 1)).year}',
           time: '7:00 PM',
           platform: 'Zoom',
         ),
@@ -663,7 +785,7 @@ class HomeTab extends StatelessWidget {
         _buildEventCard(
           title: 'Bible Study: Proverbs',
           date:
-              '${now.add(Duration(days: 4)).day}/${now.add(Duration(days: 4)).month}/${now.add(Duration(days: 4)).year}',
+              '${now.add(const Duration(days: 4)).day}/${now.add(const Duration(days: 4)).month}/${now.add(const Duration(days: 4)).year}',
           time: '6:30 PM',
           platform: 'Telegram',
         ),
@@ -1848,7 +1970,12 @@ class HerMoveTab extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(icon: const Icon(Icons.search), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              context.go('/search-requests');
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () {
