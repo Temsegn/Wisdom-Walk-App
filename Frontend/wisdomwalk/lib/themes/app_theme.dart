@@ -112,11 +112,12 @@ class AppTheme {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
-    cardTheme: CardTheme(
-      color: white,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-    ),
+   cardTheme: const CardThemeData(
+  color: Colors.white,
+  elevation: 4,
+  margin: EdgeInsets.all(8),
+),
+
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: white,
       selectedItemColor: primaryColor,
@@ -228,11 +229,12 @@ class AppTheme {
       labelStyle: const TextStyle(color: Color(0xFFBBBBBB)),
       hintStyle: const TextStyle(color: Color(0xFF8A8A8A)),
     ),
-    cardTheme: CardTheme(
-      color: const Color(0xFF1E1E1E),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-    ),
+  cardTheme: const CardThemeData(
+  color: Colors.white,
+  elevation: 4,
+  margin: EdgeInsets.all(8),
+),
+
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: Color(0xFF1E1E1E),
       selectedItemColor: primaryColor,
