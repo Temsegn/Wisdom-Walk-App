@@ -6,7 +6,7 @@ class PrayerService {
     PrayerModel(
       id: '1',
       userId: '1',
-      userName: 'Sarah Johnson',
+      userName: 'Lidaya Mamo',
       userAvatar: 'https://randomuser.me/api/portraits/women/44.jpg',
       content:
           'Please pray for my upcoming job interview. I\'m feeling anxious but trusting God\'s plan.',

@@ -1067,8 +1067,33 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
                 icon: Icons.volunteer_activism,
                 label: 'Praying (${prayer.prayingUsers.length})',
                 color: const Color(0xFF9C27B0),
-                onPressed: () {
-                  // Handle praying action
+                onPressed: () async {
+                  final authProvider = Provider.of<AuthProvider>(
+                    context,
+                    listen: false,
+                  );
+                  final prayerProvider = Provider.of<PrayerProvider>(
+                    context,
+                    listen: false,
+                  );
+                  final userId = authProvider.currentUser?.id ?? 'current_user';
+
+                  final success = await prayerProvider.togglePraying(
+                    prayerId: prayer.id,
+                    userId: userId,
+                  );
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          prayer.prayingUsers.contains(userId)
+                              ? '🙏 You are now praying for this request'
+                              : '✨ Removed from praying list',
+                        ),
+                        backgroundColor: const Color(0xFF9C27B0),
+                      ),
+                    );
+                  }
                 },
               ),
               const SizedBox(width: 16),
@@ -1077,7 +1102,15 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
                 label: 'Encourage',
                 color: Colors.grey[600]!,
                 onPressed: () {
-                  // Handle encourage action
+                  final authProvider = Provider.of<AuthProvider>(
+                    context,
+                    listen: false,
+                  );
+                  _showEncourageDialog(
+                    context,
+                    prayer,
+                    authProvider.currentUser,
+                  );
                 },
               ),
               const SizedBox(width: 16),
@@ -1086,7 +1119,7 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
                 label: 'Chat',
                 color: const Color(0xFF2196F3),
                 onPressed: () {
-                  // Handle chat action
+                  context.go('/prayer/${prayer.id}');
                 },
               ),
             ],
@@ -1096,65 +1129,144 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
     );
   }
 
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+  void _showEncourageDialog(
+    BuildContext context,
+    PrayerModel prayer,
+    dynamic user,
+  ) {
+    final TextEditingController encourageController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              'Encourage ${prayer.isAnonymous ? "Anonymous Sister" : prayer.userName}',
+            ),
+            content: TextField(
+              controller: encourageController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'Write your encouragement...',
+                border: OutlineInputBorder(),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (encourageController.text.trim().isNotEmpty) {
+                    final authProvider = Provider.of<AuthProvider>(
+                      context,
+                      listen: false,
+                    );
+                    final prayerProvider = Provider.of<PrayerProvider>(
+                      context,
+                      listen: false,
+                    );
+                    final userId =
+                        authProvider.currentUser?.id ?? 'current_user';
 
-  String _formatTimeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
+                    final success = await prayerProvider.addComment(
+                      prayerId: prayer.id,
+                      userId: userId,
+                      content: encourageController.text.trim(),
+                      isAnonymous: false,
+                      userName: authProvider.currentUser?.name,
+                      userAvatar: authProvider.currentUser?.avatar,
+                    );
 
-    if (difference.inDays > 0) {
-      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
-    } else {
-      return 'Just now';
-    }
-  }
+                    Navigator.pop(context);
 
-  void _showAddPrayerDialog(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (context) => Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: const AddPrayerModal(isAnonymous: false),
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('💝 Encouragement sent successfully!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to send encouragement'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF9C27B0),
+                ),
+                child: const Text('Send'),
+              ),
+            ],
           ),
     );
   }
+}
+
+Widget _buildActionButton({
+  required IconData icon,
+  required String label,
+  required Color color,
+  required VoidCallback onPressed,
+}) {
+  return InkWell(
+    onTap: onPressed,
+    borderRadius: BorderRadius.circular(20),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+String _formatTimeAgo(DateTime dateTime) {
+  final now = DateTime.now();
+  final difference = now.difference(dateTime);
+
+  if (difference.inDays > 0) {
+    return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+  } else if (difference.inHours > 0) {
+    return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+  } else if (difference.inMinutes > 0) {
+    return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
+  } else {
+    return 'Just now';
+  }
+}
+
+void _showAddPrayerDialog(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder:
+        (context) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: const AddPrayerModal(isAnonymous: false),
+        ),
+  );
 }
 
 // WisdomCirclesTab Implementation

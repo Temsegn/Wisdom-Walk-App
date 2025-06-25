@@ -316,7 +316,7 @@ class _PrayerWallTabState extends State<PrayerWallTab>
   List<Map<String, dynamic>> _getMockPrayers() {
     return [
       {
-        'userName': 'Sarah M.',
+        'userName': 'Emuye M.',
         'time': '2 hours ago',
         'content':
             'Please pray for my job interview tomorrow. I\'m feeling anxious but trusting in God\'s plan for my life.',
@@ -326,7 +326,7 @@ class _PrayerWallTabState extends State<PrayerWallTab>
         'isAnonymous': false,
       },
       {
-        'userName': 'Anonymous',
+        'userName': 'Bersabeh',
         'time': '4 hours ago',
         'content':
             'Going through a difficult season in my marriage. Please pray for healing and restoration.',

@@ -47,6 +47,8 @@ class UserModel {
 
   get profilePicture => null;
 
+  get avatar => null;
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
