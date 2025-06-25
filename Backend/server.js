@@ -19,6 +19,8 @@ const adminRoutes = require("./routes/adminRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const movementRoutes = require("./routes/movementRoute");
+const bookingRoutes = require('./routes/bookingRoute');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -58,6 +60,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/movements", movementRoutes);
+app.use("/api/bookings", bookingRoutes);
 
  
 // Health check

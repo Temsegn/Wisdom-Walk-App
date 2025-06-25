@@ -11,7 +11,9 @@ const createPost = async (req, res) => {
     const { type, content, title, isAnonymous, visibility, targetGroup, location, tags } = req.body
     const authorId = req.user._id
 
-    // Validate group membership for group posts
+    // Validate group membership for group posts 
+  
+
     if (targetGroup && targetGroup !== "general") {
       const userInGroup = req.user.joinedGroups.some((group) => group.groupType === targetGroup)
       if (!userInGroup) {
