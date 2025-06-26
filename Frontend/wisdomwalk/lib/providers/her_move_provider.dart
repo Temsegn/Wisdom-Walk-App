@@ -93,7 +93,6 @@ class HerMoveProvider extends ChangeNotifier {
         description: description,
         moveDate: moveDate,
       );
-
       _requests.insert(0, request);
       return true;
     } catch (e) {
@@ -116,6 +115,10 @@ class HerMoveProvider extends ChangeNotifier {
     String? churchAddress,
     String? churchWebsite,
   }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
     try {
       final response = await _herMoveService.addLocationResponse(
         requestId: requestId,
@@ -129,12 +132,12 @@ class HerMoveProvider extends ChangeNotifier {
         churchWebsite: churchWebsite,
       );
 
+      // Update the request in the list
       final index = _requests.indexWhere((request) => request.id == requestId);
       if (index != -1) {
         final request = _requests[index];
         final updatedResponses = List<LocationResponse>.from(request.responses)
           ..add(response);
-
         _requests[index] = LocationRequestModel(
           id: request.id,
           userId: request.userId,
@@ -149,11 +152,11 @@ class HerMoveProvider extends ChangeNotifier {
         );
       }
 
+      // Update the selected request if it's the same
       if (_selectedRequest?.id == requestId) {
         final updatedResponses = List<LocationResponse>.from(
           _selectedRequest!.responses,
         )..add(response);
-
         _selectedRequest = LocationRequestModel(
           id: _selectedRequest!.id,
           userId: _selectedRequest!.userId,
@@ -168,15 +171,17 @@ class HerMoveProvider extends ChangeNotifier {
         );
       }
 
-      notifyListeners();
       return true;
     } catch (e) {
       _error = e.toString();
       return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  void clearSelectedRequest() {
+  void clearSelected() {
     _selectedRequest = null;
     notifyListeners();
   }

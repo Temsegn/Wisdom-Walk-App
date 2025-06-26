@@ -6,7 +6,7 @@ class HerMoveService {
     LocationRequestModel(
       id: '1',
       userId: '1',
-      userName: 'Sarah Johnson',
+      userName: 'Afomiya',
       userAvatar: 'https://randomuser.me/api/portraits/women/44.jpg',
       city: 'London',
       country: 'United Kingdom',

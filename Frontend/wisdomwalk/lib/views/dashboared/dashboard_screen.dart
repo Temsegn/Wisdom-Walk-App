@@ -15,7 +15,9 @@ import 'package:wisdomwalk/providers/wisdom_circle_provider.dart';
 import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
 import 'package:wisdomwalk/providers/her_move_provider.dart';
 import 'package:wisdomwalk/models/prayer_model.dart';
+import 'package:wisdomwalk/views/dashboared/her_move_tab.dart';
 import 'package:wisdomwalk/widgets/add_prayer_modal.dart';
+import 'package:wisdomwalk/widgets/booking_form.dart';
 import 'package:wisdomwalk/widgets/chat_card.dart';
 import 'package:universal_html/html.dart' as html; // For browser file picking
 import 'package:video_player/video_player.dart';
@@ -67,7 +69,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _currentIndex = index;
           });
         },
-        children: const [
+        children: [
           HomeTab(),
           PrayerWallTab(),
           WisdomCirclesTab(),
@@ -223,6 +225,17 @@ class _HomeTabState extends State<HomeTab> {
             ),
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            builder: (_) => BookingForm(),
+          );
+        },
+        icon: Icon(Icons.event_available),
+        label: Text('Book Session'),
       ),
     );
   }
@@ -1472,7 +1485,7 @@ class _WisdomCircleCardState extends State<WisdomCircleCard> {
     final provider = Provider.of<WisdomCircleProvider>(context, listen: false);
     final hasNewMessages = true; // Simulate new messages for demo
     final sampleMessage =
-        'Sarah: "Thank you all for the prayers! ✨"'; // Sample message
+        'Ms: "Thank you all for the prayers! ✨"'; // Sample message
 
     Color cardColor = _getCardColor();
     String buttonText = widget.isJoined ? 'Open' : 'Join';
@@ -2066,178 +2079,6 @@ extension StringExtension on String {
   }
 }
 
-// HerMoveTab Implementation
-class HerMoveTab extends StatelessWidget {
-  const HerMoveTab({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text(
-          'Her Move',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              context.go('/search-requests');
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              context.go('/settings');
-            },
-          ),
-        ],
-      ),
-      body: Consumer<HerMoveProvider>(
-        builder: (context, herMoveProvider, child) {
-          if (herMoveProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (herMoveProvider.requests.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.map_outlined, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No travel requests yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Share your travel plans or help others',
-                    style: TextStyle(color: Colors.grey[500]),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              await herMoveProvider.fetchRequests();
-            },
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: herMoveProvider.requests.length,
-              itemBuilder: (context, index) {
-                final request = herMoveProvider.requests[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              color: const Color(0xFFD4A017),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                '${request.fromLocation} → ${request.toLocation}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_today,
-                              color: Colors.grey[600],
-                              size: 16,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${request.startDate.day}/${request.startDate.month}/${request.startDate.year}',
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                            const SizedBox(width: 16),
-                            Icon(
-                              Icons.person,
-                              color: Colors.grey[600],
-                              size: 16,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              request.authorName,
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          request.description,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () {
-                                  context.go('/location-request/${request.id}');
-                                },
-                                child: const Text('View Details'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  // Handle help offer
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFD4A017),
-                                ),
-                                child: const Text('Offer Help'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          context.go('/add-location-request');
-        },
-        backgroundColor: const Color(0xFFD4A017),
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-}
-
 // PersonalChatTab Implementation
 
 // Define custom color constants
@@ -2379,17 +2220,6 @@ class _PersonalChatTabState extends State<PersonalChatTab> {
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  Text(
-                    chatProvider.selectedChat!.status,
-                    style: TextStyle(
-                      color:
-                          chatProvider.selectedChat!.isOnline
-                              ? Colors.green[700]
-                              : grey600,
-                      fontSize: 12,
                     ),
                   ),
                 ],

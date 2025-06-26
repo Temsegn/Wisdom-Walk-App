@@ -251,6 +251,13 @@ class AppRouter {
         path: '/add-location-request',
         builder: (context, state) => const AddLocationRequestScreen(),
       ),
+      GoRoute(
+        path: '/location-request-detail/:id',
+        builder:
+            (context, state) => LocationRequestDetailScreen(
+              requestId: state.pathParameters['id']!,
+            ),
+      ),
     ],
   );
 }
