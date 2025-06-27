@@ -51,7 +51,7 @@ class _MultiStepRegistrationState extends State<MultiStepRegistration> {
       subcity: _formData['subcity'],
       country: _formData['country'],
       idImagePath: _formData['idImagePath'],
-      faceImagePath: _formData['faceImagePath'],
+      faceImagePath: _formData['faceImagePath'], idImageBytes: null, faceImageBytes: null,
     );
 
     if (success && mounted) {

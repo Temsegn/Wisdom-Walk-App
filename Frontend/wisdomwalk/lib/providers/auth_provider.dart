@@ -65,7 +65,7 @@ class AuthProvider extends ChangeNotifier {
     required String subcity,
     required String country,
     required String idImagePath,
-    required String faceImagePath,
+    required String faceImagePath, required idImageBytes, required faceImageBytes,
   }) async {
     _isLoading = true;
     _error = null;

@@ -9,7 +9,7 @@ class ResetPasswordScreen extends StatefulWidget {
   final String otp;
 
   const ResetPasswordScreen({Key? key, required this.email, required this.otp})
-    : super(key: key);
+      : super(key: key);
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -31,6 +31,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   Future<void> _resetPassword() async {
     if (_formKey.currentState!.validate()) {
+      if (_passwordController.text != _confirmPasswordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Passwords do not match'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final success = await authProvider.resetPassword(
         email: widget.email,

@@ -1,149 +1,214 @@
 import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:wisdomwalk/models/user_model.dart';
 import 'package:wisdomwalk/services/local_storage_service.dart';
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
 
 class AuthService {
   final LocalStorageService _localStorageService = LocalStorageService();
 
-  // Mock data for demonstration
-  final List<UserModel> _users = [
-    UserModel(
-      id: '1',
-      fullName: 'Sarah Johnson',
-      email: 'sarah@example.com',
-      avatarUrl: 'https://randomuser.me/api/portraits/women/44.jpg',
-      city: 'Addis Ababa',
-      subcity: 'Bole',
-      country: 'Ethiopia',
-      wisdomCircleInterests: ['Marriage & Ministry', 'Mental Health & Faith'],
-      isVerified: true,
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-      updatedAt: DateTime.now().subtract(const Duration(days: 5)),
-    ),
-  ];
+  // Replace with your backend base URL (e.g., http://localhost:3000 or your hosted URL)
+static const String baseUrl = 'http://10.161.82.35:5000/api/auth';
+  // Helper method to handle errors
+  void _handleError(http.Response response) {
+    final body = jsonDecode(response.body);
+    throw Exception(body['message'] ?? 'Request failed: ${response.statusCode}');
+  }
 
+  // Register user
   Future<UserModel> register({
     required String fullName,
     required String email,
     required String password,
     required String city,
-    required String subcity,
+    required String subcity, // Ignored since not in backend schema
     required String country,
     required String idImagePath,
     required String faceImagePath,
+    Uint8List? idImageBytes, // For web
+    Uint8List? faceImageBytes, // For web
+    String? dateOfBirth, // Added for backend
+    String? phoneNumber, // Added for backend
   }) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 2));
+    // Split fullName into firstName and lastName
+    final names = fullName.split(' ');
+    final firstName = names.isNotEmpty ? names[0] : '';
+    final lastName = names.length > 1 ? names.sublist(1).join(' ') : '';
 
-    // Check if email already exists
-    if (_users.any((user) => user.email == email)) {
-      throw Exception('Email already registered');
+    var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/register'));
+
+    // Add form fields
+    request.fields.addAll({
+      'email': email,
+      'password': password,
+      'firstName': firstName,
+      'lastName': lastName,
+      'location[city]': city,
+      'location[country]': country,
+      'dateOfBirth': dateOfBirth ??
+          DateTime.now().subtract(Duration(days: 365 * 18)).toIso8601String(),
+      'phoneNumber': phoneNumber ?? '1234567890',
+      'bio': '',
+    });
+
+    // Add file uploads
+    if (kIsWeb && idImageBytes != null && faceImageBytes != null) {
+      request.files.add(http.MultipartFile.fromBytes(
+        'nationalId',
+        idImageBytes,
+        filename: 'nationalId.jpg',
+        contentType: MediaType('image', 'jpeg'),
+      ));
+      request.files.add(http.MultipartFile.fromBytes(
+        'livePhoto',
+        faceImageBytes,
+        filename: 'livePhoto.jpg',
+        contentType: MediaType('image', 'jpeg'),
+      ));
+    } else {
+      request.files.add(await http.MultipartFile.fromPath(
+        'nationalId',
+        idImagePath,
+        contentType: MediaType('image', 'jpeg'),
+      ));
+      request.files.add(await http.MultipartFile.fromPath(
+        'livePhoto',
+        faceImagePath,
+        contentType: MediaType('image', 'jpeg'),
+      ));
     }
 
-    // Create new user
-    final newUser = UserModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      fullName: fullName,
-      email: email,
-      city: city,
-      subcity: subcity,
-      country: country,
-      isVerified: false,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
+    final response = await request.send();
+    final responseBody = await http.Response.fromStream(response);
 
-    // Add user to mock database
-    _users.add(newUser);
-
-    // Save auth token
-    await _localStorageService.setAuthToken('mock_token_${newUser.id}');
-
-    return newUser;
+    if (response.statusCode == 201) {
+      final data = jsonDecode(responseBody.body)['data'];
+      // Save token if provided
+      if (data['token'] != null) {
+        await _localStorageService.saveAuthToken(data['token']);
+      }
+      return UserModel(
+        id: data['userId'],
+        fullName: fullName,
+        email: data['email'],
+        city: city,
+        country: country,
+        isVerified: false,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    }
+    // Throw error for any other status code
+    _handleError(responseBody);
+    throw Exception('Failed to update profile');
   }
 
+  // Login user
   Future<UserModel> login({
     required String email,
     required String password,
   }) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Find user by email
-    final user = _users.firstWhere(
-      (user) => user.email == email,
-      orElse: () => throw Exception('Invalid email or password'),
+    final response = await http.post(
+      Uri.parse('$baseUrl/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'password': password}),
     );
 
-    // Save auth token
-    await _localStorageService.setAuthToken('mock_token_${user.id}');
-
-    return user;
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body)['data'];
+      await _localStorageService.saveAuthToken(data['token']);
+      return UserModel.fromJson({
+        'id': data['user']['_id'],
+        'fullName': '${data['user']['firstName']} ${data['user']['lastName']}'.trim(),
+        'email': data['user']['email'],
+        'avatarUrl': data['user']['profilePicture'],
+        'city': data['user']['location']['city'],
+        'country': data['user']['location']['country'],
+        'wisdomCircleInterests':
+            (data['user']['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
+        'isVerified': (data['user']['isEmailVerified'] ?? false) &&
+            (data['user']['isAdminVerified'] ?? false),
+        'createdAt': data['user']['createdAt'] ?? DateTime.now().toIso8601String(),
+        'updatedAt': data['user']['updatedAt'] ?? DateTime.now().toIso8601String(),
+      });
+    }
+    _handleError(response);
+    throw Exception('Failed to login');
   }
 
+  // Verify OTP
   Future<UserModel> verifyOtp({
     required String email,
     required String otp,
   }) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 2));
-
-    // Find user by email
-    final user = _users.firstWhere(
-      (user) => user.email == email,
-      orElse: () => throw Exception('User not found'),
+    final response = await http.post(
+      Uri.parse('$baseUrl/verify'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'code': otp}),
     );
 
-    // Update user verification status
-    final index = _users.indexWhere((u) => u.id == user.id);
-    _users[index] = user.copyWith(isVerified: true);
-
-    // Save auth token
-    await _localStorageService.setAuthToken('mock_token_${user.id}');
-
-    return _users[index];
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body)['data'];
+      final userResponse = await getCurrentUser();
+      return userResponse.copyWith(
+        isVerified: (data['emailVerified'] ?? false) &&
+            (userResponse.isVerified || false),
+      );
+    }
+    _handleError(response);
+    throw Exception('Failed to verify OTP');
   }
 
+  // Resend OTP
   Future<void> resendOtp({required String email}) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 2));
+    final response = await http.post(
+      Uri.parse('$baseUrl/resend-verification'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
 
-    // Check if email exists
-    if (!_users.any((user) => user.email == email)) {
-      throw Exception('Email not found');
+    if (response.statusCode != 200) {
+      _handleError(response);
     }
-
-    // In a real app, this would send a new OTP to the user's email
   }
 
+  // Forgot password
   Future<void> forgotPassword({required String email}) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 2));
+    final response = await http.post(
+      Uri.parse('$baseUrl/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
 
-    // Check if email exists
-    if (!_users.any((user) => user.email == email)) {
-      throw Exception('Email not found');
+    if (response.statusCode != 200) {
+      _handleError(response);
     }
-
-    // In a real app, this would send a password reset link to the user's email
   }
 
+  // Reset password
   Future<void> resetPassword({
     required String email,
     required String otp,
     required String newPassword,
   }) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 2));
+    final response = await http.post(
+      Uri.parse('$baseUrl/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'code': otp,
+        'newPassword': newPassword,
+      }),
+    );
 
-    // Check if email exists
-    if (!_users.any((user) => user.email == email)) {
-      throw Exception('Email not found');
+    if (response.statusCode != 200) {
+      _handleError(response);
     }
-
-    // In a real app, this would verify the OTP and update the user's password
   }
 
+  // Update profile
   Future<UserModel> updateProfile({
     required String userId,
     String? fullName,
@@ -152,53 +217,108 @@ class AuthService {
     String? country,
     String? avatarPath,
     List<String>? wisdomCircleInterests,
-    String? bio,
   }) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 2));
+    var request = http.MultipartRequest('PUT', Uri.parse('$baseUrl/users/profile'));
 
-    // Find user by ID
-    final index = _users.indexWhere((user) => user.id == userId);
-    if (index == -1) {
-      throw Exception('User not found');
-    }
+    // Add form fields
+    final names = fullName?.split(' ') ?? [];
+    final firstName = names.isNotEmpty ? names[0] : '';
+    final lastName = names.length > 1 ? names.sublist(1).join(' ') : '';
+    request.fields.addAll({
+      if (firstName.isNotEmpty) 'firstName': firstName,
+      if (lastName.isNotEmpty) 'lastName': lastName,
+      if (city != null) 'location[city]': city,
+      if (country != null) 'location[country]': country,
+      if (wisdomCircleInterests != null)
+        'joinedGroups': jsonEncode(wisdomCircleInterests.map((e) => {'groupType': e}).toList()),
+    });
 
-    // Update user profile
-    final user = _users[index];
-    String? avatarUrl;
-
+    // Add profile picture if provided
     if (avatarPath != null) {
-      // In a real app, this would upload the image to a storage service
-      // and return the URL
-      avatarUrl = 'https://randomuser.me/api/portraits/women/45.jpg';
+      request.files.add(await http.MultipartFile.fromPath(
+        'profilePicture',
+        avatarPath,
+        contentType: MediaType('image', 'jpeg'),
+      ));
     }
 
-    _users[index] = user.copyWith(
-      fullName: fullName ?? user.fullName,
-      city: city ?? user.city,
-      subcity: subcity ?? user.subcity,
-      country: country ?? user.country,
-      avatarUrl: avatarUrl ?? user.avatarUrl,
-      wisdomCircleInterests:
-          wisdomCircleInterests ?? user.wisdomCircleInterests,
-      updatedAt: DateTime.now(),
+    // Add authorization header
+    final token = await _localStorageService.getAuthToken();
+    if (token != null) {
+      request.headers['Authorization'] = 'Bearer $token';
+    } else {
+      throw Exception('No auth token found');
+    }
+
+    final response = await request.send();
+    final responseBody = await http.Response.fromStream(response);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(responseBody.body)['data'];
+      return UserModel.fromJson({
+        'id': data['_id'],
+        'fullName': '${data['firstName']} ${data['lastName']}'.trim(),
+        'email': data['email'],
+        'avatarUrl': data['profilePicture'],
+        'city': data['location']['city'],
+        'country': data['location']['country'],
+        'wisdomCircleInterests':
+            (data['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
+        'is>isVerified': (data['isEmailVerified'] ?? false) &&
+            (data['isAdminVerified'] ?? false),
+        'createdAt': data['createdAt'] ?? DateTime.now().toIso8601String(),
+        'updatedAt': data['updatedAt'] ?? DateTime.now().toIso8601String(),
+      });
+    }
+    _handleError(responseBody);
+    throw Exception('Failed to update profile');
+  }
+
+  // Get current user
+  Future<UserModel> getCurrentUser() async {
+    final token = await _localStorageService.getAuthToken();
+    if (token == null) throw Exception('No auth token found');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/profile'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
     );
 
-    return _users[index];
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body)['data'];
+      return UserModel.fromJson({
+        'id': data['_id'],
+        'fullName': '${data['firstName']} ${data['lastName']}'.trim(),
+        'email': data['email'],
+        'avatarUrl': data['profilePicture'],
+        'city': data['location']['city'],
+        'country': data['location']['country'],
+        'wisdomCircleInterests':
+            (data['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
+        'isVerified': (data['isEmailVerified'] ?? false) &&
+            (data['isAdminVerified'] ?? false),
+        'createdAt': data['createdAt'] ?? DateTime.now().toIso8601String(),
+        'updatedAt': data['updatedAt'] ?? DateTime.now().toIso8601String(),
+      });
+    }
+    _handleError(response);
+    throw Exception('Failed to get current user');
   }
 
-  Future<UserModel> getCurrentUser() async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    // In a real app, this would use the auth token to get the current user
-    return _users.first;
-  }
-
+  // Logout
   Future<void> logout() async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    // In a real app, this would invalidate the auth token on the server
+    final token = await _localStorageService.getAuthToken();
+    if (token != null) {
+      await http.post(
+        Uri.parse('$baseUrl/logout'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+    }
+    await _localStorageService.clearAuthToken();
   }
 }

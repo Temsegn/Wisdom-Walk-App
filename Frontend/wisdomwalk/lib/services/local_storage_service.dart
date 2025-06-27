@@ -28,4 +28,6 @@ class LocalStorageService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_darkModeKey) ?? false;
   }
+
+  Future<void> saveAuthToken(data) async {}
 }
