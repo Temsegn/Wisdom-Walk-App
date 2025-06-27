@@ -329,18 +329,51 @@ class AnonymousShareProvider extends ChangeNotifier {
     }
   }
 
+  // lib/providers/anonymous_share_provider.dart
   Future<bool> sendVirtualHug({
     required String shareId,
     required String userId,
   }) async {
     try {
-      await _anonymousShareService.sendVirtualHug(
-        shareId: shareId,
-        userId: userId,
-      );
-      return true;
+      final index = _shares.indexWhere((share) => share.id == shareId);
+      if (index == -1) return false;
+
+      final share = _shares[index];
+      final virtualHugs = List<String>.from(share.virtualHugs);
+      if (!virtualHugs.contains(userId)) {
+        virtualHugs.add(userId);
+        await _anonymousShareService.sendVirtualHug(
+          shareId: shareId,
+          userId: userId,
+        );
+
+        _shares[index] = AnonymousShareModel(
+          id: share.id,
+          userId: share.userId,
+          content: share.content,
+          type: share.type,
+          hearts: share.hearts,
+          comments: share.comments,
+          prayingUsers: share.prayingUsers,
+          virtualHugs: virtualHugs,
+          createdAt: share.createdAt,
+        );
+
+        final allIndex = _allShares.indexWhere((share) => share.id == shareId);
+        if (allIndex != -1) {
+          _allShares[allIndex] = _shares[index];
+        }
+
+        if (_selectedShare?.id == shareId) {
+          _selectedShare = _shares[index];
+        }
+
+        notifyListeners();
+        return true;
+      }
+      return false; // User already sent a hug
     } catch (e) {
-      _error = e.toString();
+      _error = 'Failed to send virtual hug: $e';
       notifyListeners();
       return false;
     }
