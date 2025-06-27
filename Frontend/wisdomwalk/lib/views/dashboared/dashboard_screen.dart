@@ -8,6 +8,7 @@ import 'package:wisdomwalk/models/wisdom_circle_model.dart';
 import 'package:wisdomwalk/providers/auth_provider.dart';
 
 import 'package:wisdomwalk/providers/chat_provider.dart';
+import 'package:wisdomwalk/providers/event_provider.dart';
 
 import 'package:wisdomwalk/providers/prayer_provider.dart';
 import 'package:wisdomwalk/providers/reflection_provider.dart';
@@ -19,6 +20,8 @@ import 'package:wisdomwalk/views/dashboared/her_move_tab.dart';
 import 'package:wisdomwalk/widgets/add_prayer_modal.dart';
 import 'package:wisdomwalk/widgets/booking_form.dart';
 import 'package:wisdomwalk/widgets/chat_card.dart';
+import 'package:wisdomwalk/models/event_model.dart';
+
 import 'package:universal_html/html.dart' as html; // For browser file picking
 import 'package:video_player/video_player.dart';
 
@@ -136,6 +139,13 @@ class _HomeTabState extends State<HomeTab> {
   final TextEditingController _reflectionController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // Fetch events when the HomeTab is initialized
+    Provider.of<EventProvider>(context, listen: false).fetchEvents();
+  }
+
+  @override
   void dispose() {
     _reflectionController.dispose();
     super.dispose();
@@ -226,16 +236,21 @@ class _HomeTabState extends State<HomeTab> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => BookingForm(),
+      floatingActionButton: LayoutBuilder(
+        builder: (context, constraints) {
+          final isSmall = constraints.maxWidth < 350;
+          return FloatingActionButton.extended(
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => BookingForm(),
+              );
+            },
+            icon: Icon(Icons.event_available),
+            label: isSmall ? SizedBox.shrink() : Text('Book Session'),
           );
         },
-        icon: Icon(Icons.event_available),
-        label: Text('Book Session'),
       ),
     );
   }
@@ -773,52 +788,108 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
+  // In _HomeTabState class
   Widget _buildUpcomingEvents() {
-    final now = DateTime.now();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Upcoming Events',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF4A4A4A),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildEventCard(
-          title: 'Virtual Prayer Night',
-          date:
-              '${now.add(const Duration(days: 1)).day}/${now.add(const Duration(days: 1)).month}/${now.add(const Duration(days: 1)).year}',
-          time: '7:00 PM',
-          platform: 'Zoom',
-        ),
-        const SizedBox(height: 16),
-        _buildEventCard(
-          title: 'Bible Study: Proverbs',
-          date:
-              '${now.add(const Duration(days: 4)).day}/${now.add(const Duration(days: 4)).month}/${now.add(const Duration(days: 4)).year}',
-          time: '6:30 PM',
-          platform: 'Telegram',
-        ),
-      ],
+    return Consumer<EventProvider>(
+      builder: (context, eventProvider, child) {
+        if (eventProvider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (eventProvider.error != null) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  eventProvider.error!,
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () => eventProvider.fetchEvents(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD4A017),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (eventProvider.events.isEmpty) {
+          return const Center(
+            child: Text(
+              'No upcoming events',
+              style: TextStyle(
+                fontSize: 18,
+                color: Color(0xFF757575),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Upcoming Events',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF4A4A4A),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: eventProvider.events.length,
+              itemBuilder: (context, index) {
+                final event = eventProvider.events[index];
+                return _buildEventCard(
+                  context: context,
+                  event: event,
+                  eventProvider: eventProvider,
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildEventCard({
-    required String title,
-    required String date,
-    required String time,
-    required String platform,
+    required BuildContext context,
+    required EventModel event,
+    required EventProvider eventProvider,
   }) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.currentUser?.id ?? 'current_user';
+    final isJoined = event.participants.contains(userId);
+
     return Container(
       width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: const Color(0xFFE8E2DB)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -839,7 +910,7 @@ class _HomeTabState extends State<HomeTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  event.title,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -848,19 +919,63 @@ class _HomeTabState extends State<HomeTab> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '$date • $time • $platform',
+                  '${_formatDate(event.dateTime)} • ${_formatTime(event.dateTime)} • ${event.platform}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF757575),
                   ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  event.description,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF757575),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () async {
+              if (isJoined) {
+                // Launch the event link
+                final url = event.link;
+                if (await canLaunchUrl(Uri.parse(url))) {
+                  await launchUrl(Uri.parse(url));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not open ${event.platform}')),
+                  );
+                }
+              } else {
+                // Join the event
+                final success = await eventProvider.toggleJoinEvent(
+                  event.id,
+                  userId,
+                );
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Successfully joined ${event.title}!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to join ${event.title}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD4A017),
+              backgroundColor:
+                  isJoined ? Colors.green : const Color(0xFFD4A017),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
@@ -869,11 +984,22 @@ class _HomeTabState extends State<HomeTab> {
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: const Text('Join'),
+            child: Text(isJoined ? 'Join Now' : 'Join'),
           ),
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime dateTime) {
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final hour = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final period = dateTime.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
   }
 }
 

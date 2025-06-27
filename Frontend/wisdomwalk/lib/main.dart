@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:wisdomwalk/providers/chat_provider.dart';
 import 'package:wisdomwalk/providers/chat_view_model.dart';
+import 'package:wisdomwalk/providers/event_provider.dart' show EventProvider;
 import 'package:wisdomwalk/providers/notification_provider.dart';
 import 'package:wisdomwalk/routing/app_routing.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +13,7 @@ import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
 import 'package:wisdomwalk/providers/her_move_provider.dart';
 import 'package:wisdomwalk/themes/app_theme.dart';
 import 'package:wisdomwalk/providers/reflection_provider.dart';
+import 'package:wisdomwalk/models/event_model.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +39,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => ReflectionProvider()),
+        ChangeNotifierProvider(create: (_) => EventProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
