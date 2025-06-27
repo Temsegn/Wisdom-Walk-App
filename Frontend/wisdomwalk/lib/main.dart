@@ -13,7 +13,6 @@ import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
 import 'package:wisdomwalk/providers/her_move_provider.dart';
 import 'package:wisdomwalk/themes/app_theme.dart';
 import 'package:wisdomwalk/providers/reflection_provider.dart';
-import 'package:wisdomwalk/models/event_model.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

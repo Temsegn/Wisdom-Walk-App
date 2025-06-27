@@ -2086,6 +2086,8 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
         }
 
         final shares = shareProvider.shares;
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final userId = authProvider.currentUser?.id ?? 'current_user';
 
         if (shares.isEmpty) {
           return Center(
@@ -2129,6 +2131,10 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
             itemCount: shares.length,
             itemBuilder: (context, index) {
               final share = shares[index];
+              final isLiked = share.hearts.contains(userId);
+              final isPraying = share.prayingUsers.contains(userId);
+              final hasHugged = share.virtualHugs.contains(userId);
+
               return GestureDetector(
                 onTap: () {
                   context.push('/anonymous-share/${share.id}');
@@ -2187,40 +2193,150 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
                         Row(
                           children: [
                             TextButton.icon(
-                              onPressed: () {
-                                // Handle heart reaction (to be implemented)
+                              onPressed: () async {
+                                final success = await shareProvider.toggleHeart(
+                                  shareId: share.id,
+                                  userId: userId,
+                                );
+                                if (success) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        isLiked ? 'Removed heart' : 'Hearted!',
+                                      ),
+                                      backgroundColor:
+                                          isLiked ? Colors.grey : Colors.red,
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Failed to update heart'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               },
-                              icon: const Icon(Icons.favorite_border, size: 18),
+                              icon: Icon(
+                                isLiked
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                size: 18,
+                                color:
+                                    isLiked
+                                        ? Colors.red
+                                        : const Color(0xFFD4A017),
+                              ),
                               label: Text(
                                 '${share.heartCount} Hearts',
-                              ), // Updated to show "Hearts"
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFD4A017),
+                                ),
+                              ),
                               style: TextButton.styleFrom(
-                                foregroundColor: Colors.red,
+                                foregroundColor:
+                                    isLiked
+                                        ? Colors.red
+                                        : const Color(0xFFD4A017),
                               ),
                             ),
                             const SizedBox(width: 16),
                             TextButton.icon(
-                              onPressed: () {
-                                // Handle prayer reaction (to be implemented)
+                              onPressed: () async {
+                                final success = await shareProvider
+                                    .togglePraying(
+                                      shareId: share.id,
+                                      userId: userId,
+                                    );
+                                if (success) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        isPraying
+                                            ? 'Removed prayer'
+                                            : 'Praying for this',
+                                      ),
+                                      backgroundColor:
+                                          isPraying
+                                              ? Colors.grey
+                                              : const Color(0xFFD4A017),
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Failed to update prayer'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               },
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.volunteer_activism_outlined,
                                 size: 18,
+                                color:
+                                    isPraying
+                                        ? const Color(0xFFD4A017)
+                                        : Colors.grey,
                               ),
-                              label: Text('${share.prayerCount} Prayers'),
+                              label: Text(
+                                '${share.prayerCount} Prayers',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFD4A017),
+                                ),
+                              ),
                               style: TextButton.styleFrom(
-                                foregroundColor: const Color(0xFFD4A017),
+                                foregroundColor:
+                                    isPraying
+                                        ? const Color(0xFFD4A017)
+                                        : Colors.grey,
                               ),
                             ),
                             const SizedBox(width: 16),
                             TextButton.icon(
-                              onPressed: () {
-                                // Handle virtual hug (to be implemented)
+                              onPressed: () async {
+                                final success = await shareProvider
+                                    .sendVirtualHug(
+                                      shareId: share.id,
+                                      userId: userId,
+                                    );
+                                if (success) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Virtual hug sent!'),
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Failed to send virtual hug',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               },
-                              icon: const Icon(Icons.favorite, size: 18),
-                              label: Text('${share.hugCount} Hugs'),
+                              icon: Icon(
+                                Icons.favorite,
+                                size: 18,
+                                color: hasHugged ? Colors.pink : Colors.grey,
+                              ),
+                              label: Text(
+                                '${share.hugCount} Hugs',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFD4A017),
+                                ),
+                              ),
                               style: TextButton.styleFrom(
-                                foregroundColor: Colors.pink,
+                                foregroundColor:
+                                    hasHugged ? Colors.pink : Colors.grey,
                               ),
                             ),
                           ],
