@@ -10,7 +10,7 @@ class AuthService {
   final LocalStorageService _localStorageService = LocalStorageService();
 
   // Replace with your backend base URL (e.g., http://localhost:3000 or your hosted URL)
-static const String baseUrl = 'http://10.161.82.35:5000/api/auth';
+static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
   // Helper method to handle errors
   void _handleError(http.Response response) {
     final body = jsonDecode(response.body);

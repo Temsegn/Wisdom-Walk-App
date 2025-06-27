@@ -45,10 +45,10 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Store io instance for controllers
-app.set("io", io);
+//app.set("io", io);
 
 // Socket.IO setup
-require("./socket/socket")(io);
+//require("./socket/socket")(io);
 
 // Routes
 app.use("/api/auth", authRoutes);
