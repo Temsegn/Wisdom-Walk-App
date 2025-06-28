@@ -6,7 +6,7 @@ const { saveVerificationDocument } = require("../utils/storageHelper")
 // Register new user
 const register = async (req, res) => {
   try {
-    const { email, password, fullName, dateOfBirth, phoneNumber, location,bio } = req.body
+    const { email, password, firstName, lastName, dateOfBirth, phoneNumber, location, bio } = req.body
 
     // Check if user already exists
     const existingUser = await User.findOne({ email })
