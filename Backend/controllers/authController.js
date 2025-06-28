@@ -43,7 +43,7 @@ const register = async (req, res) => {
     )
 
     // Generate email verification
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
+const verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
     const emailVerificationExpires = new Date(Date.now() + 5 * 60 * 1000)
 
     // Create user
@@ -336,7 +336,7 @@ const resendVerificationEmail = async (req, res) => {
       });
     }
 
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+const verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
     const emailVerificationExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     await User.updateOne(
