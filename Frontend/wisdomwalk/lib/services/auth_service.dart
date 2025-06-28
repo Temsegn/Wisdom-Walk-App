@@ -10,7 +10,7 @@ class AuthService {
   final LocalStorageService _localStorageService = LocalStorageService();
 
   // Use the remote server URL (Render deployment)
-  static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
+  static const String baseUrl = 'https://wisdom-walk-app.onrender.com/api/auth';
 
   // Helper method to handle errors
   void _handleError(http.Response response) {

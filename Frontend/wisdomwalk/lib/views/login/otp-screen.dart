@@ -31,24 +31,25 @@ class _OtpScreenState extends State<OtpScreen> {
     }
     super.dispose();
   }
+ 
+ Future<void> _verifyOtp() async {
+  final otp = _controllers.map((controller) => controller.text).join();
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-  Future<void> _verifyOtp() async {
-    final otp = _controllers.map((controller) => controller.text).join();
+  final success = await authProvider.verifyOtp(email: widget.email, otp: otp);
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.verifyOtp(email: widget.email, otp: otp);
-
-    if (success && mounted) {
-      context.go('/login');
-    } else if (mounted && authProvider.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error!),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    }
+  if (success && mounted) {
+    // ✅ Go to login after successful OTP
+    context.go('/login');
+  } else if (mounted && authProvider.error != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(authProvider.error!),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ),
+    );
   }
+}
 
   Future<void> _resendOtp() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);

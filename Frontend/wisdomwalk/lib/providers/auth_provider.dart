@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:wisdomwalk/models/user_model.dart';
 import 'package:wisdomwalk/services/auth_service.dart';
@@ -21,27 +20,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _currentUser != null;
 
   AuthProvider() {
-    _initializeUser();
     _loadThemePreference();
-  }
-
-  get user => null;
-
-  Future<void> _initializeUser() async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      final token = await _localStorageService.getAuthToken();
-      if (token != null) {
-        _currentUser = await _authService.getCurrentUser();
-      }
-    } catch (e) {
-      _error = e.toString();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
   }
 
   Future<void> _loadThemePreference() async {
@@ -56,6 +35,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Registration (no token logic)
   Future<bool> register({
     required String firstName,
     required String lastName,
@@ -74,8 +54,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('AuthProvider registering with: firstName=$firstName, lastName=$lastName, email=$email, password=$password'); // Debug log
-      final user = await _authService.register(
+      await _authService.register(
         firstName: firstName,
         lastName: lastName,
         email: email,
@@ -86,29 +65,8 @@ class AuthProvider extends ChangeNotifier {
         idImagePath: idImagePath,
         faceImagePath: faceImagePath,
         idImageBytes: idImageBytes,
-        faceImageBytes: faceImageBytes, 
+        faceImageBytes: faceImageBytes,
       );
-
-      _currentUser = user;
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      print('Registration error: $e'); // Debug log
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> login({required String email, required String password}) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final user = await _authService.login(email: email, password: password);
-      _currentUser = user;
       return true;
     } catch (e) {
       _error = e.toString();
@@ -119,7 +77,8 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-Future<bool> verifyOtp({
+  // OTP Verification
+  Future<bool> verifyOtp({
     required String email,
     required String otp,
   }) async {
@@ -139,56 +98,18 @@ Future<bool> verifyOtp({
     }
   }
 
-  
-  Future<bool> resendOtp({required String email}) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      await _authService.resendOtp(email: email);
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> forgotPassword({required String email}) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      await _authService.forgotPassword(email: email);
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> resetPassword({
+  // Login (saves token and user)
+  Future<bool> login({
     required String email,
-    required String otp,
-    required String newPassword,
+    required String password,
   }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      await _authService.resetPassword(
-        email: email,
-        otp: otp,
-        newPassword: newPassword,
-      );
+      final user = await _authService.login(email: email, password: password);
+      _currentUser = user;
       return true;
     } catch (e) {
       _error = e.toString();
@@ -199,6 +120,7 @@ Future<bool> verifyOtp({
     }
   }
 
+  // Update profile (token required)
   Future<bool> updateProfile({
     String? firstName,
     String? lastName,
@@ -225,7 +147,6 @@ Future<bool> verifyOtp({
         avatarPath: avatarPath,
         wisdomCircleInterests: wisdomCircleInterests,
       );
-
       _currentUser = updatedUser;
       return true;
     } catch (e) {
@@ -237,6 +158,69 @@ Future<bool> verifyOtp({
     }
   }
 
+Future<bool> resendOtp ({
+    required String email,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _authService.resendOtp(email: email);
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+  // Forgot Password
+  Future<bool> forgotPassword({required String email}) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _authService.forgotPassword(email: email);
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Reset Password
+  Future<bool> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _authService.resetPassword(
+        email: email,
+        otp: otp,
+        newPassword: newPassword,
+      );
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Logout
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();
