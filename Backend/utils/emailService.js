@@ -7,8 +7,8 @@ const Transport = nodemailer.createTransport({
   host: "sandbox.smtp.mailtrap.io",
   port: 2525,
   auth: {
-    user: "6207eb4fcc2f09",
-    pass: "45de75a4071a88"
+    user: "ac9d50e1641a16",
+    pass: "adea400d36812d"
   }
 });
 const sendVerificationEmail = async (email, firstName,verificationCode) => {
