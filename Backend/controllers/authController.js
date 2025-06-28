@@ -2,11 +2,21 @@ const User = require("../models/User")
 const { generateToken, generateJWT, formatUserResponse } = require("../utils/helpers")
 const { sendVerificationEmail, sendPasswordResetEmail, sendAdminNotificationEmail } = require("../utils/emailService")
 const { saveVerificationDocument } = require("../utils/storageHelper")
+ 
 
-// Register new user
+
 const register = async (req, res) => {
   try {
-    const { email, password, firstName, lastName, dateOfBirth, phoneNumber, location, bio } = req.body
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      dateOfBirth,
+      phoneNumber,
+      location,
+      bio,
+    } = req.body
 
     // Check if user already exists
     const existingUser = await User.findOne({ email })
@@ -16,8 +26,8 @@ const register = async (req, res) => {
         message: 'User with this email already exists',
       })
     }
- 
-    // Check if verification documents are uploaded
+
+    // Check for required files
     if (!req.files?.livePhoto || !req.files?.nationalId) {
       return res.status(400).json({
         success: false,
@@ -25,28 +35,30 @@ const register = async (req, res) => {
       })
     }
 
+    // Sanitize email to use as folder name
     const sanitizedEmail = email.replace(/[^a-zA-Z0-9]/g, '_')
 
-    // Upload documents (using buffer from memory storage)
+    // Upload Live Photo
     const livePhotoResult = await saveVerificationDocument(
       req.files.livePhoto[0].buffer,
       sanitizedEmail,
       'live_photo',
-      req.files.livePhoto[0].originalname,
+      req.files.livePhoto[0].originalname
     )
 
+    // Upload National ID
     const nationalIdResult = await saveVerificationDocument(
       req.files.nationalId[0].buffer,
       sanitizedEmail,
       'national_id',
-      req.files.nationalId[0].originalname,
+      req.files.nationalId[0].originalname
     )
 
-    // Generate email verification
-const verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
+    // Generate email verification code
+    const verificationCode = Math.floor(1000 + Math.random() * 9000).toString()
     const emailVerificationExpires = new Date(Date.now() + 5 * 60 * 1000)
 
-    // Create user
+    // Create new user
     const user = new User({
       email,
       password,
@@ -55,11 +67,17 @@ const verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
       dateOfBirth,
       phoneNumber,
       location,
-      livePhoto: livePhotoResult.url,
-      nationalId: nationalIdResult.url,
+      bio,
+      livePhoto: {
+        url: livePhotoResult.url,
+        publicId: livePhotoResult.publicId,
+      },
+      nationalId: {
+        url: nationalIdResult.url,
+        publicId: nationalIdResult.publicId,
+      },
       verificationCode,
       emailVerificationExpires,
-      bio
     })
 
     await user.save()
@@ -96,6 +114,7 @@ const verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
   }
 }
 
+ 
 
 
 // Verify email

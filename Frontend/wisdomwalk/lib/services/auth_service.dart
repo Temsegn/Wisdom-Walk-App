@@ -20,7 +20,8 @@ class AuthService {
 
   // Register user
   Future<UserModel> register({
-    required String fullName,
+    required String firstName,
+    required String lastName,
     required String email,
     required String password,
     required String city,
@@ -31,13 +32,10 @@ class AuthService {
     Uint8List? idImageBytes, // For web
     Uint8List? faceImageBytes, // For web
     String? dateOfBirth, // Added for backend
-    String? phoneNumber, required String firstName, required String lastName, // Added for backend
+    String? phoneNumber,   // Added for backend
   }) async {
     print('Registering with baseUrl: $baseUrl'); // Debug log
-    // Split fullName into firstName and lastName
-    final names = fullName.split(' ');
-    final firstName = names.isNotEmpty ? names[0] : '';
-    final lastName = names.length > 1 ? names.sublist(1).join(' ') : '';
+    
 
     var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/register'));
 
@@ -94,12 +92,10 @@ class AuthService {
 
       if (response.statusCode == 201) {
         final data = jsonDecode(responseBody.body)['data'];
-        if (data['token'] != null) {
-          await _localStorageService.saveAuthToken(data['token']);
-        }
+         
         return UserModel(
           id: data['userId'],
-          fullName: fullName,
+          fullName: '${data['firstName']} ${data['lastName']}'.trim(),
           email: data['email'],
           city: city,
           country: country,

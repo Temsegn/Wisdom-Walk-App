@@ -86,7 +86,7 @@ class AuthProvider extends ChangeNotifier {
         idImagePath: idImagePath,
         faceImagePath: faceImagePath,
         idImageBytes: idImageBytes,
-        faceImageBytes: faceImageBytes, fullName: '',
+        faceImageBytes: faceImageBytes, 
       );
 
       _currentUser = user;
@@ -118,6 +118,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 Future<bool> verifyOtp({
     required String email,
     required String otp,
@@ -137,6 +138,8 @@ Future<bool> verifyOtp({
       notifyListeners();
     }
   }
+
+  
   Future<bool> resendOtp({required String email}) async {
     _isLoading = true;
     _error = null;
