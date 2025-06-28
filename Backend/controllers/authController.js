@@ -181,7 +181,12 @@ const login = async (req, res) => {
         message: "Invalid email or password",
       })
     }
-
+    console.log("User found:", user.canAccess());
+       console.log("User details:", {
+  isEmailVerified: user.isEmailVerified,
+  status: user.status,
+  blockedUntil: user.blockedUntil
+});
     // Check if user can access the app
     if (!user.canAccess()) {
       const statusMessages = {

@@ -193,7 +193,7 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 userSchema.methods.canAccess = function () {
   return (
     this.isEmailVerified &&
-    this.isAdminVerified &&
+    
     this.status === "active" &&
     (!this.blockedUntil || this.blockedUntil < new Date())
   )
