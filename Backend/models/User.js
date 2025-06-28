@@ -58,20 +58,19 @@ const userSchema = new mongoose.Schema(
 
     // Admin verification documents
     livePhoto: {
-      type: String, // Cloudinary URL
-      required: false,
-      default: null,
-    },
+  url: { type: String, required: true },
+  publicId: { type: String, required: true }
+},
+  nationalId: {
+  url: { type: String, required: true },
+  publicId: { type: String, required: true }
+   },
     verificationCode: {
       type: String, // Cloudinary URL
       required: false,
       default: null,
     },
-    nationalId: {
-      type: String, // Cloudinary URL
-      required: false,
-      default: null,
-    },
+    
     verificationStatus: {
       type: String,
       enum: ["pending", "approved", "rejected"],

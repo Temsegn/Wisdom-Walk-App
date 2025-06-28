@@ -1,34 +1,29 @@
 const cloudinary = require('../config/cloudinary')
+const { Readable } = require('stream')
+
+const bufferToStream = (buffer) => Readable.from(buffer)
 
 // Upload a single file buffer
-const saveFile = async (fileBuffer, originalName, folder = "temp") => {
-  try {
-    const uploadResult = await cloudinary.uploader.upload_stream(
+const saveFile = (fileBuffer, originalName, folder = "temp") => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
       {
         resource_type: 'auto',
         folder,
-        public_id: originalName.split('.')[0],
+        public_id: originalName.split('.')[0] + '_' + Date.now(),
         overwrite: false,
       },
       (error, result) => {
-        if (error) throw error
-        return result
+        if (error) {
+          console.error('Cloudinary upload error:', error)
+          return reject(error)
+        }
+        resolve(result)
       }
     )
 
-    // Convert file buffer to stream and pipe to Cloudinary
-    const { Readable } = require('stream')
-    const stream = Readable.from(fileBuffer)
-    stream.pipe(uploadResult)
-
-    return new Promise((resolve, reject) => {
-      uploadResult.on('finish', () => resolve(uploadResult))
-      uploadResult.on('error', reject)
-    })
-  } catch (error) {
-    console.error('Error uploading to Cloudinary:', error)
-    throw error
-  }
+    bufferToStream(fileBuffer).pipe(stream)
+  })
 }
 
 // Upload multiple files
@@ -41,19 +36,21 @@ const saveMultipleFiles = async (files, folder = "temp") => {
   return results
 }
 
-// Upload a verification document to a specific folder
+// Upload a verification document
 const saveVerificationDocument = async (fileBuffer, userId, type, originalName) => {
   const folder = `verification/${userId}`
   const result = await saveFile(fileBuffer, originalName, folder)
 
   return {
     url: result.secure_url,
-    public_id: result.public_id,
+    publicId: result.public_id,
     originalName,
     documentType: type,
     size: result.bytes,
   }
 }
+
+// Delete a file from Cloudinary
 const deleteFile = async (publicId) => {
   try {
     const res = await cloudinary.uploader.destroy(publicId)
@@ -63,8 +60,6 @@ const deleteFile = async (publicId) => {
     throw error
   }
 }
-
-
 
 module.exports = {
   saveFile,
