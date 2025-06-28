@@ -5,11 +5,10 @@ const jwt = require("jsonwebtoken")
 const generateToken = () => {
   return crypto.randomBytes(32).toString("hex")
 }
-
 // Generate JWT token
-const generateJWT = (userId) => {
-  return jwt.sign({ userId }, "wisdom", { expiresIn: process.env.JWT_EXPIRES_IN || "7d" })
-}
+const generateJWT = (payload) => {
+  return jwt.sign(payload, "wisdom", { expiresIn: process.env.JWT_EXPIRES_IN || "7d" });
+};
 
 // Calculate age from date of birth
 const calculateAge = (dateOfBirth) => {

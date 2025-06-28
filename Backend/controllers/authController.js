@@ -191,8 +191,7 @@ const login = async (req, res) => {
     if (!user.canAccess()) {
       const statusMessages = {
         emailNotVerified: "Please verify your email address before logging in.",
-        adminNotVerified: "Your account is pending admin verification. You will be notified once approved.",
-        blocked: `Your account is temporarily blocked until ${user.blockedUntil?.toLocaleDateString()}.`,
+         blocked: `Your account is temporarily blocked until ${user.blockedUntil?.toLocaleDateString()}.`,
         banned: "Your account has been permanently banned. Please contact support for more information.",
       }
 
@@ -218,8 +217,11 @@ const login = async (req, res) => {
     await user.save()
 
     // Generate JWT token
-    const token = generateJWT(user._id)
-
+const token = generateJWT({
+      userId: user._id,
+      isAdminVerified: user.isAdminVerified,
+      isGlobalAdmin: user.isGlobalAdmin,
+    });
    
 
     res.cookie('token', token, {
