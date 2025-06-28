@@ -166,80 +166,82 @@ const verifyEmail = async (req, res) => {
   }
 }
 
+
 // Login user
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body
 
     // Find user and include password for comparison
-    const user = await User.findOne({ email }).select("+password");
+    const user = await User.findOne({ email }).select("+password")
 
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
-      });
+      })
     }
 
-    // Check if user can access the app (removed isAdminVerified check)
+    // Check if user can access the app
     if (!user.canAccess()) {
       const statusMessages = {
         emailNotVerified: "Please verify your email address before logging in.",
+        adminNotVerified: "Your account is pending admin verification. You will be notified once approved.",
         blocked: `Your account is temporarily blocked until ${user.blockedUntil?.toLocaleDateString()}.`,
         banned: "Your account has been permanently banned. Please contact support for more information.",
-      };
+      }
 
-      let message = "Account access restricted.";
-      if (!user.isEmailVerified) message = statusMessages.emailNotVerified;
-      else if (user.status === "blocked") message = statusMessages.blocked;
-      else if (user.status === "banned") message = statusMessages.banned;
+      let message = "Account access restricted." 
+      if (!user.isEmailVerified) message = statusMessages.emailNotVerified
+      else if (user.status === "blocked") message = statusMessages.blocked
+      else if (user.status === "banned") message = statusMessages.banned
 
       return res.status(403).json({
         success: false,
         message,
         details: {
           emailVerified: user.isEmailVerified,
+          adminVerified: user.isAdminVerified,
           status: user.status,
           blockedUntil: user.blockedUntil,
         },
-      });
+      })
     }
 
     // Update last active
-    user.lastActive = new Date();
-    await user.save();
+    user.lastActive = new Date()
+    await user.save()
 
-    // Generate JWT token with isAdminVerified and isGlobalAdmin
-    const token = generateJWT({
-      userId: user._id,
-      isAdminVerified: user.isAdminVerified,
-      isGlobalAdmin: user.isGlobalAdmin,
-    });
+    // Generate JWT token
+    const token = generateJWT(user._id)
+
+   
 
     res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Strict',
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
-    });
-
-    res.json({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'Strict',
+  maxAge: 24 * 60 * 60 * 1000, // 1 day
+  
+});
+ res.json({
       success: true,
       message: "Login successful",
       data: {
         token,
         user: formatUserResponse(user),
       },
-    });
+    })
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("Login error:", error)
     res.status(500).json({
       success: false,
       message: "Login failed",
       error: error.message,
-    });
+    })
   }
-};
+}
+
 // Request password reset
 // Request password reset using verificationCode field
 const requestPasswordReset = async (req, res) => {
