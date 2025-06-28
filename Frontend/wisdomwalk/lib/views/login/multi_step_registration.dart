@@ -25,9 +25,7 @@ class _MultiStepRegistrationState extends State<MultiStepRegistration> {
     'subcity': '',
     'country': '',
     'idImagePath': '',
-    'faceImagePath': '',
-    'idImageBytes': null,
-    'faceImageBytes': null,
+    'faceImagePath': '', // Removed bytes
   };
 
   void _nextStep(Map<String, String> data) {
@@ -79,8 +77,6 @@ class _MultiStepRegistrationState extends State<MultiStepRegistration> {
         country: _formData['country'].trim(),
         idImagePath: _formData['idImagePath'],
         faceImagePath: _formData['faceImagePath'],
-        idImageBytes: _formData['idImageBytes'],
-        faceImageBytes: _formData['faceImageBytes'],
       );
 
       if (success && mounted) {

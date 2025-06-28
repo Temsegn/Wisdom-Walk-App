@@ -191,12 +191,7 @@ const login = async (req, res) => {
         banned: "Your account has been permanently banned. Please contact support for more information.",
       }
 
-      let message = "Account access restricted." 
-      if (!user.isEmailVerified) message = statusMessages.emailNotVerified
-      else if (!user.isAdminVerified) message = statusMessages.adminNotVerified
-      else if (user.status === "blocked") message = statusMessages.blocked
-      else if (user.status === "banned") message = statusMessages.banned
-
+      
       return res.status(403).json({
         success: false,
         message,

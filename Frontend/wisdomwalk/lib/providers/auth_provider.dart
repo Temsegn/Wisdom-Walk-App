@@ -46,8 +46,7 @@ class AuthProvider extends ChangeNotifier {
     required String country,
     required String idImagePath,
     required String faceImagePath,
-    Uint8List? idImageBytes,
-    Uint8List? faceImageBytes,
+    
   }) async {
     _isLoading = true;
     _error = null;
@@ -60,12 +59,11 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
         city: city,
-        subcity: subcity,
+     
         country: country,
         idImagePath: idImagePath,
         faceImagePath: faceImagePath,
-        idImageBytes: idImageBytes,
-        faceImageBytes: faceImageBytes,
+        
       );
       return true;
     } catch (e) {
@@ -142,7 +140,6 @@ class AuthProvider extends ChangeNotifier {
         firstName: firstName,
         lastName: lastName,
         city: city,
-        subcity: subcity,
         country: country,
         avatarPath: avatarPath,
         wisdomCircleInterests: wisdomCircleInterests,
