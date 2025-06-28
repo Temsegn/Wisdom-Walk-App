@@ -118,16 +118,17 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-  Future<bool> verifyOtp({required String email, required String otp}) async {
+Future<bool> verifyOtp({
+    required String email,
+    required String otp,
+  }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final user = await _authService.verifyOtp(email: email, otp: otp);
-      _currentUser = user;
-      return true;
+      final verified = await _authService.verifyOtp(email: email, otp: otp);
+      return verified;
     } catch (e) {
       _error = e.toString();
       return false;
@@ -136,7 +137,6 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-
   Future<bool> resendOtp({required String email}) async {
     _isLoading = true;
     _error = null;

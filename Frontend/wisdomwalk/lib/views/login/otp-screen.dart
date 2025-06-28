@@ -39,7 +39,7 @@ class _OtpScreenState extends State<OtpScreen> {
     final success = await authProvider.verifyOtp(email: widget.email, otp: otp);
 
     if (success && mounted) {
-      context.go('/dashboard');
+      context.go('/login');
     } else if (mounted && authProvider.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

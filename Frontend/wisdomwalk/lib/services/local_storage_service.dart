@@ -11,7 +11,7 @@ class LocalStorageService {
 
   Future<String?> getAuthToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_authTokenKey);
+    return prefs.getString(_authTokenKey);  
   }
 
   Future<void> clearAuthToken() async {

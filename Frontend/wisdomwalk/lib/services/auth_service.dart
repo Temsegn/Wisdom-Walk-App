@@ -148,12 +148,10 @@ class AuthService {
     throw Exception('Failed to login');
   }
 
-  // Verify OTP
-  Future<UserModel> verifyOtp({
+ Future<bool> verifyOtp({
     required String email,
     required String otp,
   }) async {
-    print('Verifying OTP with baseUrl: $baseUrl'); // Debug log
     final response = await http.post(
       Uri.parse('$baseUrl/verify'),
       headers: {'Content-Type': 'application/json'},
@@ -161,16 +159,15 @@ class AuthService {
     );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body)['data'];
-      final userResponse = await getCurrentUser();
-      return userResponse.copyWith(
-        isVerified: (data['emailVerified'] ?? false) && (userResponse.isVerified || false),
-      );
+      final body = jsonDecode(response.body);
+      final emailVerified = body['data']?['emailVerified'] ?? false;
+      return emailVerified == true;
+    } else {
+      // Optional: log error
+      final body = jsonDecode(response.body);
+      throw Exception(body['message'] ?? 'Failed to verify OTP');
     }
-    _handleError(response);
-    throw Exception('Failed to verify OTP');
   }
-
   // Resend OTP
   Future<void> resendOtp({required String email}) async {
     print('Resending OTP with baseUrl: $baseUrl'); // Debug log
