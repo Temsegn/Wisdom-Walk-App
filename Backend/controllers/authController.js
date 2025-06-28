@@ -182,27 +182,27 @@ const login = async (req, res) => {
       })
     }
 
-    // Check if user can access the app
-    if (!user.canAccess()) {
-      const statusMessages = {
-        emailNotVerified: "Please verify your email address before logging in.",
-        adminNotVerified: "Your account is pending admin verification. You will be notified once approved.",
-        blocked: `Your account is temporarily blocked until ${user.blockedUntil?.toLocaleDateString()}.`,
-        banned: "Your account has been permanently banned. Please contact support for more information.",
-      }
+    // // Check if user can access the app
+    // if (!user.canAccess()) {
+    //   const statusMessages = {
+    //     emailNotVerified: "Please verify your email address before logging in.",
+    //     adminNotVerified: "Your account is pending admin verification. You will be notified once approved.",
+    //     blocked: `Your account is temporarily blocked until ${user.blockedUntil?.toLocaleDateString()}.`,
+    //     banned: "Your account has been permanently banned. Please contact support for more information.",
+    //   }
 
       
-      return res.status(403).json({
-        success: false,
-        message,
-        details: {
-          emailVerified: user.isEmailVerified,
-          adminVerified: user.isAdminVerified,
-          status: user.status,
-          blockedUntil: user.blockedUntil,
-        },
-      })
-    }
+    //   return res.status(403).json({
+    //     success: false,
+    //     message,
+    //     details: {
+    //       emailVerified: user.isEmailVerified,
+    //       adminVerified: user.isAdminVerified,
+    //       status: user.status,
+    //       blockedUntil: user.blockedUntil,
+    //     },
+    //   })
+    // }
 
     // Update last active
     user.lastActive = new Date()
