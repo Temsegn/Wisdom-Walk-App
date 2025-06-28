@@ -16,7 +16,8 @@ class RegisterStepOne extends StatefulWidget {
 
 class _RegisterStepOneState extends State<RegisterStepOne> {
   final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -26,18 +27,81 @@ class _RegisterStepOneState extends State<RegisterStepOne> {
   @override
   void initState() {
     super.initState();
-    _fullNameController.text = widget.initialData['fullName'] ?? '';
+    // Use firstName and lastName directly from initialData
+    _firstNameController.text = widget.initialData['firstName'] ?? '';
+    _lastNameController.text = widget.initialData['lastName'] ?? '';
     _emailController.text = widget.initialData['email'] ?? '';
     _passwordController.text = widget.initialData['password'] ?? '';
+    _confirmPasswordController.text = widget.initialData['password'] ?? '';
+    print('RegisterStepOne initialized: firstName=${_firstNameController.text}, lastName=${_lastNameController.text}');
   }
 
   @override
   void dispose() {
-    _fullNameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  void _submit() {
+    if (_formKey.currentState!.validate()) {
+      final firstName = _firstNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+      final confirmPassword = _confirmPasswordController.text.trim();
+
+      print('Submitting: firstName=$firstName, lastName=$lastName, email=$email, password=$password');
+
+      if (firstName.isEmpty || lastName.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('First name and last name are required'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      if (firstName.length < 2 || firstName.length > 50 || lastName.length < 2 || lastName.length > 50) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Names must be between 2 and 50 characters'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      if (password != confirmPassword) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Passwords do not match'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$').hasMatch(password)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      widget.onNext({
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email,
+        'password': password,
+      });
+    } else {
+      print('Form validation failed');
+    }
   }
 
   @override
@@ -65,7 +129,9 @@ class _RegisterStepOneState extends State<RegisterStepOne> {
                 style: TextStyle(fontSize: 14, color: Color(0xFF757575)),
               ),
               const SizedBox(height: 30),
-              _buildFullNameField(),
+              _buildFirstNameField(),
+              const SizedBox(height: 20),
+              _buildLastNameField(),
               const SizedBox(height: 20),
               _buildEmailField(),
               const SizedBox(height: 20),
@@ -81,12 +147,12 @@ class _RegisterStepOneState extends State<RegisterStepOne> {
     );
   }
 
-  Widget _buildFullNameField() {
+  Widget _buildFirstNameField() {
     return TextFormField(
-      controller: _fullNameController,
+      controller: _firstNameController,
       decoration: InputDecoration(
-        labelText: 'Full Name',
-        hintText: 'Enter your full name',
+        labelText: 'First Name',
+        hintText: 'Enter your first name',
         prefixIcon: const Icon(Icons.person_outline, color: Color(0xFFD4A017)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -104,8 +170,45 @@ class _RegisterStepOneState extends State<RegisterStepOne> {
         fillColor: Colors.white,
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter your full name';
+        if (value == null || value.trim().isEmpty) {
+          return 'Please enter your first name';
+        }
+        if (value.trim().length < 2 || value.trim().length > 50) {
+          return 'First name must be between 2 and 50 characters';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildLastNameField() {
+    return TextFormField(
+      controller: _lastNameController,
+      decoration: InputDecoration(
+        labelText: 'Last Name',
+        hintText: 'Enter your last name',
+        prefixIcon: const Icon(Icons.person_outline, color: Color(0xFFD4A017)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE8E2DB)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE8E2DB)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFD4A017)),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+      ),
+      validator: (value) {
+        if (value == null || value.trim().isEmpty) {
+          return 'Please enter your last name';
+        }
+        if (value.trim().length < 2 || value.trim().length > 50) {
+          return 'Last name must be between 2 and 50 characters';
         }
         return null;
       },
@@ -188,6 +291,9 @@ class _RegisterStepOneState extends State<RegisterStepOne> {
         if (value.length < 8) {
           return 'Password must be at least 8 characters';
         }
+        if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$').hasMatch(value)) {
+          return 'Password must contain at least one uppercase letter, one lowercase letter, and one number';
+        }
         return null;
       },
     );
@@ -244,15 +350,7 @@ class _RegisterStepOneState extends State<RegisterStepOne> {
       width: double.infinity,
       height: 50,
       child: ElevatedButton(
-        onPressed: () {
-          if (_formKey.currentState!.validate()) {
-            widget.onNext({
-              'fullName': _fullNameController.text,
-              'email': _emailController.text,
-              'password': _passwordController.text,
-            });
-          }
-        },
+        onPressed: _submit,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFD4A017),
           foregroundColor: Colors.white,
@@ -267,5 +365,4 @@ class _RegisterStepOneState extends State<RegisterStepOne> {
         ),
       ),
     );
-  }
-}
+  }}

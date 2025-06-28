@@ -481,7 +481,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
       final success = await authProvider.updateProfile(
-        fullName: _nameController.text,
+        firstName: _nameController.text.split(' ').first,
+        lastName: _nameController.text.split(' ').length > 1
+            ? _nameController.text.split(' ').sublist(1).join(' ')
+            : null,
         wisdomCircleInterests: _selectedInterests,
       );
 

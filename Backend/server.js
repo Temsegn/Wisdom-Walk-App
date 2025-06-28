@@ -23,13 +23,17 @@ const bookingRoutes = require('./routes/bookingRoute');
 
 const app = express();
 const server = http.createServer(app);
+
+// Replace this with your actual frontend URL
+const frontendUrl = "https://your-frontend-url.com"; 
+
 const io = new Server(server, {
-  cors: { origin: '*', credentials: true },
+  cors: { origin: frontendUrl, credentials: true },
 });
 
 app.use(cookieParser());
 app.use(helmet());
-app.use(cors({ origin: '*', credentials: true }));
+app.use(cors({ origin: frontendUrl, credentials: true }));
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -44,11 +48,11 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Store io instance for controllers
-//app.set("io", io);
+// Store io instance for controllers if needed
+app.set("io", io);
 
-// Socket.IO setup
-//require("./socket/socket")(io);
+// Socket.IO setup — uncommented and active
+require("./socket/socket")(io);
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -62,7 +66,6 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/movements", movementRoutes);
 app.use("/api/bookings", bookingRoutes);
 
- 
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({
@@ -91,15 +94,18 @@ app.use("*", (req, res) => {
 });
 
 mongoose
-  .connect( "mongodb+srv://tom:1234tom2394@wisdomwalk.db2qsqm.mongodb.net/?retryWrites=true&w=majority&appName=wisdomwalk", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(
+    "mongodb+srv://tom:1234tom2394@wisdomwalk.db2qsqm.mongodb.net/?retryWrites=true&w=majority&appName=wisdomwalk",
+    {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    }
+  )
   .then(() => {
-    server.listen(process.env.PORT || 5000,'0.0.0.0', () => {
+    server.listen(process.env.PORT || 5000, "0.0.0.0", () => {
       console.log(`Server running on port ${process.env.PORT || 5000}`);
       console.log(`Static files served from: ${path.join(__dirname, "public")}`);
-      console.log(`Uploads served from: ${path.join(__dirname, "Uploads")}`);
+      console.log(`Uploads served from: ${path.join(__dirname, "uploads")}`);
     });
   })
   .catch((err) => console.error("MongoDB connection error:", err));

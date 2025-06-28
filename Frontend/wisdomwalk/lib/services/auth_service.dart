@@ -9,8 +9,9 @@ import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
 class AuthService {
   final LocalStorageService _localStorageService = LocalStorageService();
 
-  // Replace with your backend base URL (e.g., http://localhost:3000 or your hosted URL)
-static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
+  // Use the remote server URL (Render deployment)
+  static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
+
   // Helper method to handle errors
   void _handleError(http.Response response) {
     final body = jsonDecode(response.body);
@@ -30,8 +31,9 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
     Uint8List? idImageBytes, // For web
     Uint8List? faceImageBytes, // For web
     String? dateOfBirth, // Added for backend
-    String? phoneNumber, // Added for backend
+    String? phoneNumber, required String firstName, required String lastName, // Added for backend
   }) async {
+    print('Registering with baseUrl: $baseUrl'); // Debug log
     // Split fullName into firstName and lastName
     final names = fullName.split(' ');
     final firstName = names.isNotEmpty ? names[0] : '';
@@ -54,54 +56,63 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
     });
 
     // Add file uploads
-    if (kIsWeb && idImageBytes != null && faceImageBytes != null) {
-      request.files.add(http.MultipartFile.fromBytes(
-        'nationalId',
-        idImageBytes,
-        filename: 'nationalId.jpg',
-        contentType: MediaType('image', 'jpeg'),
-      ));
-      request.files.add(http.MultipartFile.fromBytes(
-        'livePhoto',
-        faceImageBytes,
-        filename: 'livePhoto.jpg',
-        contentType: MediaType('image', 'jpeg'),
-      ));
-    } else {
-      request.files.add(await http.MultipartFile.fromPath(
-        'nationalId',
-        idImagePath,
-        contentType: MediaType('image', 'jpeg'),
-      ));
-      request.files.add(await http.MultipartFile.fromPath(
-        'livePhoto',
-        faceImagePath,
-        contentType: MediaType('image', 'jpeg'),
-      ));
-    }
-
-    final response = await request.send();
-    final responseBody = await http.Response.fromStream(response);
-
-    if (response.statusCode == 201) {
-      final data = jsonDecode(responseBody.body)['data'];
-      // Save token if provided
-      if (data['token'] != null) {
-        await _localStorageService.saveAuthToken(data['token']);
+    try {
+      if (kIsWeb && idImageBytes != null && faceImageBytes != null) {
+        request.files.add(http.MultipartFile.fromBytes(
+          'nationalId',
+          idImageBytes,
+          filename: 'nationalId.jpg',
+          contentType: MediaType('image', 'jpeg'),
+        ));
+        request.files.add(http.MultipartFile.fromBytes(
+          'livePhoto',
+          faceImageBytes,
+          filename: 'livePhoto.jpg',
+          contentType: MediaType('image', 'jpeg'),
+        ));
+        print('Web upload: nationalId=${idImageBytes.length} bytes, livePhoto=${faceImageBytes.length} bytes');
+      } else {
+        if (!File(idImagePath).existsSync() || !File(faceImagePath).existsSync()) {
+          throw Exception('Invalid image file paths');
+        }
+        request.files.add(await http.MultipartFile.fromPath(
+          'nationalId',
+          idImagePath,
+          contentType: MediaType('image', 'jpeg'),
+        ));
+        request.files.add(await http.MultipartFile.fromPath(
+          'livePhoto',
+          faceImagePath,
+          contentType: MediaType('image', 'jpeg'),
+        ));
+        print('Mobile upload: nationalId=$idImagePath, livePhoto=$faceImagePath');
       }
-      return UserModel(
-        id: data['userId'],
-        fullName: fullName,
-        email: data['email'],
-        city: city,
-        country: country,
-        isVerified: false,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
+
+      final response = await request.send();
+      final responseBody = await http.Response.fromStream(response);
+      print('Response status: ${response.statusCode}, body: ${responseBody.body}');
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(responseBody.body)['data'];
+        if (data['token'] != null) {
+          await _localStorageService.saveAuthToken(data['token']);
+        }
+        return UserModel(
+          id: data['userId'],
+          fullName: fullName,
+          email: data['email'],
+          city: city,
+          country: country,
+          isVerified: false,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      }
+      _handleError(responseBody);
+    } catch (e) {
+      print('Registration error: $e');
+      throw Exception('Registration failed: $e');
     }
-    // Throw error for any other status code
-    _handleError(responseBody);
     throw Exception('Failed to update profile');
   }
 
@@ -110,6 +121,7 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
     required String email,
     required String password,
   }) async {
+    print('Logging in with baseUrl: $baseUrl'); // Debug log
     final response = await http.post(
       Uri.parse('$baseUrl/login'),
       headers: {'Content-Type': 'application/json'},
@@ -126,10 +138,8 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
         'avatarUrl': data['user']['profilePicture'],
         'city': data['user']['location']['city'],
         'country': data['user']['location']['country'],
-        'wisdomCircleInterests':
-            (data['user']['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
-        'isVerified': (data['user']['isEmailVerified'] ?? false) &&
-            (data['user']['isAdminVerified'] ?? false),
+        'wisdomCircleInterests': (data['user']['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
+        'isVerified': (data['user']['isEmailVerified'] ?? false) && (data['user']['isAdminVerified'] ?? false),
         'createdAt': data['user']['createdAt'] ?? DateTime.now().toIso8601String(),
         'updatedAt': data['user']['updatedAt'] ?? DateTime.now().toIso8601String(),
       });
@@ -143,6 +153,7 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
     required String email,
     required String otp,
   }) async {
+    print('Verifying OTP with baseUrl: $baseUrl'); // Debug log
     final response = await http.post(
       Uri.parse('$baseUrl/verify'),
       headers: {'Content-Type': 'application/json'},
@@ -153,8 +164,7 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
       final data = jsonDecode(response.body)['data'];
       final userResponse = await getCurrentUser();
       return userResponse.copyWith(
-        isVerified: (data['emailVerified'] ?? false) &&
-            (userResponse.isVerified || false),
+        isVerified: (data['emailVerified'] ?? false) && (userResponse.isVerified || false),
       );
     }
     _handleError(response);
@@ -163,6 +173,7 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
 
   // Resend OTP
   Future<void> resendOtp({required String email}) async {
+    print('Resending OTP with baseUrl: $baseUrl'); // Debug log
     final response = await http.post(
       Uri.parse('$baseUrl/resend-verification'),
       headers: {'Content-Type': 'application/json'},
@@ -176,6 +187,7 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
 
   // Forgot password
   Future<void> forgotPassword({required String email}) async {
+    print('Sending forgot password request with baseUrl: $baseUrl'); // Debug log
     final response = await http.post(
       Uri.parse('$baseUrl/forgot-password'),
       headers: {'Content-Type': 'application/json'},
@@ -193,6 +205,7 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
     required String otp,
     required String newPassword,
   }) async {
+    print('Resetting password with baseUrl: $baseUrl'); // Debug log
     final response = await http.post(
       Uri.parse('$baseUrl/reset-password'),
       headers: {'Content-Type': 'application/json'},
@@ -216,8 +229,9 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
     String? subcity,
     String? country,
     String? avatarPath,
-    List<String>? wisdomCircleInterests,
+    List<String>? wisdomCircleInterests, String? firstName, String? lastName,
   }) async {
+    print('Updating profile with baseUrl: $baseUrl'); // Debug log
     var request = http.MultipartRequest('PUT', Uri.parse('$baseUrl/users/profile'));
 
     // Add form fields
@@ -262,10 +276,8 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
         'avatarUrl': data['profilePicture'],
         'city': data['location']['city'],
         'country': data['location']['country'],
-        'wisdomCircleInterests':
-            (data['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
-        'is>isVerified': (data['isEmailVerified'] ?? false) &&
-            (data['isAdminVerified'] ?? false),
+        'wisdomCircleInterests': (data['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
+        'isVerified': (data['isEmailVerified'] ?? false) && (data['isAdminVerified'] ?? false),
         'createdAt': data['createdAt'] ?? DateTime.now().toIso8601String(),
         'updatedAt': data['updatedAt'] ?? DateTime.now().toIso8601String(),
       });
@@ -276,6 +288,7 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
 
   // Get current user
   Future<UserModel> getCurrentUser() async {
+    print('Getting current user with baseUrl: $baseUrl'); // Debug log
     final token = await _localStorageService.getAuthToken();
     if (token == null) throw Exception('No auth token found');
 
@@ -295,10 +308,8 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
         'avatarUrl': data['profilePicture'],
         'city': data['location']['city'],
         'country': data['location']['country'],
-        'wisdomCircleInterests':
-            (data['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
-        'isVerified': (data['isEmailVerified'] ?? false) &&
-            (data['isAdminVerified'] ?? false),
+        'wisdomCircleInterests': (data['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
+        'isVerified': (data['isEmailVerified'] ?? false) && (data['isAdminVerified'] ?? false),
         'createdAt': data['createdAt'] ?? DateTime.now().toIso8601String(),
         'updatedAt': data['updatedAt'] ?? DateTime.now().toIso8601String(),
       });
@@ -309,6 +320,7 @@ static const String baseUrl = 'https://wisdom-walk-app-1.onrender.com/api/auth';
 
   // Logout
   Future<void> logout() async {
+    print('Logging out with baseUrl: $baseUrl'); // Debug log
     final token = await _localStorageService.getAuthToken();
     if (token != null) {
       await http.post(

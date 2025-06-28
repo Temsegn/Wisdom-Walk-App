@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:wisdomwalk/models/user_model.dart';
 import 'package:wisdomwalk/services/auth_service.dart';
@@ -49,31 +51,33 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> toggleThemeMode() async {
-    _themeMode =
-        _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-    await _localStorageService.setDarkModePreference(
-      _themeMode == ThemeMode.dark,
-    );
+    _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    await _localStorageService.setDarkModePreference(_themeMode == ThemeMode.dark);
     notifyListeners();
   }
 
   Future<bool> register({
-    required String fullName,
+    required String firstName,
+    required String lastName,
     required String email,
     required String password,
     required String city,
     required String subcity,
     required String country,
     required String idImagePath,
-    required String faceImagePath, required idImageBytes, required faceImageBytes,
+    required String faceImagePath,
+    Uint8List? idImageBytes,
+    Uint8List? faceImageBytes,
   }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
+      print('AuthProvider registering with: firstName=$firstName, lastName=$lastName, email=$email, password=$password'); // Debug log
       final user = await _authService.register(
-        fullName: fullName,
+        firstName: firstName,
+        lastName: lastName,
         email: email,
         password: password,
         city: city,
@@ -81,12 +85,15 @@ class AuthProvider extends ChangeNotifier {
         country: country,
         idImagePath: idImagePath,
         faceImagePath: faceImagePath,
+        idImageBytes: idImageBytes,
+        faceImageBytes: faceImageBytes, fullName: '',
       );
 
       _currentUser = user;
       return true;
     } catch (e) {
       _error = e.toString();
+      print('Registration error: $e'); // Debug log
       return false;
     } finally {
       _isLoading = false;
@@ -190,7 +197,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> updateProfile({
-    String? fullName,
+    String? firstName,
+    String? lastName,
     String? city,
     String? subcity,
     String? country,
@@ -206,7 +214,8 @@ class AuthProvider extends ChangeNotifier {
     try {
       final updatedUser = await _authService.updateProfile(
         userId: _currentUser!.id,
-        fullName: fullName,
+        firstName: firstName,
+        lastName: lastName,
         city: city,
         subcity: subcity,
         country: country,

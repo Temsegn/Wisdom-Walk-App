@@ -9,7 +9,6 @@ router.post(
   "/register",
   uploadFields,            // handles file upload
   handleUploadError,       // optional: handles multer errors
-  validateRegistration,    // optional: validates body fields
   authController.register  // controller logic
 )
 

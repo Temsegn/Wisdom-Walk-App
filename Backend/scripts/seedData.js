@@ -203,7 +203,7 @@ const sampleGroupPosts = {
 const seedDatabase = async () => {
   try {
     // Connect to database
-    await mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/wisdomwalk")
+    await mongoose.connect(process.env.MONGODB_URI || "mongodb+srv://tom:1234tom2394@wisdomwalk.db2qsqm.mongodb.net/?retryWrites=true&w=majority&appName=wisdomwalk")
     console.log("Connected to MongoDB")
 
     // Clear existing data

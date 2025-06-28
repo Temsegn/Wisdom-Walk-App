@@ -17,7 +17,8 @@ class MultiStepRegistration extends StatefulWidget {
 class _MultiStepRegistrationState extends State<MultiStepRegistration> {
   int _currentStep = 0;
   final Map<String, dynamic> _formData = {
-    'fullName': '',
+    'firstName': '',
+    'lastName': '',
     'email': '',
     'password': '',
     'city': '',
@@ -25,11 +26,23 @@ class _MultiStepRegistrationState extends State<MultiStepRegistration> {
     'country': '',
     'idImagePath': '',
     'faceImagePath': '',
+    'idImageBytes': null,
+    'faceImageBytes': null,
   };
 
   void _nextStep(Map<String, String> data) {
     setState(() {
       _formData.addAll(data);
+      print('Step $_currentStep -> Received data: $data, Updated _formData: $_formData'); // Enhanced debug log
+      if (_currentStep == 0 && (_formData['firstName']?.trim().isEmpty ?? true || _formData['lastName']?.trim().isEmpty ?? true)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('First name and last name are required'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
       _currentStep++;
     });
   }
@@ -37,32 +50,58 @@ class _MultiStepRegistrationState extends State<MultiStepRegistration> {
   void _previousStep() {
     setState(() {
       _currentStep--;
+      print('Step $_currentStep -> Previous: $_formData'); // Debug log
     });
   }
 
   Future<void> _completeRegistration() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    final success = await authProvider.register(
-      fullName: _formData['fullName'],
-      email: _formData['email'],
-      password: _formData['password'],
-      city: _formData['city'],
-      subcity: _formData['subcity'],
-      country: _formData['country'],
-      idImagePath: _formData['idImagePath'],
-      faceImagePath: _formData['faceImagePath'], idImageBytes: null, faceImageBytes: null,
-    );
-
-    if (success && mounted) {
-      context.go('/otp', extra: {'email': _formData['email']});
-    } else if (mounted && authProvider.error != null) {
+    print('Completing registration with: $_formData'); // Debug log
+    if (_formData['firstName']!.trim().isEmpty || _formData['lastName']!.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error!),
-          backgroundColor: Theme.of(context).colorScheme.error,
+        const SnackBar(
+          content: Text('First name and last name are required'),
+          backgroundColor: Colors.red,
         ),
       );
+      return;
+    }
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    try {
+      print('Sending to AuthProvider: firstName=${_formData['firstName']}, lastName=${_formData['lastName']}, email=${_formData['email']}, password=${_formData['password']}'); // Debug log
+      final success = await authProvider.register(
+        firstName: _formData['firstName'].trim(),
+        lastName: _formData['lastName'].trim(),
+        email: _formData['email'].trim(),
+        password: _formData['password'].trim(),
+        city: _formData['city'].trim(),
+        subcity: _formData['subcity'].trim(),
+        country: _formData['country'].trim(),
+        idImagePath: _formData['idImagePath'],
+        faceImagePath: _formData['faceImagePath'],
+        idImageBytes: _formData['idImageBytes'],
+        faceImageBytes: _formData['faceImageBytes'],
+      );
+
+      if (success && mounted) {
+        context.go('/otp', extra: {'email': _formData['email'].trim()});
+      } else if (mounted && authProvider.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authProvider.error!),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Registration failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -103,7 +142,8 @@ class _MultiStepRegistrationState extends State<MultiStepRegistration> {
                     RegisterStepOne(
                       onNext: _nextStep,
                       initialData: {
-                        'fullName': _formData['fullName'],
+                        'firstName': _formData['firstName'],
+                        'lastName': _formData['lastName'],
                         'email': _formData['email'],
                         'password': _formData['password'],
                       },
@@ -161,22 +201,20 @@ class _MultiStepRegistrationState extends State<MultiStepRegistration> {
           decoration: BoxDecoration(
             color: isActive ? const Color(0xFFD4A017) : const Color(0xFFE8E2DB),
             borderRadius: BorderRadius.circular(15),
-            border:
-                isCurrent
-                    ? Border.all(color: const Color(0xFFD4A017), width: 2)
-                    : null,
+            border: isCurrent
+                ? Border.all(color: const Color(0xFFD4A017), width: 2)
+                : null,
           ),
           child: Center(
-            child:
-                isActive
-                    ? const Icon(Icons.check, color: Colors.white, size: 16)
-                    : Text(
-                      '${step + 1}',
-                      style: const TextStyle(
-                        color: Color(0xFF757575),
-                        fontWeight: FontWeight.bold,
-                      ),
+            child: isActive
+                ? const Icon(Icons.check, color: Colors.white, size: 16)
+                : Text(
+                    '${step + 1}',
+                    style: const TextStyle(
+                      color: Color(0xFF757575),
+                      fontWeight: FontWeight.bold,
                     ),
+                  ),
           ),
         ),
         const SizedBox(height: 4),
