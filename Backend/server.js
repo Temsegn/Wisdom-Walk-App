@@ -19,22 +19,31 @@ const adminRoutes = require("./routes/adminRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const movementRoutes = require("./routes/movementRoute");
-const bookingRoutes = require('./routes/bookingRoute');
+const bookingRoutes = require("./routes/bookingRoute");
 
 const app = express();
 const server = http.createServer(app);
 
-// Replace this with your actual frontend URL
-const frontendUrl = "https://your-frontend-url.com"; 
+// CORS configuration for development: Allow all origins
+app.use(
+  cors({
+    origin: "*", // Allow all origins for development
+    credentials: true, // Support cookies
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
+// Update Socket.IO CORS to allow all origins
 const io = new Server(server, {
-  cors: { origin: frontendUrl, credentials: true },
+  cors: {
+    origin: "*", // Allow all origins for Socket.IO
+    credentials: true,
+  },
 });
 
 app.use(cookieParser());
 app.use(helmet());
-app.use(cors({ origin: frontendUrl, credentials: true }));
-
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -44,14 +53,10 @@ app.use(limiter);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Serve static files from public and uploads
 app.use(express.static(path.join(__dirname, "public")));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "Uploads")));
 
-// Store io instance for controllers if needed
 app.set("io", io);
-
-// Socket.IO setup — uncommented and active
 require("./socket/socket")(io);
 
 // Routes
@@ -105,7 +110,7 @@ mongoose
     server.listen(process.env.PORT || 5000, "0.0.0.0", () => {
       console.log(`Server running on port ${process.env.PORT || 5000}`);
       console.log(`Static files served from: ${path.join(__dirname, "public")}`);
-      console.log(`Uploads served from: ${path.join(__dirname, "uploads")}`);
+      console.log(`Uploads served from: ${path.join(__dirname, "Uploads")}`);
     });
   })
   .catch((err) => console.error("MongoDB connection error:", err));
