@@ -27,7 +27,7 @@ const server = http.createServer(app);
 // CORS configuration for development: Allow all origins
 app.use(
   cors({
-    origin: "*", // Allow all origins for development
+    origin: "http://localhost:3000", // Allow all origins for development
     credentials: true, // Support cookies
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
