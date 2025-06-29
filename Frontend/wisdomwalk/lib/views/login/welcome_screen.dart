@@ -96,7 +96,7 @@ class WelcomeScreen extends StatelessWidget {
             ),
             child: const Text(
               'Create an Account',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
             ),
           ),
         ),
@@ -116,7 +116,7 @@ class WelcomeScreen extends StatelessWidget {
             ),
             child: const Text(
               'Log In',
-              style: TextStyle(fontSize: 16, color: Color(0xFFD4A017)),
+              style: TextStyle(fontSize: 13, color: Color(0xFFD4A017)),
             ),
           ),
         ),

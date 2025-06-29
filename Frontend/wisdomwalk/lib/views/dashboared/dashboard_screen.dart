@@ -180,7 +180,7 @@ class _HomeTabState extends State<HomeTab> {
                       color: Color(0xFF4A4A4A),
                     ),
                     onPressed: () {
-                      context.go('/notifications');
+                      context.push('/notifications');
                     },
                   ),
                   if (notificationProvider.unreadCount > 0)
@@ -216,7 +216,7 @@ class _HomeTabState extends State<HomeTab> {
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: Color(0xFF4A4A4A)),
             onPressed: () {
-              context.go('/settings');
+              context.push('/settings');
             },
           ),
         ],
@@ -608,7 +608,6 @@ class _HomeTabState extends State<HomeTab> {
   Widget _buildFeaturedTestimony() {
     return Consumer<AnonymousShareProvider>(
       builder: (context, shareProvider, child) {
-        // Fetch testimonies if not already loaded
         if (shareProvider.shares.isEmpty && !shareProvider.isLoading) {
           shareProvider.fetchShares(type: AnonymousShareType.testimony);
         }
@@ -663,7 +662,6 @@ class _HomeTabState extends State<HomeTab> {
           );
         }
 
-        // Select the testimony with the most hearts
         final testimony = testimonies.reduce(
           (a, b) => a.heartCount > b.heartCount ? a : b,
         );
@@ -771,146 +769,176 @@ class _HomeTabState extends State<HomeTab> {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 15),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.spaceBetween,
                     children: [
-                      TextButton.icon(
-                        onPressed: () async {
-                          final success = await shareProvider.toggleHeart(
-                            shareId: testimony.id,
-                            userId: userId,
-                          );
-                          if (success) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  isLiked ? 'Removed heart' : 'Hearted!',
+                      SizedBox(
+                        width:
+                            constraints.maxWidth > 400
+                                ? null
+                                : constraints.maxWidth * 0.3,
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            final success = await shareProvider.toggleHeart(
+                              shareId: testimony.id,
+                              userId: userId,
+                            );
+                            if (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    isLiked ? 'Removed heart' : 'Hearted!',
+                                  ),
+                                  backgroundColor:
+                                      isLiked ? Colors.grey : Colors.red,
                                 ),
-                                backgroundColor:
-                                    isLiked ? Colors.grey : Colors.red,
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Failed to update heart'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                          icon: Icon(
+                            isLiked ? Icons.favorite : Icons.favorite_border,
+                            size: 16,
+                            color:
+                                isLiked ? Colors.red : const Color(0xFFD4A017),
+                          ),
+                          label: Flexible(
+                            child: Text(
+                              '${testimony.heartCount} Hearts',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFD4A017),
                               ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Failed to update heart'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
-                        icon: Icon(
-                          isLiked ? Icons.favorite : Icons.favorite_border,
-                          size: 16,
-                          color: isLiked ? Colors.red : const Color(0xFFD4A017),
-                        ),
-                        label: Text(
-                          '${testimony.heartCount} Hearts',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFD4A017),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        onPressed: () async {
-                          final success = await shareProvider.togglePraying(
-                            shareId: testimony.id,
-                            userId: userId,
-                          );
-                          if (success) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  isPraying
-                                      ? 'Removed prayer'
-                                      : 'Praying for this',
-                                ),
-                                backgroundColor:
+                      SizedBox(
+                        width:
+                            constraints.maxWidth > 400
+                                ? null
+                                : constraints.maxWidth * 0.3,
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            final success = await shareProvider.togglePraying(
+                              shareId: testimony.id,
+                              userId: userId,
+                            );
+                            if (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
                                     isPraying
-                                        ? Colors.grey
-                                        : const Color(0xFFD4A017),
+                                        ? 'Removed prayer'
+                                        : 'Praying for this',
+                                  ),
+                                  backgroundColor:
+                                      isPraying
+                                          ? Colors.grey
+                                          : const Color(0xFFD4A017),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Failed to update prayer'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                          icon: Icon(
+                            Icons.volunteer_activism_outlined,
+                            size: 16,
+                            color:
+                                isPraying
+                                    ? const Color(0xFFD4A017)
+                                    : Colors.grey,
+                          ),
+                          label: Flexible(
+                            child: Text(
+                              '${testimony.prayerCount} Prayers',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFD4A017),
                               ),
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Failed to update prayer'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
-                        icon: Icon(
-                          Icons.volunteer_activism_outlined,
-                          size: 16,
-                          color:
-                              isPraying ? const Color(0xFFD4A017) : Colors.grey,
-                        ),
-                        label: Text(
-                          '${testimony.prayerCount} Prayers',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFD4A017),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        onPressed: () async {
-                          final success = await shareProvider.sendVirtualHug(
-                            shareId: testimony.id,
-                            userId: userId,
-                          );
-                          if (success) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Virtual hug sent!'),
-                              ),
+                      SizedBox(
+                        width:
+                            constraints.maxWidth > 400
+                                ? null
+                                : constraints.maxWidth * 0.3,
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            final success = await shareProvider.sendVirtualHug(
+                              shareId: testimony.id,
+                              userId: userId,
                             );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Failed to send virtual hug'),
-                                backgroundColor: Colors.red,
+                            if (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Virtual hug sent!'),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Failed to send virtual hug'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                          icon: Icon(
+                            Icons.favorite,
+                            size: 16,
+                            color: hasHugged ? Colors.pink : Colors.grey,
+                          ),
+                          label: Flexible(
+                            child: Text(
+                              '${testimony.hugCount} Hugs',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFD4A017),
                               ),
-                            );
-                          }
-                        },
-                        icon: Icon(
-                          Icons.favorite,
-                          size: 16,
-                          color: hasHugged ? Colors.pink : Colors.grey,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ),
-                        label: Text(
-                          '${testimony.hugCount} Hugs',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          context.push('/anonymous-share/${testimony.id}');
+                        },
+                        child: const Text(
+                          'Read Full Testimony',
+                          style: TextStyle(
                             color: Color(0xFFD4A017),
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                     ],
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      context.push('/anonymous-share/${testimony.id}');
-                    },
-                    child: const Text(
-                      'Read Full Testimony',
-                      style: TextStyle(
-                        color: Color(0xFFD4A017),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
             ],
           ),
@@ -1495,7 +1523,7 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
                 label: 'Chat',
                 color: const Color(0xFF2196F3),
                 onPressed: () {
-                  context.go('/prayer/${prayer.id}');
+                  context.push('/prayer/${prayer.id}');
                 },
               ),
             ],
@@ -2034,7 +2062,7 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
               IconButton(
                 icon: const Icon(Icons.settings_outlined),
                 onPressed: () {
-                  context.go('/settings');
+                  context.push('/settings');
                 },
               ),
             ],
