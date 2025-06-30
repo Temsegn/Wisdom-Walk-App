@@ -5,19 +5,20 @@ import 'package:wisdomwalk/models/prayer_model.dart';
 
 class PrayerService {
   static const String _baseUrl = 'https://wisdom-walk-app.onrender.com/api/posts';
+Future<List<PrayerModel>> getPrayers() async {
+  final uri = Uri.parse('$_baseUrl/all-posts');  // Adjust endpoint if needed
 
-  Future<List<PrayerModel>> getPrayers({String filter = 'all'}) async {
-    final uri = Uri.parse('$_baseUrl?filter=$filter'); // Adjust this if your backend expects a different query format
+  final response = await http.get(uri);
 
-    final response = await http.get(uri);
+  if (response.statusCode == 200) {
+    final Map<String, dynamic> responseBody = json.decode(response.body);
+    final List<dynamic> data = responseBody['data'];
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      return data.map((json) => PrayerModel.fromJson(json)).toList();
-    } else {
-      throw Exception('Failed to fetch prayers');
-    }
+    return data.map((json) => PrayerModel.fromJson(json)).toList();
+  } else {
+    throw Exception('Failed to fetch posts');
   }
+}
 
   Future<PrayerModel> addPrayer({
     required String type,

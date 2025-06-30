@@ -21,7 +21,7 @@ class PrayerProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _prayers = await _prayerService.getPrayers(filter: _filter);
+      _prayers = await _prayerService.getPrayers();
     } catch (e) {
       _error = e.toString();
     } finally {
