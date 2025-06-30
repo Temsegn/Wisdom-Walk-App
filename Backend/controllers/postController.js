@@ -8,7 +8,7 @@ const { getRandomScripture, getPaginationMeta } = require("../utils/helpers")
 // Create a new post
 const createPost = async (req, res) => {
   try {
-    const { type, content, title, isAnonymous, visibility, targetGroup, location, tags } = req.body
+    const { type, content, title, isAnonymous, visibility, tags } = req.body
     const authorId = req.user._id
 
     // Validate group membership for group posts 
@@ -51,10 +51,11 @@ const createPost = async (req, res) => {
 
     const post = new Post(postData)
     await post.save()
-
+    
     // Populate author info for response
+    if(isAnonymous) {
     await post.populate("author", "firstName lastName profilePicture")
-
+    }
     // Create notifications for group members (if group post)
     if (targetGroup && targetGroup !== "general") {
       const groupMembers = await User.find({
@@ -75,7 +76,7 @@ const createPost = async (req, res) => {
           : `${req.user.firstName} shared a ${type} in the ${targetGroup} group`,
         relatedPost: post._id,
       }))
-
+  
       await Notification.insertMany(notifications)
     }
 

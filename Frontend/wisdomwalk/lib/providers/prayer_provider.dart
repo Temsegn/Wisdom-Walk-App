@@ -50,6 +50,7 @@ class PrayerProvider extends ChangeNotifier {
       final prayer = await _prayerService.addPrayer(
         userId: userId,
         content: content,
+        type: "prayer",
         isAnonymous: isAnonymous,
         userName: userName,
         userAvatar: userAvatar,
