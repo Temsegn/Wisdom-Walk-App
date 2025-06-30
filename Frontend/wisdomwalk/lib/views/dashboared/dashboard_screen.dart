@@ -31,8 +31,10 @@ import 'package:wisdomwalk/models/anonymous_share_model.dart';
 import 'package:wisdomwalk/providers/notification_provider.dart';
 import 'package:url_launcher/url_launcher.dart'; // For sharing links
 
-// For browser file picking
 import 'package:flutter/foundation.dart'; // For kIsWeb
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -571,33 +573,83 @@ class _HomeTabState extends State<HomeTab> {
   ) async {
     final encodedMessage = Uri.encodeComponent(message);
     String url;
+    String fallbackUrl;
 
+    // Define platform-specific URLs
     switch (platform) {
       case 'whatsapp':
-        url = 'https://wa.me/?text=$encodedMessage';
+        if (kIsWeb) {
+          url = 'https://wa.me/?text=$encodedMessage';
+          fallbackUrl = url;
+        } else {
+          url = 'whatsapp://send?text=$encodedMessage';
+          fallbackUrl = 'https://wa.me/?text=$encodedMessage';
+        }
         break;
       case 'facebook':
-        url =
-            'https://www.facebook.com/sharer/sharer.php?quote=$encodedMessage';
+        if (kIsWeb) {
+          url =
+              'https://www.facebook.com/sharer/sharer.php?quote=$encodedMessage';
+          fallbackUrl = url;
+        } else {
+          // Facebook sharing on mobile typically requires the app's custom scheme
+          url = 'fb://share?text=$encodedMessage';
+          fallbackUrl =
+              'https://www.facebook.com/sharer/sharer.php?quote=$encodedMessage';
+        }
         break;
       case 'twitter':
-        url = 'https://twitter.com/intent/tweet?text=$encodedMessage';
+        if (kIsWeb) {
+          url = 'https://twitter.com/intent/tweet?text=$encodedMessage';
+          fallbackUrl = url;
+        } else {
+          // Twitter (X) sharing on mobile
+          url = 'twitter://post?message=$encodedMessage';
+          fallbackUrl = 'https://twitter.com/intent/tweet?text=$encodedMessage';
+        }
         break;
       case 'telegram':
-        url = 'https://t.me/share/url?url=&text=$encodedMessage';
+        if (kIsWeb) {
+          url =
+              'https://t.me/share/url?text=$encodedMessage&url=https://wisdomwalk.app';
+          fallbackUrl = url;
+        } else {
+          url = 'tg://msg?text=$encodedMessage';
+          fallbackUrl =
+              'https://t.me/share/url?text=$encodedMessage&url=https://wisdomwalk.app';
+        }
         break;
       default:
         return;
     }
 
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-      Navigator.pop(context);
-    } else {
+    // Try launching the native app URL
+    try {
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        Navigator.pop(context);
+      } else if (await canLaunchUrl(Uri.parse(fallbackUrl))) {
+        // Fallback to web URL if native app is not installed
+        await launchUrl(
+          Uri.parse(fallbackUrl),
+          mode: LaunchMode.platformDefault,
+        );
+        Navigator.pop(context);
+      } else {
+        // Copy to clipboard if both attempts fail
+        await Clipboard.setData(ClipboardData(text: message));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open $platform. Copied to clipboard.'),
+          ),
+        );
+      }
+    } catch (e) {
+      // Handle any errors during launching
       await Clipboard.setData(ClipboardData(text: message));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not open $platform. Copied to clipboard.'),
+          content: Text('Error sharing to $platform. Copied to clipboard.'),
         ),
       );
     }
@@ -1207,12 +1259,87 @@ class _HomeTabState extends State<HomeTab> {
             onPressed: () async {
               if (isJoined) {
                 // Launch the event link
-                final url = event.link;
-                if (await canLaunchUrl(Uri.parse(url))) {
-                  await launchUrl(Uri.parse(url));
-                } else {
+                String url = event.link;
+                String? nativeUrl;
+
+                // Handle Zoom specifically
+                if (event.platform.toLowerCase() == 'zoom') {
+                  // Extract meeting ID and password from the URL if possible
+                  final uri = Uri.parse(url);
+                  final meetingId = uri.pathSegments.lastWhere(
+                    (segment) => RegExp(r'^\d+$').hasMatch(segment),
+                    orElse: () => '',
+                  );
+                  final pwd = uri.queryParameters['pwd'] ?? '';
+                  if (meetingId.isNotEmpty) {
+                    nativeUrl =
+                        'zoomus://zoom.us/join?confno=$meetingId&pwd=$pwd';
+                  }
+                }
+
+                // Debug logs
+                print('Attempting to launch event: ${event.title}');
+                print('Platform: ${event.platform}');
+                print('Native URL: $nativeUrl');
+                print('Web URL: $url');
+
+                // Try native Zoom URL on non-web platforms
+                if (!kIsWeb &&
+                    nativeUrl != null &&
+                    event.platform.toLowerCase() == 'zoom') {
+                  try {
+                    print('Checking native URL: $nativeUrl');
+                    if (await canLaunchUrl(Uri.parse(nativeUrl))) {
+                      print('Launching native URL: $nativeUrl');
+                      await launchUrl(
+                        Uri.parse(nativeUrl),
+                        mode: LaunchMode.externalApplication,
+                      );
+                      return;
+                    } else {
+                      print('Native URL not supported: $nativeUrl');
+                    }
+                  } catch (e) {
+                    print('Error launching native URL ($nativeUrl): $e');
+                  }
+                }
+
+                // Try web URL
+                try {
+                  print('Checking web URL: $url');
+                  if (await canLaunchUrl(Uri.parse(url))) {
+                    print('Launching web URL: $url');
+                    await launchUrl(
+                      Uri.parse(url),
+                      mode:
+                          kIsWeb
+                              ? LaunchMode.platformDefault
+                              : LaunchMode.externalApplication,
+                    );
+                  } else {
+                    print('Web URL not supported: $url');
+                    // Copy to clipboard
+                    await Clipboard.setData(ClipboardData(text: url));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Could not open ${event.platform}. Copied to clipboard.',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  print('Error launching web URL ($url): $e');
+                  // Copy to clipboard
+                  await Clipboard.setData(ClipboardData(text: url));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Could not open ${event.platform}')),
+                    SnackBar(
+                      content: Text(
+                        'Could not open ${event.platform}. Copied to clipboard.',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               } else {
@@ -1465,68 +1592,84 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
             ),
           ),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              _buildActionButton(
-                icon: Icons.volunteer_activism,
-                label: 'Praying (${prayer.prayingUsers.length})',
-                color: const Color(0xFF9C27B0),
-                onPressed: () async {
-                  final authProvider = Provider.of<AuthProvider>(
-                    context,
-                    listen: false,
-                  );
-                  final prayerProvider = Provider.of<PrayerProvider>(
-                    context,
-                    listen: false,
-                  );
-                  final userId = authProvider.currentUser?.id ?? 'current_user';
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: _buildActionButton(
+                      icon: Icons.volunteer_activism,
+                      label: 'Praying (${prayer.prayingUsers.length})',
+                      color: const Color(0xFF9C27B0),
+                      maxWidth:
+                          constraints.maxWidth / 3 - 8, // Adjust for spacing
+                      onPressed: () async {
+                        final authProvider = Provider.of<AuthProvider>(
+                          context,
+                          listen: false,
+                        );
+                        final prayerProvider = Provider.of<PrayerProvider>(
+                          context,
+                          listen: false,
+                        );
+                        final userId =
+                            authProvider.currentUser?.id ?? 'current_user';
 
-                  final success = await prayerProvider.togglePraying(
-                    prayerId: prayer.id,
-                    userId: userId,
-                  );
-                  if (success) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          prayer.prayingUsers.contains(userId)
-                              ? '🙏 You are now praying for this request'
-                              : '✨ Removed from praying list',
-                        ),
-                        backgroundColor: const Color(0xFF9C27B0),
-                      ),
-                    );
-                  }
-                },
-              ),
-              const SizedBox(width: 16),
-              _buildActionButton(
-                icon: Icons.chat_bubble_outline,
-                label: 'Encourage',
-                color: Colors.grey[600]!,
-                onPressed: () {
-                  final authProvider = Provider.of<AuthProvider>(
-                    context,
-                    listen: false,
-                  );
-                  _showEncourageDialog(
-                    context,
-                    prayer,
-                    authProvider.currentUser,
-                  );
-                },
-              ),
-              const SizedBox(width: 16),
-              _buildActionButton(
-                icon: Icons.chat,
-                label: 'Chat',
-                color: const Color(0xFF2196F3),
-                onPressed: () {
-                  context.push('/prayer/${prayer.id}');
-                },
-              ),
-            ],
+                        final success = await prayerProvider.togglePraying(
+                          prayerId: prayer.id,
+                          userId: userId,
+                        );
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                prayer.prayingUsers.contains(userId)
+                                    ? '🙏 You are now praying for this request'
+                                    : '✨ Removed from praying list',
+                              ),
+                              backgroundColor: const Color(0xFF9C27B0),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildActionButton(
+                      icon: Icons.chat_bubble_outline,
+                      label: 'Encourage',
+                      color: Colors.grey[600]!,
+                      maxWidth: constraints.maxWidth / 3 - 8,
+                      onPressed: () {
+                        final authProvider = Provider.of<AuthProvider>(
+                          context,
+                          listen: false,
+                        );
+                        _showEncourageDialog(
+                          context,
+                          prayer,
+                          authProvider.currentUser,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildActionButton(
+                      icon: Icons.chat,
+                      label: 'Chat',
+                      color: const Color(0xFF2196F3),
+                      maxWidth: constraints.maxWidth / 3 - 8,
+                      onPressed: () {
+                        context.push('/prayer/${prayer.id}');
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -1618,23 +1761,31 @@ Widget _buildActionButton({
   required String label,
   required Color color,
   required VoidCallback onPressed,
+  required double maxWidth, // Added to constrain button width
 }) {
-  return InkWell(
-    onTap: onPressed,
-    borderRadius: BorderRadius.circular(20),
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  return ConstrainedBox(
+    constraints: BoxConstraints(maxWidth: maxWidth),
+    child: TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        minimumSize: const Size(0, 36), // Minimum height for tap target
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                overflow: TextOverflow.ellipsis, // Handle long text
+              ),
             ),
           ),
         ],

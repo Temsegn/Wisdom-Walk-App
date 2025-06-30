@@ -18,12 +18,10 @@ class PrayerDetailScreen extends StatefulWidget {
 class _PrayerDetailScreenState extends State<PrayerDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
   bool _isAnonymous = false;
-  final ScrollController _scrollController = ScrollController();
 
   @override
   void dispose() {
     _commentController.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -50,18 +48,12 @@ class _PrayerDetailScreenState extends State<PrayerDetailScreen> {
       );
     }
 
-    final isPraying = prayer.prayingUsers.contains(
-      authProvider.currentUser?.id ?? '',
-    );
-    final isMyPrayer = prayer.userId == authProvider.currentUser?.id;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Prayer Request')),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
-              controller: _scrollController,
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,14 +61,6 @@ class _PrayerDetailScreenState extends State<PrayerDetailScreen> {
                   _buildPrayerHeader(context, prayer),
                   const SizedBox(height: 16),
                   _buildPrayerContent(context, prayer),
-                  const SizedBox(height: 24),
-                  _buildPrayerActions(
-                    context,
-                    prayer,
-                    isPraying,
-                    prayerProvider,
-                    authProvider,
-                  ),
                   const SizedBox(height: 24),
                   _buildCommentsSection(context, prayer),
                 ],
@@ -153,266 +137,6 @@ class _PrayerDetailScreenState extends State<PrayerDetailScreen> {
         borderRadius: BorderRadius.circular(15),
       ),
       child: Text(prayer.content, style: Theme.of(context).textTheme.bodyLarge),
-    );
-  }
-
-  Widget _buildPrayerActions(
-    BuildContext context,
-    PrayerModel prayer,
-    bool isPraying,
-    PrayerProvider prayerProvider,
-    AuthProvider authProvider,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(
-          color: Theme.of(context).dividerColor.withOpacity(0.2),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildActionButton(
-            context: context,
-            icon: '🙏',
-            label: 'Praying (${prayer.prayingUsers.length})',
-            isActive: isPraying,
-            onTap: () {
-              prayerProvider.togglePraying(
-                prayerId: prayer.id,
-                userId: authProvider.currentUser?.id ?? '',
-              );
-            },
-          ),
-          _buildActionButton(
-            context: context,
-            icon: '💬',
-            label: 'Encourage',
-            isActive: false,
-            onTap: () {
-              _scrollToComments();
-            },
-          ),
-          _buildActionButton(
-            context: context,
-            icon: '💬',
-            label: 'Chat',
-            isActive: false,
-            onTap: () {
-              _openChatDialog(context, prayer, authProvider);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required BuildContext context,
-    required String icon,
-    required String label,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color:
-              isActive
-                  ? Theme.of(context).primaryColor.withOpacity(0.1)
-                  : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 16)),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color:
-                    isActive
-                        ? Theme.of(context).primaryColor
-                        : Theme.of(context).colorScheme.onSurface,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _scrollToComments() {
-    // Scroll to comments section
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
-    );
-
-    // Focus on comment input
-    FocusScope.of(context).requestFocus(FocusNode());
-  }
-
-  void _openChatDialog(
-    BuildContext context,
-    PrayerModel prayer,
-    AuthProvider authProvider,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (context) => _buildChatBottomSheet(context, prayer, authProvider),
-    );
-  }
-
-  Widget _buildChatBottomSheet(
-    BuildContext context,
-    PrayerModel prayer,
-    AuthProvider authProvider,
-  ) {
-    final TextEditingController chatController = TextEditingController();
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          // Handle bar
-          Container(
-            margin: const EdgeInsets.only(top: 8),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Theme.of(context).dividerColor,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Text(
-                  'Private Chat',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          // Chat messages area
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.chat_bubble_outline,
-                      size: 64,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withOpacity(0.3),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Start a private conversation',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Send encouragement directly to ${prayer.isAnonymous ? 'this sister' : prayer.userName ?? 'this person'}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.5),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          // Chat input
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(color: Theme.of(context).dividerColor),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: chatController,
-                    decoration: InputDecoration(
-                      hintText: 'Send a private message...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                    maxLines: null,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor,
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: IconButton(
-                    onPressed: () {
-                      final message = chatController.text.trim();
-                      if (message.isNotEmpty) {
-                        // TODO: Implement private messaging functionality
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Private messaging feature coming soon!',
-                            ),
-                          ),
-                        );
-                        chatController.clear();
-                      }
-                    },
-                    icon: const Icon(Icons.send, color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
