@@ -1,39 +1,29 @@
 class BookingRequest {
-  final String category;
-  final String description;
-  final String? userId;
+  final String issueTitle;
+  final String issueDescription;
+  final String userId;
   final DateTime createdAt;
-  final String? contact;
-  final String? preferredMentor;
-  final String? additionalNotes;
+  final String phoneNumber;
+  final String email;
   final bool? virtualSession;
-  final DateTime? date;
-  final dynamic
-  time; // TimeOfDay is not serializable, so keep as dynamic or String
 
   BookingRequest({
-    required this.category,
-    required this.description,
-    this.userId,
+    required this.issueTitle,
+    required this.issueDescription,
+    required this.userId,
     required this.createdAt,
-    this.contact,
-    this.preferredMentor,
-    this.additionalNotes,
+    required this.phoneNumber,
+    required this.email,
     this.virtualSession,
-    this.date,
-    this.time,
   });
 
   Map<String, dynamic> toJson() => {
-    'category': category,
-    'description': description,
-    'userId': userId,
-    'createdAt': createdAt.toIso8601String(),
-    'contact': contact,
-    'preferredMentor': preferredMentor,
-    'additionalNotes': additionalNotes,
-    'virtualSession': virtualSession,
-    'date': date?.toIso8601String(),
-    'time': time != null ? time.toString() : null,
-  };
+        'issueTitle': issueTitle,
+        'issueDescription': issueDescription,
+        'user': userId, // Backend expects 'user' field
+        'createdAt': createdAt.toIso8601String(),
+        'phoneNumber': phoneNumber,
+        'email': email,
+        'virtualSession': virtualSession ?? false,
+      };
 }

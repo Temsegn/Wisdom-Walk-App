@@ -1,34 +1,79 @@
-"use client"
+"use client";
 
-import { useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
-import { Users, FileText, Calendar, AlertTriangle, CheckCircle } from "lucide-react"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
-import { useApi } from "@/hooks/use-api"
-import { DashboardService } from "@/lib/services/dashboard-service"
-import type { DashboardStats } from "@/lib/types"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Users, FileText, Calendar, AlertTriangle, CheckCircle } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useApi } from "@/hooks/use-api";
+import { DashboardService } from "@/lib/services/dashboard-service";
+import { AuthService } from "@/lib/auth";
+import type { DashboardStats } from "@/lib/types";
 
 export default function Dashboard() {
-  const { data: dashboardStats, loading, execute: loadDashboardStats } = useApi<DashboardStats>()
-  const { data: recentActivities, execute: loadRecentActivities } =
-    useApi<
-      Array<{
-        id: string
-        action: string
-        user: string
-        time: string
-        type: string
-      }>
-    >()
+  const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const { data: dashboardStats, loading: statsLoading, error: statsError, execute: loadDashboardStats } = useApi<DashboardStats>();
+  const { 
+    data: recentActivities, 
+    loading: activitiesLoading, 
+    error: activitiesError, 
+    execute: loadRecentActivities 
+  } = useApi<
+    Array<{
+      id: string;
+      action: string;
+      user: string;
+      time: string;
+      type: string;
+    }>
+  >();
 
+  // Check authentication on mount
   useEffect(() => {
-    // Load dashboard data on component mount
-    loadDashboardStats(() => DashboardService.getDashboardStats())
-    loadRecentActivities(() => DashboardService.getRecentActivities())
-  }, [])
+    const checkAuth = async () => {
+      console.log("Checking dashboard authentication...");
+      try {
+        const isAuthenticated = await AuthService.isAuthenticated();
+        console.log("Dashboard auth check:", { 
+          isAuthenticated, 
+          adminUser: localStorage.getItem("admin_user") 
+        });
+        if (!isAuthenticated) {
+          console.log("No user authenticated, redirecting to login...");
+          router.push("/login");
+        } else {
+          setAuthChecked(true);
+        }
+      } catch (err: any) {
+        console.error("Auth check error:", {
+          message: err.message,
+          status: err.status,
+          stack: err.stack
+        });
+        setAuthError(err.message || "Authentication failed");
+        router.push("/login");
+      }
+    };
+    checkAuth();
+  }, [router]);
+
+  // Load dashboard data after auth check
+  useEffect(() => {
+    if (authChecked) {
+      console.log("Loading dashboard data...");
+      try {
+        loadDashboardStats(() => DashboardService.getDashboardStats());
+        loadRecentActivities(() => DashboardService.getRecentActivities());
+      } catch (err) {
+        console.error("Error initiating dashboard data load:", err);
+      }
+    }
+  }, [authChecked, loadDashboardStats, loadRecentActivities]);
 
   const pieData = [
     { name: "Active", value: dashboardStats?.activeUsers || 0, color: "#10b981" },
@@ -41,9 +86,9 @@ export default function Dashboard() {
         (dashboardStats?.pendingApprovals || 0),
       color: "#ef4444",
     },
-  ]
+  ];
 
-  if (loading) {
+  if (!authChecked || statsLoading || activitiesLoading) {
     return (
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -54,11 +99,33 @@ export default function Dashboard() {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-2 text-muted-foreground">Loading dashboard...</p>
+            <p className="mt-2 text-muted-foreground">
+              {authChecked ? "Loading dashboard..." : "Checking authentication..."}
+            </p>
           </div>
         </div>
       </SidebarInset>
-    )
+    );
+  }
+
+  if (authError || statsError || activitiesError) {
+    return (
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <h1 className="text-lg font-semibold">Dashboard Overview</h1>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600">
+              Error: {authError || statsError?.message || activitiesError?.message || "Failed to load dashboard"}
+            </p>
+            <p className=":mt-2 text-muted-foreground">Please try refreshing the page or contact support.</p>
+          </div>
+        </div>
+      </SidebarInset>
+    );
   }
 
   return (
@@ -215,5 +282,5 @@ export default function Dashboard() {
         </Card>
       </div>
     </SidebarInset>
-  )
+  );
 }

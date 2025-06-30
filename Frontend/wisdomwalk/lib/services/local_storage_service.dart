@@ -1,22 +1,22 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocalStorageService {
-  static const String _authTokenKey = 'auth_token';
-  static const String _darkModeKey = 'dark_mode';
+  static const _tokenKey = 'auth_token';
+  static const _darkModeKey = 'dark_mode';
 
-  Future<void> setAuthToken(String token) async {
+  Future<void> saveAuthToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_authTokenKey, token);
+    await prefs.setString(_tokenKey, token);
   }
 
   Future<String?> getAuthToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_authTokenKey);  
+    return prefs.getString(_tokenKey);
   }
 
   Future<void> clearAuthToken() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_authTokenKey);
+    await prefs.remove(_tokenKey);
   }
 
   Future<void> setDarkModePreference(bool isDarkMode) async {
@@ -28,6 +28,4 @@ class LocalStorageService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_darkModeKey) ?? false;
   }
-
-  Future<void> saveAuthToken(data) async {}
 }

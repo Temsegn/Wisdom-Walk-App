@@ -21,6 +21,7 @@ class AuthProvider extends ChangeNotifier {
 
   AuthProvider() {
     _loadThemePreference();
+    _loadUserFromToken(); // Load user if token exists
   }
 
   Future<void> _loadThemePreference() async {
@@ -35,7 +36,25 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Registration (no token logic)
+  Future<void> _loadUserFromToken() async {
+    final token = await _localStorageService.getAuthToken();
+    if (token == null) return;
+
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      final user = await _authService.getCurrentUser();
+      _currentUser = user;
+    } catch (e) {
+      print('Auto-login failed: $e');
+      await _localStorageService.clearAuthToken();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> register({
     required String firstName,
     required String lastName,
@@ -46,7 +65,6 @@ class AuthProvider extends ChangeNotifier {
     required String country,
     required String idImagePath,
     required String faceImagePath,
-    
   }) async {
     _isLoading = true;
     _error = null;
@@ -59,11 +77,9 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
         city: city,
-     
         country: country,
         idImagePath: idImagePath,
         faceImagePath: faceImagePath,
-        
       );
       return true;
     } catch (e) {
@@ -75,7 +91,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // OTP Verification
   Future<bool> verifyOtp({
     required String email,
     required String otp,
@@ -96,7 +111,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Login (saves token and user)
   Future<bool> login({
     required String email,
     required String password,
@@ -108,6 +122,13 @@ class AuthProvider extends ChangeNotifier {
     try {
       final user = await _authService.login(email: email, password: password);
       _currentUser = user;
+
+      // Save token after successful login
+      final token = await _localStorageService.getAuthToken(); // Assuming AuthService saves it
+      if (token != null) {
+        await _localStorageService.saveAuthToken(token);
+      }
+
       return true;
     } catch (e) {
       _error = e.toString();
@@ -118,7 +139,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Update profile (token required)
   Future<bool> updateProfile({
     String? firstName,
     String? lastName,
@@ -155,7 +175,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-Future<bool> resendOtp ({
+  Future<bool> resendOtp({
     required String email,
   }) async {
     _isLoading = true;
@@ -173,7 +193,7 @@ Future<bool> resendOtp ({
       notifyListeners();
     }
   }
-  // Forgot Password
+
   Future<bool> forgotPassword({required String email}) async {
     _isLoading = true;
     _error = null;
@@ -191,7 +211,6 @@ Future<bool> resendOtp ({
     }
   }
 
-  // Reset Password
   Future<bool> resetPassword({
     required String email,
     required String otp,
@@ -217,7 +236,6 @@ Future<bool> resendOtp ({
     }
   }
 
-  // Logout
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();

@@ -80,7 +80,7 @@ class _MultiStepRegistrationState extends State<MultiStepRegistration> {
       );
 
       if (success && mounted) {
-        context.go('/otp', extra: {'email': _formData['email'].trim()});
+        context.push('/otp', extra: {'email': _formData['email'].trim()});
       } else if (mounted && authProvider.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

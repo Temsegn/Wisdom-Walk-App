@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:wisdomwalk/models/booking_model.dart';
 import 'package:wisdomwalk/services/booking_service.dart';
-import 'package:auto_size_text/auto_size_text.dart'; // Add this import
+import 'package:auto_size_text/auto_size_text.dart';
 
 class BookingForm extends StatefulWidget {
   @override
@@ -10,20 +10,18 @@ class BookingForm extends StatefulWidget {
 
 class _BookingFormState extends State<BookingForm> {
   final _formKey = GlobalKey<FormState>();
-  String? _category;
-  String _description = '';
-  String _contact = '';
-  String _preferredMentor = '';
-  String _additionalNotes = '';
+  String? _issueTitle;
+  String _issueDescription = '';
+  String _phoneNumber = '';
+  String _email = '';
   bool _virtualSession = false;
   bool _isLoading = false;
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
+
   final List<String> _categories = [
-    'Single & Purposeful',
-    'Marriage & Ministry',
-    'Healing & Forgiveness',
-    'Mental Health & Faith',
+    'Single and Purposeful',
+    'Marriage and Ministry',
+    'Healing and Forgiveness',
+    'Mental Health and Faith',
   ];
 
   @override
@@ -33,7 +31,7 @@ class _BookingFormState extends State<BookingForm> {
 
     return Padding(
       padding: EdgeInsets.only(
-        left: screenWidth * 0.04, // Responsive padding
+        left: screenWidth * 0.04,
         right: screenWidth * 0.04,
         bottom: MediaQuery.of(context).viewInsets.bottom + screenHeight * 0.02,
         top: screenHeight * 0.03,
@@ -45,22 +43,21 @@ class _BookingFormState extends State<BookingForm> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: _category,
-                items:
-                    _categories
-                        .map(
-                          (cat) => DropdownMenuItem(
-                            value: cat,
-                            child: AutoSizeText(
-                              cat,
-                              maxLines: 1,
-                              minFontSize: 12,
-                              maxFontSize: 16,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (val) => setState(() => _category = val),
+                value: _issueTitle,
+                items: _categories
+                    .map(
+                      (cat) => DropdownMenuItem(
+                        value: cat,
+                        child: AutoSizeText(
+                          cat,
+                          maxLines: 1,
+                          minFontSize: 12,
+                          maxFontSize: 16,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (val) => setState(() => _issueTitle = val),
                 decoration: InputDecoration(
                   labelText: 'Category',
                   border: OutlineInputBorder(
@@ -70,6 +67,8 @@ class _BookingFormState extends State<BookingForm> {
                 validator: (val) => val == null ? 'Select a category' : null,
               ),
               SizedBox(height: screenHeight * 0.02),
+
+              // Description
               TextFormField(
                 decoration: InputDecoration(
                   labelText: 'Description',
@@ -78,127 +77,62 @@ class _BookingFormState extends State<BookingForm> {
                   ),
                 ),
                 maxLines: 3,
-                onChanged: (val) => _description = val,
-                validator:
-                    (val) =>
-                        val == null || val.isEmpty
-                            ? 'Enter a description'
-                            : null,
+                onChanged: (val) => _issueDescription = val,
+                validator: (val) =>
+                    val == null || val.isEmpty ? 'Enter a description' : null,
                 style: TextStyle(fontSize: screenWidth * 0.04),
               ),
               SizedBox(height: screenHeight * 0.02),
+
+              // Phone Number with validation
               TextFormField(
                 decoration: InputDecoration(
-                  labelText: 'Contact (email or phone)',
+                  labelText: 'Phone Number',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onChanged: (val) => _contact = val,
-                validator:
-                    (val) =>
-                        val == null || val.isEmpty
-                            ? 'Enter your contact info'
-                            : null,
+                onChanged: (val) => _phoneNumber = val,
+                validator: (val) {
+                  if (val == null || val.isEmpty) {
+                    return 'Enter your phone number';
+                  }
+                  final phoneRegex = RegExp(r'^\+?[0-9\s\-\(\)]{10,15}$');
+                  if (!phoneRegex.hasMatch(val)) {
+                    return 'Enter a valid phone number';
+                  }
+                  return null;
+                },
                 style: TextStyle(fontSize: screenWidth * 0.04),
+                keyboardType: TextInputType.phone,
               ),
               SizedBox(height: screenHeight * 0.02),
+
+              // Email with validation
               TextFormField(
                 decoration: InputDecoration(
-                  labelText: 'Preferred Mentor (optional)',
+                  labelText: 'Email',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onChanged: (val) => _preferredMentor = val,
+                onChanged: (val) => _email = val,
+                validator: (val) {
+                  if (val == null || val.isEmpty) {
+                    return 'Enter your email address';
+                  }
+                  final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                  if (!emailRegex.hasMatch(val)) {
+                    return 'Enter a valid email';
+                  }
+                  return null;
+                },
                 style: TextStyle(fontSize: screenWidth * 0.04),
+                keyboardType: TextInputType.emailAddress,
               ),
               SizedBox(height: screenHeight * 0.02),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: EdgeInsets.symmetric(
-                          vertical: screenHeight * 0.02,
-                          horizontal: screenWidth * 0.03,
-                        ),
-                      ),
-                      onPressed: () async {
-                        final now = DateTime.now();
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: now,
-                          firstDate: now,
-                          lastDate: now.add(Duration(days: 365)),
-                        );
-                        if (picked != null)
-                          setState(() => _selectedDate = picked);
-                      },
-                      child: AutoSizeText(
-                        _selectedDate == null
-                            ? 'Pick Date'
-                            : '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}',
-                        maxLines: 1,
-                        minFontSize: 12,
-                        maxFontSize: 14,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: screenWidth * 0.02),
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: EdgeInsets.symmetric(
-                          vertical: screenHeight * 0.02,
-                          horizontal: screenWidth * 0.03,
-                        ),
-                      ),
-                      onPressed: () async {
-                        final picked = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay.now(),
-                        );
-                        if (picked != null)
-                          setState(() => _selectedTime = picked);
-                      },
-                      child: AutoSizeText(
-                        _selectedTime == null
-                            ? 'Pick Time'
-                            : _selectedTime!.format(context),
-                        maxLines: 1,
-                        minFontSize: 12,
-                        maxFontSize: 14,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (_selectedDate != null && _selectedTime != null)
-                Padding(
-                  padding: EdgeInsets.only(top: screenHeight * 0.01),
-                  child: AutoSizeText(
-                    'Selected: '
-                    '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')} '
-                    'at ${_selectedTime!.format(context)}',
-                    style: TextStyle(
-                      color: Colors.teal,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    minFontSize: 12,
-                    maxFontSize: 14,
-                  ),
-                ),
-              SizedBox(height: screenHeight * 0.02),
+
+              // Virtual Session
               SwitchListTile(
                 value: _virtualSession,
                 onChanged: (val) => setState(() => _virtualSession = val),
@@ -212,81 +146,86 @@ class _BookingFormState extends State<BookingForm> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              SizedBox(height: screenHeight * 0.02),
-              TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Additional Notes (optional)',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                maxLines: 2,
-                onChanged: (val) => _additionalNotes = val,
-                style: TextStyle(fontSize: screenWidth * 0.04),
-              ),
               SizedBox(height: screenHeight * 0.03),
+
+              // Submit button
               _isLoading
                   ? Center(child: CircularProgressIndicator())
                   : SizedBox(
-                    width: double.infinity,
-                    height: screenWidth * 0.12, // Responsive button height
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                      width: double.infinity,
+                      height: screenWidth * 0.12,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          backgroundColor: Color(0xFFD4A017),
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            vertical: screenHeight * 0.02,
+                            horizontal: screenWidth * 0.05,
+                          ),
                         ),
-                        backgroundColor: Color(0xFFD4A017),
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          vertical: screenHeight * 0.02,
-                          horizontal: screenWidth * 0.05,
+                        onPressed: () async {
+                          if (_formKey.currentState!.validate()) {
+                            setState(() => _isLoading = true);
+                            final booking = BookingRequest(
+                              issueTitle: _issueTitle!,
+                              issueDescription: _issueDescription,
+                              userId: getUserId(), // Implement this properly
+                              createdAt: DateTime.now(),
+                              phoneNumber: _phoneNumber,
+                              email: _email,
+                              virtualSession: _virtualSession,
+                            );
+                            try {
+                              await BookingService().submitBooking(booking);
+
+                              // Show success message
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Booking submitted successfully!'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+
+                              // Pop the form screen
+                              Navigator.of(context).pop();
+
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to submit booking: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            } finally {
+                              setState(() => _isLoading = false);
+                            }
+                          }
+                        },
+                        child: AutoSizeText(
+                          'Submit',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          minFontSize: 12,
+                          maxFontSize: 16,
+                          textAlign: TextAlign.center,
                         ),
-                      ),
-                      onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          setState(() => _isLoading = true);
-                          final booking = BookingRequest(
-                            category: _category!,
-                            description: _description,
-                            createdAt: DateTime.now(),
-                            contact: _contact,
-                            preferredMentor:
-                                _preferredMentor.isNotEmpty
-                                    ? _preferredMentor
-                                    : null,
-                            additionalNotes:
-                                _additionalNotes.isNotEmpty
-                                    ? _additionalNotes
-                                    : null,
-                            virtualSession: _virtualSession,
-                            date: _selectedDate,
-                            time: _selectedTime,
-                          );
-                          await BookingService().submitBooking(booking);
-                          setState(() => _isLoading = false);
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Booking submitted!')),
-                          );
-                        }
-                      },
-                      child: AutoSizeText(
-                        'Submit',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
-                        minFontSize: 12,
-                        maxFontSize: 16,
-                        textAlign: TextAlign.center,
                       ),
                     ),
-                  ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  String getUserId() {
+    // TODO: Replace with real logic
+    return 'placeholder-user-id';
   }
 }

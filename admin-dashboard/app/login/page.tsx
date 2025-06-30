@@ -24,9 +24,15 @@ export default function LoginPage() {
   // Check if user is already authenticated
   useEffect(() => {
     const checkAuth = async () => {
-      const isAuthenticated = await AuthService.isAuthenticated();
-      if (isAuthenticated) {
-        router.push("/");
+      try {
+        const isAuthenticated = await AuthService.isAuthenticated();
+        console.log("Initial auth check:", { isAuthenticated });
+        if (isAuthenticated) {
+          console.log("User is authenticated, redirecting to dashboard...");
+          router.push("/");
+        }
+      } catch (err) {
+        console.error("Initial auth check error:", err);
       }
     };
     checkAuth();
@@ -50,31 +56,43 @@ export default function LoginPage() {
 
       // Attempt login
       const response = await AuthService.login({ email, password });
+      console.log("handleSubmit response:", JSON.stringify(response, null, 2));
+      console.log("localStorage.admin_user:", localStorage.getItem("admin_user"));
 
       toast({
         title: "Login Successful",
         description: `Welcome back, ${response.user.fullName}!`,
       });
 
-      // Redirect to dashboard
-      router.push("/");
+      // Delay redirect to ensure state updates and navigation
+      console.log("Initiating redirect to dashboard...");
+      setTimeout(() => {
+        router.push("/");
+        console.log("router.push('/') executed");
+        // Force refresh if navigation doesn't occur
+        setTimeout(() => {
+          if (window.location.pathname !== "/") {
+            console.log("Redirect failed, forcing window.location.href...");
+            window.location.href = "/";
+          }
+        }, 1000);
+      }, 500);
     } catch (err: any) {
       console.error("Login error:", err);
-      // Map backend errors to user-friendly messages
       if (err.message.includes("Invalid email or password")) {
         setError("Invalid email or password");
       } else if (err.message.includes("verify your email")) {
-        setError("Please verfiy your email address");
+        setError("Please verify your email address");
       } else if (err.message.includes("blocked")) {
         setError(err.message);
       } else if (err.message.includes("banned")) {
         setError("Your account is banned. Contact support.");
       } else if (err.message.includes("Too many login attempts")) {
         setError("Too many login attempts. Try again later.");
-      } else if (err.message.includes("No internet connection")) {
+      } else if (err.message.includes("Network error")) {
         setError("No internet connection. Check your network.");
       } else {
-        setError("Login failed. Please try again.");
+        setError(err.message || "Login failed. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -83,7 +101,7 @@ export default function LoginPage() {
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      handleSubmit(e as any); // Note: Casting is safe here but could be improved
+      handleSubmit(e as any);
     }
   };
 
@@ -171,8 +189,6 @@ export default function LoginPage() {
               </Button>
             </p>
           </div>
-
-           
         </CardContent>
       </Card>
     </div>
