@@ -21,7 +21,7 @@ class PrayerProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _prayers = await _prayerService.getPrayers();
+      _prayers = await _prayerService.getPrayers(filter: _filter);
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -49,8 +49,7 @@ class PrayerProvider extends ChangeNotifier {
     try {
       final prayer = await _prayerService.addPrayer(
         userId: userId,
-        content: content,
-        type: "prayer",
+        content: content,z
         isAnonymous: isAnonymous,
         userName: userName,
         userAvatar: userAvatar,
