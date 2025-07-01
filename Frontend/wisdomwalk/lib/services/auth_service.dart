@@ -12,7 +12,9 @@ class AuthService {
 
   void _handleError(http.Response response) {
     final body = jsonDecode(response.body);
-    throw Exception(body['message'] ?? 'Request failed: ${response.statusCode}');
+    throw Exception(
+      body['message'] ?? 'Request failed: ${response.statusCode}',
+    );
   }
 
   Future<UserModel> register({
@@ -26,6 +28,7 @@ class AuthService {
     required String faceImagePath,
     String? dateOfBirth,
     String? phoneNumber,
+    required String subcity,
   }) async {
     print('Registering with baseUrl: $baseUrl'); // Debug log
 
@@ -39,35 +42,50 @@ class AuthService {
       'lastName': lastName,
       'location[city]': city,
       'location[country]': country,
-      'dateOfBirth': dateOfBirth ?? DateTime.now().subtract(const Duration(days: 365 * 18)).toIso8601String(),
+      'dateOfBirth':
+          dateOfBirth ??
+          DateTime.now()
+              .subtract(const Duration(days: 365 * 18))
+              .toIso8601String(),
       'phoneNumber': phoneNumber ?? '1234567890',
       'bio': '',
     });
 
     // Add image files from paths
     try {
-      if (!File(idImagePath).existsSync() || !File(faceImagePath).existsSync()) {
-        throw Exception('Invalid image file paths: idImagePath=$idImagePath, faceImagePath=$faceImagePath');
+      if (!File(idImagePath).existsSync() ||
+          !File(faceImagePath).existsSync()) {
+        throw Exception(
+          'Invalid image file paths: idImagePath=$idImagePath, faceImagePath=$faceImagePath',
+        );
       }
 
-      request.files.add(await http.MultipartFile.fromPath(
-        'nationalId',
-        idImagePath,
-        contentType: MediaType('image', 'jpeg'),
-      ));
-      request.files.add(await http.MultipartFile.fromPath(
-        'livePhoto',
-        faceImagePath,
-        contentType: MediaType('image', 'jpeg'),
-      ));
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'nationalId',
+          idImagePath,
+          contentType: MediaType('image', 'jpeg'),
+        ),
+      );
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'livePhoto',
+          faceImagePath,
+          contentType: MediaType('image', 'jpeg'),
+        ),
+      );
 
-      print('Uploading images: nationalId=$idImagePath, livePhoto=$faceImagePath');
+      print(
+        'Uploading images: nationalId=$idImagePath, livePhoto=$faceImagePath',
+      );
       print('Request fields: ${request.fields}'); // Debug all fields
 
       final response = await request.send();
       final responseBody = await http.Response.fromStream(response);
 
-      print('Response status: ${response.statusCode}, body: ${responseBody.body}');
+      print(
+        'Response status: ${response.statusCode}, body: ${responseBody.body}',
+      );
 
       if (response.statusCode == 201) {
         final data = jsonDecode(responseBody.body)['data'];
@@ -109,25 +127,30 @@ class AuthService {
       await _localStorageService.saveAuthToken(data['token']);
       return UserModel.fromJson({
         'id': data['user']['_id'],
-        'fullName': '${data['user']['firstName']} ${data['user']['lastName']}'.trim(),
+        'fullName':
+            '${data['user']['firstName']} ${data['user']['lastName']}'.trim(),
         'email': data['user']['email'],
         'avatarUrl': data['user']['profilePicture'],
         'city': data['user']['location']['city'],
         'country': data['user']['location']['country'],
-        'wisdomCircleInterests': (data['user']['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
-        'isVerified': (data['user']['isEmailVerified'] ?? false) && (data['user']['isAdminVerified'] ?? false),
-        'createdAt': data['user']['createdAt'] ?? DateTime.now().toIso8601String(),
-        'updatedAt': data['user']['updatedAt'] ?? DateTime.now().toIso8601String(),
+        'wisdomCircleInterests':
+            (data['user']['joinedGroups'] ?? [])
+                .map((g) => g['groupType'])
+                .toList(),
+        'isVerified':
+            (data['user']['isEmailVerified'] ?? false) &&
+            (data['user']['isAdminVerified'] ?? false),
+        'createdAt':
+            data['user']['createdAt'] ?? DateTime.now().toIso8601String(),
+        'updatedAt':
+            data['user']['updatedAt'] ?? DateTime.now().toIso8601String(),
       });
     }
     _handleError(response);
     throw Exception('Failed to login');
   }
 
-  Future<bool> verifyOtp({
-    required String email,
-    required String otp,
-  }) async {
+  Future<bool> verifyOtp({required String email, required String otp}) async {
     final response = await http.post(
       Uri.parse('$baseUrl/verify'),
       headers: {'Content-Type': 'application/json'},
@@ -158,7 +181,9 @@ class AuthService {
   }
 
   Future<void> forgotPassword({required String email}) async {
-    print('Sending forgot password request with baseUrl: $baseUrl'); // Debug log
+    print(
+      'Sending forgot password request with baseUrl: $baseUrl',
+    ); // Debug log
     final response = await http.post(
       Uri.parse('$baseUrl/forgot-password'),
       headers: {'Content-Type': 'application/json'},
@@ -201,7 +226,10 @@ class AuthService {
     List<String>? wisdomCircleInterests,
   }) async {
     print('Updating profile with baseUrl: $baseUrl'); // Debug log
-    var request = http.MultipartRequest('PUT', Uri.parse('$baseUrl/users/profile'));
+    var request = http.MultipartRequest(
+      'PUT',
+      Uri.parse('$baseUrl/users/profile'),
+    );
 
     // Add form fields
     request.fields.addAll({
@@ -210,16 +238,20 @@ class AuthService {
       if (city != null) 'location[city]': city,
       if (country != null) 'location[country]': country,
       if (wisdomCircleInterests != null)
-        'joinedGroups': jsonEncode(wisdomCircleInterests.map((e) => {'groupType': e}).toList()),
+        'joinedGroups': jsonEncode(
+          wisdomCircleInterests.map((e) => {'groupType': e}).toList(),
+        ),
     });
 
     // Add profile picture if provided
     if (avatarPath != null) {
-      request.files.add(await http.MultipartFile.fromPath(
-        'profilePicture',
-        avatarPath,
-        contentType: MediaType('image', 'jpeg'),
-      ));
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'profilePicture',
+          avatarPath,
+          contentType: MediaType('image', 'jpeg'),
+        ),
+      );
     }
 
     // Add authorization header
@@ -242,8 +274,11 @@ class AuthService {
         'avatarUrl': data['profilePicture'],
         'city': data['location']['city'],
         'country': data['location']['country'],
-        'wisdomCircleInterests': (data['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
-        'isVerified': (data['isEmailVerified'] ?? false) && (data['isAdminVerified'] ?? false),
+        'wisdomCircleInterests':
+            (data['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
+        'isVerified':
+            (data['isEmailVerified'] ?? false) &&
+            (data['isAdminVerified'] ?? false),
         'createdAt': data['createdAt'] ?? DateTime.now().toIso8601String(),
         'updatedAt': data['updatedAt'] ?? DateTime.now().toIso8601String(),
       });
@@ -259,9 +294,7 @@ class AuthService {
 
     final response = await http.get(
       Uri.parse('$baseUrl/users/profile'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode == 200) {
@@ -273,8 +306,11 @@ class AuthService {
         'avatarUrl': data['profilePicture'],
         'city': data['location']['city'],
         'country': data['location']['country'],
-        'wisdomCircleInterests': (data['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
-        'isVerified': (data['isEmailVerified'] ?? false) && (data['isAdminVerified'] ?? false),
+        'wisdomCircleInterests':
+            (data['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
+        'isVerified':
+            (data['isEmailVerified'] ?? false) &&
+            (data['isAdminVerified'] ?? false),
         'createdAt': data['createdAt'] ?? DateTime.now().toIso8601String(),
         'updatedAt': data['updatedAt'] ?? DateTime.now().toIso8601String(),
       });

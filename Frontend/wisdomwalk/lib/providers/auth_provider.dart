@@ -31,8 +31,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> toggleThemeMode() async {
-    _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-    await _localStorageService.setDarkModePreference(_themeMode == ThemeMode.dark);
+    _themeMode =
+        _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    await _localStorageService.setDarkModePreference(
+      _themeMode == ThemeMode.dark,
+    );
     notifyListeners();
   }
 
@@ -77,6 +80,7 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
         city: city,
+        subcity: subcity,
         country: country,
         idImagePath: idImagePath,
         faceImagePath: faceImagePath,
@@ -91,10 +95,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> verifyOtp({
-    required String email,
-    required String otp,
-  }) async {
+  Future<bool> verifyOtp({required String email, required String otp}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -111,10 +112,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<bool> login({required String email, required String password}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -124,7 +122,9 @@ class AuthProvider extends ChangeNotifier {
       _currentUser = user;
 
       // Save token after successful login
-      final token = await _localStorageService.getAuthToken(); // Assuming AuthService saves it
+      final token =
+          await _localStorageService
+              .getAuthToken(); // Assuming AuthService saves it
       if (token != null) {
         await _localStorageService.saveAuthToken(token);
       }
@@ -175,9 +175,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> resendOtp({
-    required String email,
-  }) async {
+  Future<bool> resendOtp({required String email}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
