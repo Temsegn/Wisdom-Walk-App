@@ -19,7 +19,7 @@ const createPost = async (req, res) => {
       if (!userInGroup) {
         return res.status(403).json({
           success: false,
-          message: `You must be a member of the ${targetGroup} group to post there`,
+          message: `You must be  member of the ${targetGroup} group to post there`,
         })
       }
     }
@@ -542,7 +542,38 @@ const getPostComments = async (req, res) => {
     })
   }
 }
-c
+
+const getAllPosts = async (req, res) => {
+  try {
+    const posts = await Post.find({ isHidden: false, isPublished: true })
+      .populate("author", "firstName lastName profilePicture")
+      .sort({ createdAt: -1 });
+
+    const formattedPosts = posts.map((post) => {
+      const postObj = post.toObject();
+      if (postObj.isAnonymous) {
+        postObj.author = {
+          firstName: "Anonymous",
+          lastName: "Sister",
+          profilePicture: null,
+        };
+      }
+      return postObj;
+    });
+
+    res.json({
+      success: true,
+      data: formattedPosts,
+    });
+  } catch (error) {
+    console.error("Get all posts error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch all posts",
+      error: error.message,
+    });
+  }
+};
 
 module.exports = {
   getAllPosts,
