@@ -38,7 +38,6 @@ export default function LoginPage() {
       const data = await response.json()
 
       if (response.ok && data.success) {
-        // Store the token and user data - accessing from nested data object
         localStorage.setItem("adminToken", data.data.token)
         localStorage.setItem("adminUser", JSON.stringify(data.data.user))
 
@@ -47,24 +46,16 @@ export default function LoginPage() {
           description: "Welcome to WisdomWalk Admin Dashboard",
         })
 
-        // Add a small delay to ensure localStorage is updated
-        setTimeout(() => {
-          router.push("/dashboard")
-          // Force a page refresh if router.push doesn't work
-          setTimeout(() => {
-            window.location.href = "/dashboard"
-          }, 100)
-        }, 500)
+        router.push("/dashboard")
       } else {
         setError(data.message || "Login failed. Please check your credentials.")
-        setIsLoading(false)
       }
     } catch (error) {
       setError("Network error. Please try again.")
       console.error("Login error:", error)
+    } finally {
       setIsLoading(false)
     }
-    // Don't set isLoading to false here since we're redirecting
   }
 
   return (

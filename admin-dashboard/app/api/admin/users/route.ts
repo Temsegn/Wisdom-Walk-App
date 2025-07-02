@@ -7,11 +7,14 @@ import { type NextRequest, NextResponse } from "next/server"
 export async function GET(request: NextRequest) {
   try {
     const qs = request.nextUrl.search // includes leading "?"
+
+    // Grab token from header OR cookie
+    const bearer =
+      request.headers.get("authorization") ??
+      (request.cookies.get("adminToken") ? `Bearer ${request.cookies.get("adminToken")!.value}` : "")
+
     const backendRes = await fetch(`https://wisdom-walk-app.onrender.com/api/admin/users${qs}`, {
-      headers: {
-        // forward the Authorization token if present
-        Authorization: request.headers.get("authorization") ?? "",
-      },
+      headers: { Authorization: bearer },
       cache: "no-store",
     })
 

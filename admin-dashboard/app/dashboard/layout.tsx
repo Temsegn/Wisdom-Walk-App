@@ -1,9 +1,10 @@
 "use client"
 
 import type React from "react"
-
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
+import { ChakraProvider } from "@chakra-ui/react";
+
 import {
   BarChart3,
   Users,
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import Link from "next/link"
+import { Badge } from "@/components/ui/badge"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
@@ -51,6 +53,12 @@ export default function DashboardLayout({
   const [adminUser, setAdminUser] = useState<any>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [notificationCounts, setNotificationCounts] = useState({
+    verifications: 0,
+    reports: 0,
+    notifications: 0,
+    posts: 0
+  })
 
   useEffect(() => {
     // Add a small delay to ensure localStorage is available
@@ -59,16 +67,12 @@ export default function DashboardLayout({
         const token = localStorage.getItem("adminToken")
         const user = localStorage.getItem("adminUser")
 
-        console.log("Checking auth - Token:", !!token, "User:", !!user) // Debug log
-
         if (!token || !user) {
-          console.log("No auth found, redirecting to login") // Debug log
           router.push("/login")
           return
         }
 
         const parsedUser = JSON.parse(user)
-        console.log("Auth found, user:", parsedUser.firstName) // Debug log
         setAdminUser(parsedUser)
       } catch (error) {
         console.error("Error parsing user data:", error)
@@ -84,6 +88,29 @@ export default function DashboardLayout({
 
     return () => clearTimeout(timeoutId)
   }, [router])
+
+  useEffect(() => {
+    // Fetch notification counts
+    const fetchNotificationCounts = async () => {
+      try {
+        // In a real app, you would make API calls here
+        // For demo purposes, we'll use mock data
+        setNotificationCounts({
+          verifications: 5, // Mock pending verification count
+          reports: 12,      // Mock report count
+          notifications: 8, // Mock notification count
+          posts: 3          // Mock pending posts count
+        })
+      } catch (error) {
+        console.error("Error fetching notification counts:", error)
+      }
+    }
+
+    fetchNotificationCounts()
+    const interval = setInterval(fetchNotificationCounts, 30000) // Refresh every 30 seconds
+
+    return () => clearInterval(interval)
+  }, [])
 
   const handleLogout = () => {
     localStorage.removeItem("adminToken")
@@ -121,17 +148,40 @@ export default function DashboardLayout({
         <ul className="space-y-2">
           {navigation.map((item) => {
             const isActive = pathname === item.href
+            let badgeCount = 0
+            
+            // Assign badge counts based on route
+            if (item.href === "/dashboard/verifications") {
+              badgeCount = notificationCounts.verifications
+            } else if (item.href === "/dashboard/reports") {
+              badgeCount = notificationCounts.reports
+            } else if (item.href === "/dashboard/notifications") {
+              badgeCount = notificationCounts.notifications
+            } else if (item.href === "/dashboard/posts") {
+              badgeCount = notificationCounts.posts
+            }
+
             return (
               <li key={item.name}>
                 <Link
                   href={item.href}
                   onClick={() => mobile && setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive ? "bg-purple-100 text-purple-700" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   }`}
                 >
-                  <item.icon className="h-5 w-5" />
-                  {item.name}
+                  <div className="flex items-center gap-3">
+                    <item.icon className="h-5 w-5" />
+                    {item.name}
+                  </div>
+                  {badgeCount > 0 && (
+                    <Badge 
+                      variant={isActive ? "default" : "secondary"}
+                      className="h-5 w-5 flex items-center justify-center p-0"
+                    >
+                      {badgeCount}
+                    </Badge>
+                  )}
                 </Link>
               </li>
             )
@@ -176,41 +226,90 @@ export default function DashboardLayout({
             </h2>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={adminUser?.profilePicture || "/placeholder.svg"} alt={adminUser?.firstName} />
-                  <AvatarFallback>
-                    {adminUser?.firstName?.[0]}
-                    {adminUser?.lastName?.[0]}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    {adminUser?.firstName} {adminUser?.lastName}
-                  </p>
-                  <p className="text-xs leading-none text-muted-foreground">{adminUser?.email}</p>
+          <div className="flex items-center gap-4">
+            {/* Notification Bell with Badge */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <MessageSquare className="h-5 w-5" />
+                  {notificationCounts.notifications > 0 && (
+                    <Badge 
+                      variant="destructive"
+                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0"
+                    >
+                      {notificationCounts.notifications > 9 ? "9+" : notificationCounts.notifications}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-80 p-0" align="end">
+                <DropdownMenuLabel className="flex justify-between items-center px-4 py-3 border-b">
+                  <span>Notifications</span>
+                  <Button variant="link" size="sm" className="h-6 px-2">
+                    Mark all as read
+                  </Button>
+                </DropdownMenuLabel>
+                <div className="max-h-96 overflow-y-auto">
+                  {/* Sample notification items - replace with actual data */}
+                  {Array.from({ length: Math.min(notificationCounts.notifications, 5) }).map((_, i) => (
+                    <DropdownMenuItem key={i} className="px-4 py-3 border-b">
+                      <div className="flex gap-3">
+                        <div className="bg-purple-100 rounded-full p-2">
+                          <MessageSquare className="h-4 w-4 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">New notification #{i + 1}</p>
+                          <p className="text-xs text-muted-foreground">Just now</p>
+                        </div>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
                 </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem className="justify-center py-2">
+                  <Button variant="link" size="sm">
+                    View all notifications
+                  </Button>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* User Avatar Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={adminUser?.profilePicture || "/placeholder.svg"} alt={adminUser?.firstName} />
+                    <AvatarFallback>
+                      {adminUser?.firstName?.[0]}
+                      {adminUser?.lastName?.[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {adminUser?.firstName} {adminUser?.lastName}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">{adminUser?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/settings">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </header>
 
         {/* Page Content */}

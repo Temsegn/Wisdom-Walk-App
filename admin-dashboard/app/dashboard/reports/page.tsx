@@ -114,8 +114,6 @@ export default function ReportsPage() {
         setSelectedReport(null)
         setActionNotes("")
         setSelectedAction("")
-      } else {
-        throw new Error("Failed to handle report")
       }
     } catch (error) {
       console.error("Error handling report:", error)
@@ -159,23 +157,6 @@ export default function ReportsPage() {
         )
       default:
         return <Badge variant="secondary">{status}</Badge>
-    }
-  }
-
-  const getUrgencyBadge = (urgency: string) => {
-    switch (urgency) {
-      case "high":
-        return <Badge variant="destructive">High Priority</Badge>
-      case "medium":
-        return (
-          <Badge variant="outline" className="text-orange-600">
-            Medium Priority
-          </Badge>
-        )
-      case "low":
-        return <Badge variant="secondary">Low Priority</Badge>
-      default:
-        return null
     }
   }
 
@@ -242,7 +223,6 @@ export default function ReportsPage() {
                     {getContentTypeIcon(report.contentType || "post")}
                     <CardTitle className="text-lg capitalize">{report.type.replace("_", " ")}</CardTitle>
                   </div>
-                  {report.urgency && getUrgencyBadge(report.urgency)}
                 </div>
                 <CardDescription className="flex items-center gap-2">
                   {getStatusBadge(report.status)}
@@ -339,43 +319,6 @@ export default function ReportsPage() {
                       <div className="text-sm text-muted-foreground">{selectedReport.reporter.email}</div>
                     </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Reported Content */}
-              <div className="space-y-2">
-                <h4 className="font-semibold">Reported Content</h4>
-                <div className="border rounded-lg p-4 bg-gray-50">
-                  {selectedReport.reportedPost && (
-                    <div>
-                      <div className="font-medium mb-2">
-                        Post by {selectedReport.reportedPost.author.firstName}{" "}
-                        {selectedReport.reportedPost.author.lastName}
-                      </div>
-                      {selectedReport.reportedPost.title && (
-                        <h5 className="font-semibold mb-1">{selectedReport.reportedPost.title}</h5>
-                      )}
-                      <p className="text-sm">{selectedReport.reportedPost.content}</p>
-                    </div>
-                  )}
-                  {selectedReport.reportedComment && (
-                    <div>
-                      <div className="font-medium mb-2">
-                        Comment by {selectedReport.reportedComment.author.firstName}{" "}
-                        {selectedReport.reportedComment.author.lastName}
-                      </div>
-                      <p className="text-sm">{selectedReport.reportedComment.content}</p>
-                    </div>
-                  )}
-                  {selectedReport.reportedUser && (
-                    <div>
-                      <div className="font-medium mb-2">User Profile</div>
-                      <p className="text-sm">
-                        {selectedReport.reportedUser.firstName} {selectedReport.reportedUser.lastName} (
-                        {selectedReport.reportedUser.email})
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
 

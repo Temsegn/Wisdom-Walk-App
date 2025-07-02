@@ -9,7 +9,7 @@ router.use(authenticateToken);
 // User verification
 router.get("/verifications/pending",  adminController.getPendingVerifications);
 router.post("/users/:userId/verify",  adminController.verifyUser);
-
+router.get("/notifications", adminController.getAllNotifications); // Ensure this is protected
 // User management
 router.get("/users", adminController.getAllUsers); // Now correctly protected
 router.post("/users/:userId/block",  adminController.toggleUserBlock);

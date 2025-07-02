@@ -6,6 +6,7 @@ const notificationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      default:"all_users" // Default to all users if not specified
     },
 
     sender: {
@@ -27,6 +28,9 @@ const notificationSchema = new mongoose.Schema(
         "admin_message",
         "post_moderated",
         "account_status",
+        "signup",
+        "post",
+        "report"
       ],
       required: true,
     },

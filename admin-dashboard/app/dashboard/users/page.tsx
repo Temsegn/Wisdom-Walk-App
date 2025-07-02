@@ -27,6 +27,13 @@ import {
 } from "@/components/ui/alert-dialog"
 import { MoreHorizontal, Search, UserCheck, UserX, Ban, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface User {
   _id: string
@@ -41,39 +48,36 @@ interface User {
   lastActive: string
 }
 
+type StatusFilter = "all" | "active" | "blocked" | "banned"
+type VerificationFilter = "all" | "verified" | "pending" | "rejected" | "unverified"
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [actionType, setActionType] = useState<"block" | "ban" | null>(null)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+  const [verificationFilter, setVerificationFilter] = useState<VerificationFilter>("all")
   const { toast } = useToast()
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalUsers, setTotalUsers] = useState(0)
-  const [pagination, setPagination] = useState(null)
 
   useEffect(() => {
-    fetchUsers(currentPage, searchTerm)
-  }, [currentPage])
+    fetchUsers()
+  }, [])
 
-  const fetchUsers = async (page = 1, search = "") => {
+  const fetchUsers = async () => {
     try {
       const token = localStorage.getItem("adminToken")
-      const queryParams = new URLSearchParams({
-        page: page.toString(),
-        limit: "20",
-        ...(search && { search }),
-      })
-
-      const response = await fetch(`/api/admin/users?${queryParams}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await fetch("/api/admin/users", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       })
 
       if (response.ok) {
         const result = await response.json()
+        console.log("Number of users fetched:", result.data?.length || 0)
         setUsers(result.data || [])
-        setPagination(result.pagination)
-        setTotalUsers(result.pagination?.total || 0)
       }
     } catch (error) {
       console.error("Error fetching users:", error)
@@ -86,7 +90,7 @@ export default function UsersPage() {
       setLoading(false)
     }
   }
-
+  
   const handleUserAction = async (userId: string, action: "block" | "ban", reason?: string) => {
     try {
       const token = localStorage.getItem("adminToken")
@@ -107,8 +111,6 @@ export default function UsersPage() {
           description: `User ${action}ed successfully`,
         })
         fetchUsers()
-      } else {
-        throw new Error(`Failed to ${action} user`)
       }
     } catch (error) {
       console.error(`Error ${action}ing user:`, error)
@@ -122,12 +124,30 @@ export default function UsersPage() {
     setActionType(null)
   }
 
-  const filteredUsers = users.filter(
-    (user) =>
+  const filteredUsers = users.filter((user) => {
+    // Search filter
+    const matchesSearch = 
       user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    // Status filter
+    const matchesStatus = 
+      statusFilter === "all" || 
+      (statusFilter === "active" && user.status === "active") ||
+      (statusFilter === "blocked" && user.status === "blocked") ||
+      (statusFilter === "banned" && user.status === "banned")
+    
+    // Verification filter
+    const matchesVerification = 
+      verificationFilter === "all" ||
+      (verificationFilter === "verified" && user.isAdminVerified) ||
+      (verificationFilter === "pending" && user.verificationStatus === "pending")&& !user.isAdminVerified  ||
+      (verificationFilter === "rejected" && user.verificationStatus === "rejected") ||
+      (verificationFilter === "unverified" && !user.isAdminVerified && user.verificationStatus !== "pending" && user.verificationStatus !== "rejected")
+    
+    return matchesSearch && matchesStatus && matchesVerification
+  })
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -196,28 +216,47 @@ export default function UsersPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
         <p className="text-muted-foreground">Manage user accounts, verification status, and permissions.</p>
+        <p className="text-sm text-gray-500 mt-2">Showing: {filteredUsers.length} users</p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>All Users</CardTitle>
           <CardDescription>View and manage all registered users in the platform.</CardDescription>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search users..."
                 value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value)
-                  // Debounce search
-                  setTimeout(() => {
-                    setCurrentPage(1)
-                    fetchUsers(1, e.target.value)
-                  }, 500)
-                }}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8"
               />
+            </div>
+            <div className="flex gap-2">
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="blocked">Blocked</SelectItem>
+                  <SelectItem value="banned">Banned</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={verificationFilter} onValueChange={(value) => setVerificationFilter(value as VerificationFilter)}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Verification" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Verification</SelectItem>
+                  <SelectItem value="verified">Verified</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="unverified">Unverified</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
@@ -292,16 +331,18 @@ export default function UsersPage() {
                             Block User
                           </DropdownMenuItem>
                         )}
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedUser(user)
-                            setActionType("ban")
-                          }}
-                          className="text-red-600"
-                        >
-                          <Ban className="mr-2 h-4 w-4" />
-                          Ban User
-                        </DropdownMenuItem>
+                        {user.status !== "banned" && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedUser(user)
+                              setActionType("ban")
+                            }}
+                            className="text-red-600"
+                          >
+                            <Ban className="mr-2 h-4 w-4" />
+                            Ban User
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

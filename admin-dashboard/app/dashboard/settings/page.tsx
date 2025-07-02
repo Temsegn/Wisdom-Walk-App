@@ -33,71 +33,93 @@ export default function SettingsPage() {
       }
     }
   }, [])
-
   const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault()
+  e.preventDefault();
 
-    if (newPassword !== confirmPassword) {
-      toast({
-        title: "Error",
-        description: "New passwords do not match",
-        variant: "destructive",
-      })
-      return
-    }
+  // Validate inputs
+  if (newPassword !== confirmPassword) {
+    toast({
+      title: "Error",
+      description: "New passwords do not match",
+      variant: "destructive",
+    });
+    return;
+  }
 
-    if (newPassword.length < 6) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 6 characters long",
-        variant: "destructive",
-      })
-      return
-    }
+  setIsLoading(true);
 
-    setIsLoading(true)
+  try {
+    const token = localStorage.getItem("adminToken");
+    const response = await fetch("https://wisdom-walk-app.onrender.com/api/auth/change-password", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+      }),
+    });
 
-    try {
-      const token = localStorage.getItem("adminToken")
-      const response = await fetch("https://wisdom-walk-app.onrender.com/api/auth/change-password", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword,
-        }),
-      })
+    // Debugging logs
+    console.log("Response status:", response.status);
+    const data = await response.json();
+    console.log("Response data:", data);
 
-      if (response.ok) {
+    // Check for successful response (200-299 range)
+    if (response.ok) {
+      if (data.success) {
+        // Remove admin token and user data from localStorage
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("adminUser");
+        
         toast({
           title: "Success",
-          description: "Password changed successfully",
-        })
-        setCurrentPassword("")
-        setNewPassword("")
-        setConfirmPassword("")
+          description: "Password changed successfully. Please login again.",
+        });
+        
+        // Reset form
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        
+        // Redirect to login page
+        window.location.href = "http://localhost:3000/login";
+        return;
       } else {
-        const data = await response.json()
-        throw new Error(data.message || "Failed to change password")
+        // Handle case where status is 200 but success is false
+        throw new Error(data.message || "Password change failed");
       }
-    } catch (error) {
-      console.error("Error changing password:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to change password",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
     }
+
+    // Handle HTTP error statuses
+    if (response.status === 401) {
+      throw new Error("Current password is incorrect");
+    } else if (response.status === 400) {
+      throw new Error(data.message || "Invalid request");
+    } else if (response.status === 500) {
+      throw new Error("Server error occurred");
+    }
+
+    // Fallback error
+    throw new Error(`Request failed with status ${response.status}`);
+
+  } catch (error) {
+    console.error("Error changing password:", error);
+    toast({
+      title: "Error",
+      description: error instanceof Error ? error.message : "Failed to change password",
+      variant: "destructive",
+    });
+  } finally {
+    setIsLoading(false);
   }
+};
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
-    // This would typically update profile information
+    // This would typically 
     toast({
       title: "Info",
       description: "Profile update functionality would be implemented here",

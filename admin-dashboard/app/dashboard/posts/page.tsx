@@ -24,8 +24,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { MoreHorizontal, Search, Trash2, Eye, Heart, MessageCircle, Users } from "lucide-react"
+import { MoreHorizontal, Search, Trash2, Eye, Heart, MessageCircle, Users, Filter, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface Post {
   _id: string
@@ -36,6 +38,7 @@ interface Post {
     profilePicture?: string
   }
   type: string
+  category: string
   content: string
   title?: string
   isAnonymous: boolean
@@ -55,6 +58,12 @@ export default function PostsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedPost, setSelectedPost] = useState<Post | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [filters, setFilters] = useState({
+    type: "",
+    category: "",
+    reportedOnly: false
+  })
+  const [activeTab, setActiveTab] = useState("all")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -64,7 +73,7 @@ export default function PostsPage() {
   const fetchPosts = async () => {
     try {
       const token = localStorage.getItem("adminToken")
-      const response = await fetch("https://wisdom-walk-app.onrender.com/api/posts/all", {
+      const response = await fetch("https://wisdom-walk-app.onrender.com/api/posts/posts", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -117,14 +126,45 @@ export default function PostsPage() {
     setSelectedPost(null)
   }
 
-  const filteredPosts = posts.filter(
-    (post) =>
+  const handleFilterChange = (key: string, value: string | boolean) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      type: "",
+      category: "",
+      reportedOnly: false
+    })
+    setSearchTerm("")
+  }
+
+  const filteredPosts = posts.filter((post) => {
+    // Search term filter
+    const matchesSearch = 
       post.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
       post.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (!post.isAnonymous &&
         (post.author.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          post.author.lastName.toLowerCase().includes(searchTerm.toLowerCase()))),
-  )
+          post.author.lastName.toLowerCase().includes(searchTerm.toLowerCase())))
+    
+    // Type filter
+    const matchesType = filters.type ? post.type === filters.type : true
+    
+    // Category filter
+    const matchesCategory = filters.category ? post.category === filters.category : true
+    
+    // Reported filter
+    const matchesReported = filters.reportedOnly ? post.isReported : true
+    
+    // Tab filter
+    const matchesTab = 
+      activeTab === "all" ? true :
+      activeTab === "prayers" ? post.type === "prayer" :
+      activeTab === "shares" ? post.type === "share" : true
+    
+    return matchesSearch && matchesType && matchesCategory && matchesReported && matchesTab
+  })
 
   const getPostTypeBadge = (type: string) => {
     switch (type) {
@@ -142,6 +182,19 @@ export default function PostsPage() {
         )
       default:
         return <Badge variant="secondary">{type}</Badge>
+    }
+  }
+
+  const getCategoryBadge = (category: string) => {
+    switch (category) {
+      case "testimony":
+        return <Badge variant="outline" className="border-green-200 text-green-800">Testimony</Badge>
+      case "confession":
+        return <Badge variant="outline" className="border-yellow-200 text-yellow-800">Confession</Badge>
+      case "struggle":
+        return <Badge variant="outline" className="border-red-200 text-red-800">Struggle</Badge>
+      default:
+        return null
     }
   }
 
@@ -173,107 +226,223 @@ export default function PostsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Posts & Content</h1>
-        <p className="text-muted-foreground">Manage community posts, prayers, and shared content.</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Community Posts</h1>
+          <p className="text-muted-foreground">Manage and moderate all community content</p>
+        </div>
       </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="all">All Posts</TabsTrigger>
+          <TabsTrigger value="prayers">Prayers</TabsTrigger>
+          <TabsTrigger value="shares">Shares</TabsTrigger>
+          <TabsTrigger value="reported">Reported</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Posts</CardTitle>
-          <CardDescription>View and moderate all posts in the community.</CardDescription>
-          <div className="flex items-center space-x-2">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search posts..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <CardTitle>Community Content</CardTitle>
+              <CardDescription>
+                {filteredPosts.length} {filteredPosts.length === 1 ? 'post' : 'posts'} found
+              </CardDescription>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search posts..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+              
+              <DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="outline">
+      <Filter className="h-4 w-4 mr-2" />
+      Filters
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent className="w-56">
+    <DropdownMenuLabel>Filter Posts</DropdownMenuLabel>
+    <DropdownMenuSeparator />
+    
+    <div className="px-2 py-1.5 space-y-2">
+      <div>
+        <p className="text-xs text-muted-foreground mb-1">Post Type</p>
+        <Select 
+          value={filters.type} 
+          onValueChange={(value) => handleFilterChange("type", value)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="prayer">Prayer</SelectItem>
+            <SelectItem value="share">Share</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <div>
+        <p className="text-xs text-muted-foreground mb-1">Category</p>
+        <Select 
+          value={filters.category} 
+          onValueChange={(value) => handleFilterChange("category", value)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="All categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            <SelectItem value="testimony">Testimony</SelectItem>
+            <SelectItem value="confession">Confession</SelectItem>
+            <SelectItem value="struggle">Struggle</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <div className="flex items-center space-x-2 pt-1">
+        <input
+          type="checkbox"
+          id="reportedOnly"
+          checked={filters.reportedOnly}
+          onChange={(e) => handleFilterChange("reportedOnly", e.target.checked)}
+          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+        />
+        <label htmlFor="reportedOnly" className="text-sm font-medium leading-none">
+          Reported only
+        </label>
+      </div>
+    </div>
+    
+    <DropdownMenuSeparator />
+    <DropdownMenuItem onClick={clearFilters}>
+      <X className="mr-2 h-4 w-4" />
+      Clear filters
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
             </div>
           </div>
         </CardHeader>
+        
         <CardContent>
-          <div className="space-y-6">
-            {filteredPosts.map((post) => (
-              <div key={post._id} className="border rounded-lg p-4 space-y-3">
-                {/* Post Header */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={post.isAnonymous ? undefined : post.author.profilePicture} />
-                      <AvatarFallback>
-                        {post.isAnonymous ? "A" : `${post.author.firstName[0]}${post.author.lastName[0]}`}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">
-                        {post.isAnonymous ? "Anonymous Sister" : `${post.author.firstName} ${post.author.lastName}`}
+          {filteredPosts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <Search className="h-12 w-12 text-muted-foreground" />
+              <h3 className="text-lg font-medium">No posts found</h3>
+              <p className="text-sm text-muted-foreground">
+                Try adjusting your search or filter criteria
+              </p>
+              <Button variant="outline" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {filteredPosts.map((post) => (
+                <div key={post._id} className="border rounded-lg p-4 space-y-3 hover:shadow-sm transition-shadow">
+                  {/* Post Header */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={post.isAnonymous ? undefined : post.author.profilePicture} />
+                        <AvatarFallback>
+                          {post.isAnonymous ? "A" : `${post.author.firstName[0]}${post.author.lastName[0]}`}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">
+                          {post.isAnonymous ? "Anonymous Sister" : `${post.author.firstName} ${post.author.lastName}`}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(post.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </div>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(post.createdAt).toLocaleDateString()}
+                      <div className="flex gap-2">
+                        {getPostTypeBadge(post.type)}
+                        {post.category && getCategoryBadge(post.category)}
+                        {post.isReported && (
+                          <Badge variant="destructive" className="flex items-center gap-1">
+                            Reported {post.reportCount > 0 && `(${post.reportCount})`}
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    {getPostTypeBadge(post.type)}
-                    {post.isReported && <Badge variant="destructive">Reported ({post.reportCount})</Badge>}
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedPost(post)
+                            setShowDeleteDialog(true)
+                          }}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Post
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>
-                        <Eye className="mr-2 h-4 w-4" />
-                        View Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setSelectedPost(post)
-                          setShowDeleteDialog(true)
-                        }}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Post
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+                  {/* Post Content */}
+                  <div className="space-y-2">
+                    {post.title && (
+                      <h3 className="font-semibold text-lg text-gray-900">{post.title}</h3>
+                    )}
+                    <p className="text-gray-700 whitespace-pre-line">{post.content}</p>
+                  </div>
 
-                {/* Post Content */}
-                <div className="space-y-2">
-                  {post.title && <h3 className="font-semibold text-lg">{post.title}</h3>}
-                  <p className="text-gray-700 line-clamp-3">{post.content}</p>
-                </div>
-
-                {/* Post Stats */}
-                <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-                  <div className="flex items-center space-x-1">
-                    <Heart className="h-4 w-4" />
-                    <span>{post.likes.length} likes</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <MessageCircle className="h-4 w-4" />
-                    <span>{post.commentsCount} comments</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Users className="h-4 w-4" />
-                    <span>{post.prayers.length} prayers</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span>🤗</span>
-                    <span>{post.virtualHugs.length} hugs</span>
+                  {/* Post Stats */}
+                  <div className="flex items-center space-x-6 text-sm text-muted-foreground pt-2">
+                    <div className="flex items-center space-x-1">
+                      <Heart className="h-4 w-4" />
+                      <span>{post.likes.length} likes</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <MessageCircle className="h-4 w-4" />
+                      <span>{post.commentsCount} comments</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Users className="h-4 w-4" />
+                      <span>{post.prayers.length} prayers</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span>🤗</span>
+                      <span>{post.virtualHugs.length} hugs</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

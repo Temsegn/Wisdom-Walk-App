@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Calendar, Phone, Mail, MapPin, Clock, User } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 interface Booking {
   _id: string
@@ -26,6 +27,7 @@ interface Booking {
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchBookings()
@@ -42,10 +44,16 @@ export default function BookingsPage() {
 
       if (response.ok) {
         const data = await response.json()
+        console.log(data)
         setBookings(data)
       }
     } catch (error) {
       console.error("Error fetching bookings:", error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch bookings",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }

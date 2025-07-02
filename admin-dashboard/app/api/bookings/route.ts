@@ -6,7 +6,7 @@ import { type NextRequest, NextResponse } from "next/server"
  */
 export async function GET(request: NextRequest) {
   try {
-    const backendRes = await fetch("https://wisdom-walk-app.onrender.com/api/bookings", {
+    const backendRes = await fetch("https://wisdom-walk-app.onrender.com/api/bookings/bookings", {
       headers: { Authorization: request.headers.get("authorization") ?? "" },
       cache: "no-store",
     })

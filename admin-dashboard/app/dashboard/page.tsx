@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, FileText, AlertTriangle, Calendar, UserCheck, UserX, MessageSquare, Heart } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
 
 interface DashboardStats {
   users: {
@@ -33,6 +34,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [bookingsCount, setBookingsCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchDashboardData()
@@ -42,31 +44,46 @@ export default function DashboardPage() {
     try {
       const token = localStorage.getItem("adminToken")
 
-      // Fetch dashboard stats
-      const statsResponse = await fetch("/api/dashboard-stats", {
+      // Fetch dashboard stats - now using the correct endpoint
+      const statsRes = await fetch("/api/admin/dashboard/stats", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
 
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json()
-        setStats(statsData.data)
+      if (statsRes.ok) {
+        const contentType = statsRes.headers.get("content-type")
+        if (contentType && contentType.includes("application/json")) {
+          const statsData = await statsRes.json()
+          setStats(statsData.data)
+        } else {
+          console.warn("Dashboard stats returned non-JSON response")
+        }
+      } else {
+        console.error("Dashboard stats request failed:", statsRes.status)
       }
 
       // Fetch bookings count
-      const bookingsResponse = await fetch("/api/bookings", {
+      const bookingsRes = await fetch("/api/bookings", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
 
-      if (bookingsResponse.ok) {
-        const bookingsData = await bookingsResponse.json()
-        setBookingsCount(bookingsData.length || 0)
+      if (bookingsRes.ok) {
+        const contentType = bookingsRes.headers.get("content-type")
+        if (contentType && contentType.includes("application/json")) {
+          const bookingsData = await bookingsRes.json()
+          setBookingsCount(bookingsData.length || 0)
+        }
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -163,18 +180,21 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat, index) => (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
-            </CardContent>
-          </Card>
-        ))}
+        {statCards.map((stat, index) => {
+          const Icon = stat.icon
+          return (
+            <Card key={index}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+                <Icon className={`h-4 w-4 ${stat.color}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">{stat.description}</p>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       {/* Quick Actions */}
@@ -206,9 +226,9 @@ export default function DashboardPage() {
             <CardDescription>Group membership overview</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {stats?.groups.map((group, index) => (
+            {stats?.groups?.map((group, index) => (
               <div key={index} className="flex items-center justify-between">
-                <span className="text-sm capitalize">{group._id.replace("_", " ")}</span>
+                <span className="text-sm capitalize">{group._id.replace(/_/g, " ")}</span>
                 <Badge variant="outline">{group.count} members</Badge>
               </div>
             ))}

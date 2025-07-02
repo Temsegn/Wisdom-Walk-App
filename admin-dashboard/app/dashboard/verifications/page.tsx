@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { CheckCircle, XCircle, Eye, MapPin, Phone, Mail, Calendar } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import Image from "next/image"
 
 interface PendingUser {
   _id: string
@@ -33,7 +34,6 @@ export default function VerificationsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState<PendingUser | null>(null)
   const [verificationNotes, setVerificationNotes] = useState("")
-  const [actionType, setActionType] = useState<"approve" | "reject" | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export default function VerificationsPage() {
     try {
       const token = localStorage.getItem("adminToken")
       const response = await fetch("/api/admin/pending-verifications", {
-        headers: {
+        headers: {  
           Authorization: `Bearer ${token}`,
         },
       })
@@ -84,10 +84,7 @@ export default function VerificationsPage() {
         })
         fetchPendingVerifications()
         setSelectedUser(null)
-        setActionType(null)
         setVerificationNotes("")
-      } else {
-        throw new Error(`Failed to ${action} user`)
       }
     } catch (error) {
       console.error(`Error ${action}ing user:`, error)
@@ -145,7 +142,7 @@ export default function VerificationsPage() {
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-12 w-12">
                     <AvatarImage
-                      src={user.livePhoto || "/placeholder.svg"}
+                      src={user.livePhoto.url || "/placeholder.svg"}
                       alt={`${user.firstName} ${user.lastName}`}
                     />
                     <AvatarFallback>
@@ -172,7 +169,9 @@ export default function VerificationsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>{user.location}</span>
+                    <span>
+                      {user.location?.city || "Unknown City"}, {user.location?.country || "Unknown Country"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -218,9 +217,9 @@ export default function VerificationsPage() {
                     <div>
                       <strong>Phone:</strong> {selectedUser.phoneNumber}
                     </div>
-                    <div>
+                    {/* <div>
                       <strong>Location:</strong> {selectedUser.location}
-                    </div>
+                    </div> */}
                     <div>
                       <strong>Applied:</strong> {new Date(selectedUser.createdAt).toLocaleDateString()}
                     </div>
@@ -237,12 +236,16 @@ export default function VerificationsPage() {
                   <div>
                     <h5 className="font-medium mb-2">Live Photo</h5>
                     <div className="border rounded-lg p-4 text-center">
-                      {selectedUser.livePhoto ? (
-                        <img
-                          src={selectedUser.livePhoto || "/placeholder.svg"}
-                          alt="Live Photo"
-                          className="max-w-full h-48 object-cover rounded mx-auto"
-                        />
+                      {selectedUser.livePhoto.url ? (
+                        <div className="relative h-48 w-full">
+                          <Image
+                            src={selectedUser.livePhoto.url}
+                            alt="Live Photo"
+                            fill
+                            className="object-contain rounded"
+                            unoptimized={true} // Add this if you're having issues with external images
+                          />
+                        </div>
                       ) : (
                         <div className="h-48 bg-gray-100 rounded flex items-center justify-center">
                           <span className="text-muted-foreground">No photo submitted</span>
@@ -255,12 +258,16 @@ export default function VerificationsPage() {
                   <div>
                     <h5 className="font-medium mb-2">National ID</h5>
                     <div className="border rounded-lg p-4 text-center">
-                      {selectedUser.nationalId ? (
-                        <img
-                          src={selectedUser.nationalId || "/placeholder.svg"}
-                          alt="National ID"
-                          className="max-w-full h-48 object-cover rounded mx-auto"
-                        />
+                      {selectedUser.nationalId.url ? (
+                        <div className="relative h-48 w-full">
+                          <Image
+                            src={selectedUser.nationalId.url}
+                            alt="National ID"
+                            fill
+                            className="object-contain rounded"
+                            unoptimized={true} // Add this if you're having issues with external images
+                          />
+                        </div>
                       ) : (
                         <div className="h-48 bg-gray-100 rounded flex items-center justify-center">
                           <span className="text-muted-foreground">No ID submitted</span>
