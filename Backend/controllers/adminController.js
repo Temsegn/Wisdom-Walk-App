@@ -6,7 +6,7 @@ const Notification = require("../models/Notification")
 const { sendUserNotificationEmail, sendAdminNotificationEmail } = require("../utils/emailService")
 const { getPaginationMeta } = require("../utils/helpers")
 
-// Get pending user verifications
+// Get pending user verificationsfff 
 const getPendingVerifications = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query

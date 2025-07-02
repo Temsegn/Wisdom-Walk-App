@@ -409,37 +409,53 @@ const logout = async (req, res) => {
     });
   }
 };
-
-
-// Change password
 const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const userId = req.user._id; // From authenticate middleware
+    const userId = req.user._id;
 
-    // Find user and include password for comparison
+    // Validate input more thoroughly
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Both current and new password are required",
+        field: "missing_fields"
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+        field: "newPassword"
+      });
+    }
+
     const user = await User.findById(userId).select("+password");
-
     if (!user) {
       return res.status(404).json({
         success: false,
         message: "User not found",
+        code: "user_not_found"
       });
     }
 
     // Verify current password
-    if (!(await user.comparePassword(currentPassword))) {
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
       return res.status(401).json({
         success: false,
         message: "Current password is incorrect",
+        field: "currentPassword"
       });
     }
 
-    // Check if new password is same as current
+    // Check if new password is different
     if (await user.comparePassword(newPassword)) {
       return res.status(400).json({
         success: false,
-        message: "New password cannot be the same as current password",
+        message: "New password must be different",
+        field: "newPassword"
       });
     }
 
@@ -447,37 +463,38 @@ const changePassword = async (req, res) => {
     user.password = newPassword;
     await user.save();
 
-    // Clear existing token cookie
-    res.clearCookie('token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Strict',
-    });
-
-    // Generate new token
-    const newToken = generateJWT(user._id);
-
-    res.cookie('token', newToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Strict',
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
-    });
-
-    res.json({
+    // Return success
+    return res.status(200).json({
       success: true,
       message: "Password changed successfully",
-      data: {
-        token: newToken,
-        user: formatUserResponse(user),
-      },
+      code: "password_changed"
     });
+
   } catch (error) {
     console.error("Change password error:", error);
-    res.status(500).json({
+    
+    // More specific error handling
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        code: "validation_error"
+      });
+    }
+    
+    if (error.name === 'MongoError') {
+      return res.status(503).json({
+        success: false,
+        message: "Database error occurred",
+        code: "database_error"
+      });
+    }
+
+    return res.status(500).json({
       success: false,
-      message: "Password change failed",
-      error: error.message,
+      message: "Internal server error",
+      code: "server_error",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };

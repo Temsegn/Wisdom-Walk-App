@@ -8,7 +8,7 @@ const { getRandomScripture, getPaginationMeta } = require("../utils/helpers")
 // Create a new post
 const createPost = async (req, res) => {
   try {
-    const { type, content, title, isAnonymous, visibility, tags } = req.body
+    const { type, content, title, isAnonymous, visibility, tags,category } = req.body
     const authorId = req.user._id
 
     // Validate group membership for group posts 
@@ -29,10 +29,10 @@ const createPost = async (req, res) => {
       type,
       content,
       title,
+      category: category , // Default to "testimony" if not provided
       isAnonymous: isAnonymous || false,
       visibility: visibility || "public",
-      targetGroup: targetGroup || "general",
-      tags: tags || [],
+       tags: tags || [],
     }
 
     // Handle location data for location posts
@@ -223,37 +223,8 @@ const getPost = async (req, res) => {
     })
   }
 }
-const getAllPosts = async (req, res) => {
-  try {
-    const posts = await Post.find({ isHidden: false, isPublished: true })
-      .populate("author", "firstName lastName profilePicture")
-      .sort({ createdAt: -1 });
-
-    const formattedPosts = posts.map((post) => {
-      const postObj = post.toObject();
-      if (postObj.isAnonymous) {
-        postObj.author = {
-          firstName: "Anonymous",
-          lastName: "Sister",
-          profilePicture: null,
-        };
-      }
-      return postObj;
-    });
-
-    res.json({
-      success: true,
-      data: formattedPosts,
-    });
-  } catch (error) {
-    console.error("Get all posts error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch all posts",
-      error: error.message,
-    });
-  }
-};
+ 
+      
 // Like/unlike a post
 const toggleLike = async (req, res) => {
   try {

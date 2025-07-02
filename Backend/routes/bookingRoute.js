@@ -6,7 +6,7 @@ const { authenticateToken, requireAdmin } = require("../middleware/auth");
 
 
 router.post('/book',authenticateToken, bookingController.createBooking);        // User books advice
-router.get('/bookings',authenticateToken,requireAdmin, bookingController.getAllBookings); // Admin view
+router.get('/bookings',authenticateToken, bookingController.getAllBookings); // Admin view
 router.get('/my-books',authenticateToken, bookingController.getMyBookings); 
 
 module.exports = router;
