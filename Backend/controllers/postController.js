@@ -8,7 +8,7 @@ const { getRandomScripture, getPaginationMeta } = require("../utils/helpers")
 // Create a new post
 const createPost = async (req, res) => {
   try {
-    const { type, content, title, isAnonymous, visibility, tags } = req.body
+    const { type, content, title, isAnonymous, visibility, tags,category } = req.body
     const authorId = req.user._id
 
     // Validate group membership for group posts 
@@ -29,6 +29,7 @@ const createPost = async (req, res) => {
       type,
       content,
       title,
+      category: category , // Default to "testimony" if not provided
       isAnonymous: isAnonymous || false,
       visibility: visibility || "public",
        tags: tags || [],
