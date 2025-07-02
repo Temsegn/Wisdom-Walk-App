@@ -4,7 +4,8 @@ import 'package:wisdomwalk/services/local_storage_service.dart';
 import 'dart:convert';
 
 class PrayerService {
-  static const String apiBaseUrl = 'https://wisdom-walk-app.onrender.com/api';
+  static const String apiBaseUrl =
+      'https://wisdom-walk-app.onrender.com/api/posts';
   final LocalStorageService _localStorageService;
 
   PrayerService({required LocalStorageService localStorageService})
@@ -47,10 +48,9 @@ class PrayerService {
     }
   }
 
-  Future<List<PrayerModel>> getPrayers({String filter = 'all'}) async {
-    print('PrayerService.getPrayers called with filter: $filter');
-    final endpoint =
-        filter == 'all' ? '/posts/feed' : '/posts/feed?type=$filter';
+  Future<List<PrayerModel>> getPrayers({required String filter}) async {
+    print('PrayerService.getPrayers called');
+    final endpoint = '/posts';
     final response = await _authenticatedRequest(
       method: 'GET',
       endpoint: endpoint,
@@ -67,12 +67,14 @@ class PrayerService {
       final posts = data['data'] as List;
       print('PrayerService: Fetched ${posts.length} posts');
 
-      // Fetch comments for each post
       final List<PrayerModel> prayers = [];
       for (var json in posts) {
         List<PrayerComment> comments = [];
         try {
           comments = await getComments(json['_id']);
+          print(
+            'PrayerService: Fetched ${comments.length} comments for post ${json['_id']}',
+          );
         } catch (e) {
           print(
             'PrayerService: Failed to fetch comments for post ${json['_id']}: $e',
@@ -80,42 +82,41 @@ class PrayerService {
         }
         prayers.add(
           PrayerModel.fromJson({
-            'id': json['_id'],
-            'userId': json['author']['_id'] ?? json['author'],
+            'id': json['_id']?.toString() ?? '',
+            'userId':
+                json['author']['_id']?.toString() ??
+                json['author']?.toString() ??
+                '',
             'userName':
                 json['isAnonymous']
                     ? null
-                    : '${json['author']['firstName']} ${json['author']['lastName']}'
+                    : '${json['author']['firstName'] ?? ''} ${json['author']['lastName'] ?? ''}'
                         .trim(),
             'userAvatar':
                 json['isAnonymous'] ? null : json['author']['profilePicture'],
-            'content': json['content'],
+            'content': json['content']?.toString() ?? '',
             'title': json['title'],
             'isAnonymous': json['isAnonymous'] ?? false,
             'prayingUsers':
-                (json['prayers'] as List?)
-                    ?.map((prayer) => prayer['user']['_id'].toString())
-                    .toList() ??
+                (json['prayers'] as List<dynamic>?)?.map((prayer) {
+                  // Handle case where prayer['user'] is a string or an object
+                  return prayer['user'] is String
+                      ? prayer['user'].toString()
+                      : prayer['user']['_id']?.toString() ?? '';
+                }).toList() ??
                 [],
-            'comments':
-                comments
-                    .map(
-                      (comment) => {
-                        'id': comment.id,
-                        'userId': comment.userId,
-                        'userName': comment.userName,
-                        'userAvatar': comment.userAvatar,
-                        'content': comment.content,
-                        'isAnonymous': comment.isAnonymous,
-                        'createdAt': comment.createdAt.toIso8601String(),
-                      },
-                    )
-                    .toList(),
-            'createdAt': json['createdAt'],
+            'comments': comments.map((comment) => comment.toJson()).toList(),
+            'createdAt':
+                json['createdAt']?.toString() ??
+                DateTime.now().toIso8601String(),
           }),
         );
       }
       return prayers;
+    } else if (response.statusCode == 401) {
+      print('PrayerService: Unauthorized - clearing token');
+      await _localStorageService.clearAuthToken();
+      throw Exception('Unauthorized: Session expired. Please log in again.');
     } else {
       throw Exception(
         'Failed to fetch prayers: ${response.statusCode} - ${response.body}',
@@ -144,7 +145,7 @@ class PrayerService {
 
     final response = await _authenticatedRequest(
       method: 'POST',
-      endpoint: '/posts',
+      endpoint: '/postprayer',
       body: body,
     );
 
