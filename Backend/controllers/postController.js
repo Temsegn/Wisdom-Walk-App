@@ -14,15 +14,15 @@ const createPost = async (req, res) => {
     // Validate group membership for group posts 
   
 
-    if (targetGroup && targetGroup !== "general") {
-      const userInGroup = req.user.joinedGroups.some((group) => group.groupType === targetGroup)
-      if (!userInGroup) {
-        return res.status(403).json({
-          success: false,
-          message: `You must be  member of the ${targetGroup} group to post there`,
-        })
-      }
-    }
+    // if (targetGroup && targetGroup !== "general") {
+    //   const userInGroup = req.user.joinedGroups.some((group) => group.groupType === targetGroup)
+    //   if (!userInGroup) {
+    //     return res.status(403).json({
+    //       success: false,
+    //       message: `You must be  member of the ${targetGroup} group to post there`,
+    //     })
+    //   }
+    // }
 
     const postData = {
       author: authorId,
@@ -57,28 +57,28 @@ const createPost = async (req, res) => {
     await post.populate("author", "firstName lastName profilePicture")
     }
     // Create notifications for group members (if group post)
-    if (targetGroup && targetGroup !== "general") {
-      const groupMembers = await User.find({
-        "joinedGroups.groupType": targetGroup,
-        _id: { $ne: authorId },
-        isEmailVerified: true,
-        isAdminVerified: true,
-        status: "active",
-      })
+    // if (targetGroup && targetGroup !== "general") {
+    //   const groupMembers = await User.find({
+    //     "joinedGroups.groupType": targetGroup,
+    //     _id: { $ne: authorId },
+    //     isEmailVerified: true,
+    //     isAdminVerified: true,
+    //     status: "active",
+    //   })
 
-      const notifications = groupMembers.map((member) => ({
-        recipient: member._id,
-        sender: authorId,
-        type: type === "prayer" ? "prayer_request" : "post",
-        title: `New ${type} in ${targetGroup} group`,
-        message: isAnonymous
-          ? `Someone shared a ${type} in the ${targetGroup} group`
-          : `${req.user.firstName} shared a ${type} in the ${targetGroup} group`,
-        relatedPost: post._id,
-      }))
+    //   const notifications = groupMembers.map((member) => ({
+    //     recipient: member._id,
+    //     sender: authorId,
+    //     type: type === "prayer" ? "prayer_request" : "post",
+    //     title: `New ${type} in ${targetGroup} group`,
+    //     message: isAnonymous
+    //       ? `Someone shared a ${type} in the ${targetGroup} group`
+    //       : `${req.user.firstName} shared a ${type} in the ${targetGroup} group`,
+    //     relatedPost: post._id,
+    //   }))
   
-      await Notification.insertMany(notifications)
-    }
+    //   await Notification.insertMany(notifications)
+    // }
 
     res.status(201).json({
       success: true,
