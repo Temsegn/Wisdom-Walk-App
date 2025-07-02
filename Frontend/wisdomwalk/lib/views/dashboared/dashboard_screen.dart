@@ -1395,7 +1395,6 @@ class _HomeTabState extends State<HomeTab> {
   }
 }
 
-// PrayerWallTab Implementation
 class PrayerWallTab extends StatefulWidget {
   const PrayerWallTab({Key? key}) : super(key: key);
 
@@ -1404,6 +1403,17 @@ class PrayerWallTab extends StatefulWidget {
 }
 
 class _PrayerWallTabState extends State<PrayerWallTab> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch prayers when the tab is initialized
+    final prayerProvider = Provider.of<PrayerProvider>(context, listen: false);
+    print(
+      'PrayerWallTab initState: Setting filter to "prayer" and fetching prayers',
+    );
+    prayerProvider.setFilter('prayer'); // Explicitly set filter to 'prayer'
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1454,7 +1464,35 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
             return const Center(child: CircularProgressIndicator());
           }
 
+          if (prayerProvider.error != null) {
+            print('PrayerWallTab: Error - ${prayerProvider.error}');
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    prayerProvider.error!,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () => prayerProvider.setFilter('prayer'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE91E63),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
           if (prayerProvider.prayers.isEmpty) {
+            print('PrayerWallTab: No prayers found');
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1483,9 +1521,13 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
             );
           }
 
+          print(
+            'PrayerWallTab: Displaying ${prayerProvider.prayers.length} prayers',
+          );
           return RefreshIndicator(
             onRefresh: () async {
-              await prayerProvider.fetchPrayers();
+              print('RefreshIndicator: Refreshing prayers');
+              prayerProvider.setFilter('prayer');
             },
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
@@ -1502,6 +1544,7 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
   }
 
   Widget _buildPrayerCard(PrayerModel prayer) {
+    // Unchanged from your original code
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
@@ -1602,8 +1645,7 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
                       icon: Icons.volunteer_activism,
                       label: 'Praying (${prayer.prayingUsers.length})',
                       color: const Color(0xFF9C27B0),
-                      maxWidth:
-                          constraints.maxWidth / 3 - 8, // Adjust for spacing
+                      maxWidth: constraints.maxWidth / 3 - 8,
                       onPressed: () async {
                         final authProvider = Provider.of<AuthProvider>(
                           context,
@@ -1681,6 +1723,7 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
     PrayerModel prayer,
     dynamic user,
   ) {
+    // Unchanged from your original code
     final TextEditingController encourageController = TextEditingController();
 
     showDialog(
@@ -1754,74 +1797,77 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
           ),
     );
   }
-}
 
-Widget _buildActionButton({
-  required IconData icon,
-  required String label,
-  required Color color,
-  required VoidCallback onPressed,
-  required double maxWidth, // Added to constrain button width
-}) {
-  return ConstrainedBox(
-    constraints: BoxConstraints(maxWidth: maxWidth),
-    child: TextButton(
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        minimumSize: const Size(0, 36), // Minimum height for tap target
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                overflow: TextOverflow.ellipsis, // Handle long text
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+    required double maxWidth,
+  }) {
+    // Unchanged from your original code
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: TextButton(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          minimumSize: const Size(0, 36),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-String _formatTimeAgo(DateTime dateTime) {
-  final now = DateTime.now();
-  final difference = now.difference(dateTime);
-
-  if (difference.inDays > 0) {
-    return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
-  } else if (difference.inHours > 0) {
-    return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
-  } else if (difference.inMinutes > 0) {
-    return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
-  } else {
-    return 'Just now';
-  }
-}
-
-void _showAddPrayerDialog(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder:
-        (context) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: const AddPrayerModal(isAnonymous: false),
+          ],
         ),
-  );
+      ),
+    );
+  }
+
+  String _formatTimeAgo(DateTime dateTime) {
+    // Unchanged from your original code
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  void _showAddPrayerDialog(BuildContext context) {
+    // Unchanged from your original code
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: const AddPrayerModal(isAnonymous: false),
+          ),
+    );
+  }
 }
 
 // WisdomCirclesTab Implementation

@@ -110,12 +110,11 @@ class AuthService {
     throw Exception('Failed to complete registration');
   }
 
-  // Login user
   Future<UserModel> login({
     required String email,
     required String password,
   }) async {
-    print('Logging in with baseUrl: $baseUrl'); // Debug log
+    print('Logging in with baseUrl: $baseUrl');
     final response = await http.post(
       Uri.parse('$baseUrl/login'),
       headers: {'Content-Type': 'application/json'},
@@ -124,7 +123,13 @@ class AuthService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body)['data'];
-      await _localStorageService.saveAuthToken(data['token']);
+      final token = data['token'];
+      print('Received token: $token'); // Debug log
+      await _localStorageService.saveAuthToken(token);
+      print('Token saved to SharedPreferences'); // Confirm storage
+      // Verify token immediately after saving
+      final storedToken = await _localStorageService.getAuthToken();
+      print('Retrieved token after save: $storedToken');
       return UserModel.fromJson({
         'id': data['user']['_id'],
         'fullName':
@@ -288,15 +293,21 @@ class AuthService {
   }
 
   Future<UserModel> getCurrentUser() async {
-    print('Getting current user with baseUrl: $baseUrl'); // Debug log
+    print('Getting current user with baseUrl: $baseUrl');
     final token = await _localStorageService.getAuthToken();
     if (token == null) throw Exception('No auth token found');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/users/profile'),
-      headers: {'Authorization': 'Bearer $token'},
+      Uri.parse(
+        'https://wisdom-walk-app.onrender.com/api/users/profile',
+      ), // Correct endpoint
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
     );
 
+    print('getCurrentUser response: ${response.statusCode}, ${response.body}');
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body)['data'];
       return UserModel.fromJson({
@@ -304,8 +315,8 @@ class AuthService {
         'fullName': '${data['firstName']} ${data['lastName']}'.trim(),
         'email': data['email'],
         'avatarUrl': data['profilePicture'],
-        'city': data['location']['city'],
-        'country': data['location']['country'],
+        'city': data['location']?['city'],
+        'country': data['location']?['country'],
         'wisdomCircleInterests':
             (data['joinedGroups'] ?? []).map((g) => g['groupType']).toList(),
         'isVerified':

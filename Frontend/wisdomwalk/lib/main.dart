@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => PrayerProvider()),
+        ChangeNotifierProvider(create: (_) => PrayerProvider(context)),
         ChangeNotifierProvider(create: (_) => WisdomCircleProvider()),
         ChangeNotifierProvider(create: (_) => AnonymousShareProvider()),
         ChangeNotifierProvider(create: (_) => HerMoveProvider()),

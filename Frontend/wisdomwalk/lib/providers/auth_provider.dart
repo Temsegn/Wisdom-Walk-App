@@ -41,17 +41,29 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _loadUserFromToken() async {
     final token = await _localStorageService.getAuthToken();
-    if (token == null) return;
+    print('Loading token from SharedPreferences: $token'); // Debug log
+    if (token == null) {
+      print('No token found, user not logged in');
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
 
     try {
       _isLoading = true;
       notifyListeners();
-
       final user = await _authService.getCurrentUser();
+      print('User fetched: ${user.id}, ${user.email}'); // Debug log
       _currentUser = user;
     } catch (e) {
       print('Auto-login failed: $e');
-      await _localStorageService.clearAuthToken();
+      // Only clear token on specific errors (e.g., invalid token)
+      if (e.toString().contains('401') ||
+          e.toString().contains('Invalid token')) {
+        await _localStorageService.clearAuthToken();
+        print('Token cleared due to invalid token');
+      }
+      _currentUser = null;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -120,18 +132,11 @@ class AuthProvider extends ChangeNotifier {
     try {
       final user = await _authService.login(email: email, password: password);
       _currentUser = user;
-
-      // Save token after successful login
-      final token =
-          await _localStorageService
-              .getAuthToken(); // Assuming AuthService saves it
-      if (token != null) {
-        await _localStorageService.saveAuthToken(token);
-      }
-
+      print('Login successful, user: ${user.id}, ${user.email}'); // Debug log
       return true;
     } catch (e) {
       _error = e.toString();
+      print('Login error: $e'); // Debug log
       return false;
     } finally {
       _isLoading = false;
