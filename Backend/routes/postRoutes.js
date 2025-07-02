@@ -20,12 +20,12 @@ router.delete("/comments/:commentId", commentController.deleteComment);
 router.post("/comments/:commentId/like", commentController.toggleCommentLike);
 
 // Post routes
-router.post("/", uploadMultiple, handleUploadError, validatePost, postController.createPost);
+router.post("/postprayer", uploadMultiple, handleUploadError, validatePost, postController.createPost);
 router.get("/feed", postController.getPostsFeed);
 router.get("/:postId", postController.getPost);
 router.put("/:postId", postController.updatePost);
 router.delete("/:postId", postController.deletePost);
-
+router.get("/posts", postController.getAllPosts);
 // Post interactions
 router.post("/:postId/like", postController.toggleLike);
 router.post("/:postId/prayer", postController.addPrayer);
