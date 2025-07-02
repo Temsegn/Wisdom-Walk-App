@@ -7,8 +7,8 @@ const { authenticateToken, requireAdmin, requirePermission } = require("../middl
 router.use(authenticateToken);
 
 // User verification
-router.get("/verifications/pending", requirePermission("verify_users"), adminController.getPendingVerifications);
-router.post("/users/:userId/verify", requirePermission("verify_users"), adminController.verifyUser);
+router.get("/verifications/pending",  adminController.getPendingVerifications);
+router.post("/users/:userId/verify",  adminController.verifyUser);
 
 // User management
 router.get("/users", adminController.getAllUsers); // Now correctly protected
