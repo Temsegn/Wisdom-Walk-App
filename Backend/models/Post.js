@@ -6,13 +6,18 @@ const postSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-    },
+    }, 
 
     // Post type and content
     type: {
       type: String,
-      enum: ["prayer", "confession", "location"],
+      enum: ["prayer", "share"],
       required: true,
+    },
+    category:{
+            type:String,
+            enum:["testimony","confession","struggle"],
+            default:""
     },
 
     content: {
@@ -26,23 +31,13 @@ const postSchema = new mongoose.Schema(
       maxlength: 200,
     },
 
-    // Media attachments
-    images: [
+     images: [
       {
         url: String,
         caption: String,
       },
     ],
-
-    // Location data (for location posts)
-    location: {
-      city: String,
-      country: String,
-      coordinates: {
-        latitude: Number,
-        longitude: Number,
-      },
-    },
+ 
 
     // Privacy settings
     isAnonymous: {
@@ -98,19 +93,11 @@ const postSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // Moderation
-    isModerated: {
-      type: Boolean,
-      default: false,
-    },
+    
 
-    moderatedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
+     
 
-    moderationNotes: String,
-
+ 
     isReported: {
       type: Boolean,
       default: false,

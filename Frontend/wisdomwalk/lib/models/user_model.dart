@@ -49,6 +49,10 @@ class UserModel {
 
   get avatar => null;
 
+  String? get displayName => null;
+
+  get isOnline => null;
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,

@@ -8,21 +8,21 @@ const { getRandomScripture, getPaginationMeta } = require("../utils/helpers")
 // Create a new post
 const createPost = async (req, res) => {
   try {
-    const { type, content, title, isAnonymous, visibility, targetGroup, location, tags } = req.body
+    const { type, content, title, isAnonymous, visibility, tags } = req.body
     const authorId = req.user._id
 
     // Validate group membership for group posts 
   
 
-    if (targetGroup && targetGroup !== "general") {
-      const userInGroup = req.user.joinedGroups.some((group) => group.groupType === targetGroup)
-      if (!userInGroup) {
-        return res.status(403).json({
-          success: false,
-          message: `You must be a member of the ${targetGroup} group to post there`,
-        })
-      }
-    }
+    // if (targetGroup && targetGroup !== "general") {
+    //   const userInGroup = req.user.joinedGroups.some((group) => group.groupType === targetGroup)
+    //   if (!userInGroup) {
+    //     return res.status(403).json({
+    //       success: false,
+    //       message: `You must be  member of the ${targetGroup} group to post there`,
+    //     })
+    //   }
+    // }
 
     const postData = {
       author: authorId,
@@ -51,33 +51,34 @@ const createPost = async (req, res) => {
 
     const post = new Post(postData)
     await post.save()
-
+    
     // Populate author info for response
+    if(isAnonymous) {
     await post.populate("author", "firstName lastName profilePicture")
-
-    // Create notifications for group members (if group post)
-    if (targetGroup && targetGroup !== "general") {
-      const groupMembers = await User.find({
-        "joinedGroups.groupType": targetGroup,
-        _id: { $ne: authorId },
-        isEmailVerified: true,
-        isAdminVerified: true,
-        status: "active",
-      })
-
-      const notifications = groupMembers.map((member) => ({
-        recipient: member._id,
-        sender: authorId,
-        type: type === "prayer" ? "prayer_request" : "post",
-        title: `New ${type} in ${targetGroup} group`,
-        message: isAnonymous
-          ? `Someone shared a ${type} in the ${targetGroup} group`
-          : `${req.user.firstName} shared a ${type} in the ${targetGroup} group`,
-        relatedPost: post._id,
-      }))
-
-      await Notification.insertMany(notifications)
     }
+    // Create notifications for group members (if group post)
+    // if (targetGroup && targetGroup !== "general") {
+    //   const groupMembers = await User.find({
+    //     "joinedGroups.groupType": targetGroup,
+    //     _id: { $ne: authorId },
+    //     isEmailVerified: true,
+    //     isAdminVerified: true,
+    //     status: "active",
+    //   })
+
+    //   const notifications = groupMembers.map((member) => ({
+    //     recipient: member._id,
+    //     sender: authorId,
+    //     type: type === "prayer" ? "prayer_request" : "post",
+    //     title: `New ${type} in ${targetGroup} group`,
+    //     message: isAnonymous
+    //       ? `Someone shared a ${type} in the ${targetGroup} group`
+    //       : `${req.user.firstName} shared a ${type} in the ${targetGroup} group`,
+    //     relatedPost: post._id,
+    //   }))
+  
+    //   await Notification.insertMany(notifications)
+    // }
 
     res.status(201).json({
       success: true,
@@ -572,7 +573,40 @@ const getPostComments = async (req, res) => {
   }
 }
 
+const getAllPosts = async (req, res) => {
+  try {
+    const posts = await Post.find({ isHidden: false, isPublished: true })
+      .populate("author", "firstName lastName profilePicture")
+      .sort({ createdAt: -1 });
+
+    const formattedPosts = posts.map((post) => {
+      const postObj = post.toObject();
+      if (postObj.isAnonymous) {
+        postObj.author = {
+          firstName: "Anonymous",
+          lastName: "Sister",
+          profilePicture: null,
+        };
+      }
+      return postObj;
+    });
+
+    res.json({
+      success: true,
+      data: formattedPosts,
+    });
+  } catch (error) {
+    console.error("Get all posts error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch all posts",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
+  getAllPosts,
   createPost,
   getPostsFeed,
   getPost,

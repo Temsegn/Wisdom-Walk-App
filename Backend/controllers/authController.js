@@ -221,6 +221,7 @@ const token = generateJWT({
       userId: user._id,
       isAdminVerified: user.isAdminVerified,
       isGlobalAdmin: user.isGlobalAdmin,
+      isAdmin: user.isAdmin,
     });
    
 

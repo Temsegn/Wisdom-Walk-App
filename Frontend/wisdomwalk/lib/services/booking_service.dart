@@ -24,21 +24,16 @@ class BookingService {
         throw Exception('User not authenticated');
       }
 
-      final response = await http
-          .post(
-            Uri.parse(_baseUrl),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode(request.toJson()),
-          )
-          .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              throw Exception('Request timed out');
-            },
-          );
+      final response = await http.post(
+        Uri.parse('$_baseUrl/book'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(request.toJson()),
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        throw Exception('Request timed out');
+      });
 
       if (response.statusCode == 201) {
         // Success: Booking created

@@ -5,26 +5,25 @@ const { authenticateToken, requireAdmin, requirePermission } = require("../middl
 
 // Apply global middlewares for all routes below
 router.use(authenticateToken);
-router.use(requireAdmin);
 
 // User verification
-router.get("/verifications/pending", requirePermission("verify_users"), adminController.getPendingVerifications);
-router.post("/users/:userId/verify", requirePermission("verify_users"), adminController.verifyUser);
+router.get("/verifications/pending",  adminController.getPendingVerifications);
+router.post("/users/:userId/verify",  adminController.verifyUser);
 
 // User management
 router.get("/users", adminController.getAllUsers); // Now correctly protected
-router.post("/users/:userId/block", requirePermission("ban_users"), adminController.toggleUserBlock);
-router.post("/users/:userId/ban", requirePermission("ban_users"), adminController.banUser);
+router.post("/users/:userId/block",  adminController.toggleUserBlock);
+router.post("/users/:userId/ban", adminController.banUser);
 
 // Content moderation
-router.get("/reports", requirePermission("manage_posts"), adminController.getReportedContent);
-router.post("/reports/:reportId/handle", requirePermission("manage_posts"), adminController.handleReport);
+router.get("/reports",  adminController.getReportedContent);
+router.post("/reports/:reportId/handle", adminController.handleReport);
 
 // Notifications
-router.post("/notifications/send", requirePermission("send_notifications"), adminController.sendNotificationToUsers);
+router.post("/notifications/send", adminController.sendNotificationToUsers);
 
 // Group management
-router.post("/groups/nominate-admin", requirePermission("manage_groups"), adminController.nominateGroupAdmin);
+router.post("/groups/nominate-admin", adminController.nominateGroupAdmin);
 
 // Dashboard
 router.get("/dashboard/stats", adminController.getDashboardStats);

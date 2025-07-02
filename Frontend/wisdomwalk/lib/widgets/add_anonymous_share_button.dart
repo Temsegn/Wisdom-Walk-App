@@ -249,7 +249,7 @@ class _AddPrayerModalState extends State<AddPrayerModal> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to share prayer request'),
+            content: Text('Failed to share prayer reques'),
             backgroundColor: Colors.red,
           ),
         );
