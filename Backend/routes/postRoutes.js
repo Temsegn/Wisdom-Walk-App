@@ -25,7 +25,7 @@ router.get("/feed", postController.getPostsFeed);
 router.get("/:postId", postController.getPost);
 router.put("/:postId", postController.updatePost);
 router.delete("/:postId", postController.deletePost);
-
+router.get("/posts", postController.getAllPosts);
 // Post interactions
 router.post("/:postId/like", postController.toggleLike);
 router.post("/:postId/prayer", postController.addPrayer);
