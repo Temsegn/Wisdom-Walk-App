@@ -1,124 +1,84 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "@/hooks/use-toast";
-import { AuthService } from "@/lib/auth";
-import { Shield, Eye, EyeOff, Loader2 } from "lucide-react";
+import type React from "react"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Eye, EyeOff, Shield } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const router = useRouter();
-  const { toast } = useToast();
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const router = useRouter()
+  const { toast } = useToast()
 
-  // Check if user is already authenticated
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const isAuthenticated = await AuthService.isAuthenticated();
-        console.log("Initial auth check:", { isAuthenticated });
-        if (isAuthenticated) {
-          console.log("User is authenticated, redirecting to dashboard...");
-          router.push("/");
-        }
-      } catch (err) {
-        console.error("Initial auth check error:", err);
-      }
-    };
-    checkAuth();
-  }, [router]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
 
     try {
-      // Validate inputs
-      if (!email || !password) {
-        setError("Please fill in all fields");
-        return;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        setError("Please enter a valid email address");
-        return;
-      }
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      })
 
-      // Attempt login
-      const response = await AuthService.login({ email, password });
-      console.log("handleSubmit response:", JSON.stringify(response, null, 2));
-      console.log("localStorage.admin_user:", localStorage.getItem("admin_user"));
+      const data = await response.json()
 
-      toast({
-        title: "Login Successful",
-        description: `Welcome back, ${response.user.fullName}!`,
-      });
+      if (response.ok && data.success) {
+        // Store the token and user data - accessing from nested data object
+        localStorage.setItem("adminToken", data.data.token)
+        localStorage.setItem("adminUser", JSON.stringify(data.data.user))
 
-      // Delay redirect to ensure state updates and navigation
-      console.log("Initiating redirect to dashboard...");
-      setTimeout(() => {
-        router.push("/");
-        console.log("router.push('/') executed");
-        // Force refresh if navigation doesn't occur
+        toast({
+          title: "Login successful",
+          description: "Welcome to WisdomWalk Admin Dashboard",
+        })
+
+        // Add a small delay to ensure localStorage is updated
         setTimeout(() => {
-          if (window.location.pathname !== "/") {
-            console.log("Redirect failed, forcing window.location.href...");
-            window.location.href = "/";
-          }
-        }, 1000);
-      }, 500);
-    } catch (err: any) {
-      console.error("Login error:", err);
-      if (err.message.includes("Invalid email or password")) {
-        setError("Invalid email or password");
-      } else if (err.message.includes("verify your email")) {
-        setError("Please verify your email address");
-      } else if (err.message.includes("blocked")) {
-        setError(err.message);
-      } else if (err.message.includes("banned")) {
-        setError("Your account is banned. Contact support.");
-      } else if (err.message.includes("Too many login attempts")) {
-        setError("Too many login attempts. Try again later.");
-      } else if (err.message.includes("Network error")) {
-        setError("No internet connection. Check your network.");
+          router.push("/dashboard")
+          // Force a page refresh if router.push doesn't work
+          setTimeout(() => {
+            window.location.href = "/dashboard"
+          }, 100)
+        }, 500)
       } else {
-        setError(err.message || "Login failed. Please try again.");
+        setError(data.message || "Login failed. Please check your credentials.")
+        setIsLoading(false)
       }
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      setError("Network error. Please try again.")
+      console.error("Login error:", error)
+      setIsLoading(false)
     }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleSubmit(e as any);
-    }
-  };
+    // Don't set isLoading to false here since we're redirecting
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex items-center justify-center mb-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Shield className="h-6 w-6" />
-            </div>
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
+            <Shield className="h-6 w-6 text-purple-600" />
           </div>
           <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
-          <CardDescription>Enter your credentials to access the admin dashboard</CardDescription>
+          <CardDescription>Sign in to access the WisdomWalk admin dashboard</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
@@ -126,18 +86,15 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@example.com"
+                placeholder="admin@wisdomwalk.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={loading}
                 required
-                autoComplete="email"
-                autoFocus
+                disabled={isLoading}
               />
             </div>
 
@@ -150,11 +107,8 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  disabled={loading}
                   required
-                  autoComplete="current-password"
-                  className="pr-10"
+                  disabled={isLoading}
                 />
                 <Button
                   type="button"
@@ -162,35 +116,19 @@ export default function LoginPage() {
                   size="sm"
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
-                  disabled={loading}
+                  disabled={isLoading}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                "Sign In"
-              )}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Forgot your password?{" "}
-              <Button variant="link" className="p-0 h-auto font-normal text-primary">
-                Contact system administrator
-              </Button>
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

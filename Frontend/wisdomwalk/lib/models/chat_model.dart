@@ -1,93 +1,138 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'message_model.dart';
+import 'user_model.dart';
 
-class ChatModel {
+class Chat {
   final String id;
-  final String userId;
-  final String name;
-  final String status;
-  String lastMessage;
-  String time;
-  final bool isOnline;
-  int unreadCount;
-  List<MessageModel> messages;
+  final List<String> participants;
+  final String type; // 'direct' or 'group'
+  final String? groupName;
+  final String? groupDescription;
+  final String? groupAdmin;
+  final String? lastMessageId;
+  final DateTime lastActivity;
+  final bool isActive;
+  final List<String> pinnedMessages;
+  final List<ParticipantSettings> participantSettings;
+  final int unreadCount;
+  final UserModel? otherParticipant; // For direct chats
+  final Message? lastMessage;
 
-  ChatModel({
+  Chat({
     required this.id,
-    required this.userId,
-    required this.name,
-    required this.status,
-    required this.lastMessage,
-    required this.time,
-    required this.isOnline,
-    required this.unreadCount,
-    required this.messages,
+    required this.participants,
+    required this.type,
+    this.groupName,
+    this.groupDescription,
+    this.groupAdmin,
+    this.lastMessageId,
+    required this.lastActivity,
+    required this.isActive,
+    required this.pinnedMessages,
+    required this.participantSettings,
+    this.unreadCount = 0,
+    this.otherParticipant,
+    this.lastMessage,
   });
 
-  ChatModel copyWith({
-    String? id,
-    String? userId,
-    String? name,
-    String? status,
-    String? lastMessage,
-    String? time,
-    bool? isOnline,
-    int? unreadCount,
-    List<MessageModel>? messages,
-  }) {
-    return ChatModel(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      name: name ?? this.name,
-      status: status ?? this.status,
-      lastMessage: lastMessage ?? this.lastMessage,
-      time: time ?? this.time,
-      isOnline: isOnline ?? this.isOnline,
-      unreadCount: unreadCount ?? this.unreadCount,
-      messages: messages ?? this.messages,
+  factory Chat.fromJson(Map<String, dynamic> json, {UserModel? currentUser}) {
+    final otherParticipant = json['otherParticipant'] != null
+        ? UserModel.fromJson(json['otherParticipant'])
+        : null;
+
+    return Chat(
+      id: json['_id'],
+      participants: List<String>.from(json['participants']),
+      type: json['type'],
+      groupName: json['groupName'],
+      groupDescription: json['groupDescription'],
+      groupAdmin: json['groupAdmin'],
+      lastMessageId: json['lastMessage'],
+      lastActivity: DateTime.parse(json['lastActivity']),
+      isActive: json['isActive'],
+      pinnedMessages: List<String>.from(json['pinnedMessages'] ?? []),
+      participantSettings: (json['participantSettings'] as List)
+          .map((e) => ParticipantSettings.fromJson(e))
+          .toList(),
+      unreadCount: json['unreadCount'] ?? 0,
+      otherParticipant: otherParticipant,
+      lastMessage: json['lastMessage'] != null 
+          ? Message.fromJson(json['lastMessage']) 
+          : null,
     );
+  }
+
+  String get displayName {
+    if (type == 'group') {
+      return groupName ?? 'Group Chat';
+    }
+    return "otherParticipant?.displayName ?? participants[0]";
+  }
+
+  String? get displayImage {
+    if (type == 'group') {
+      return null; // Use a group icon or first letter
+    }
+    return otherParticipant?.profilePicture;
+  }
+
+  bool get isMuted {
+    final currentUserId = otherParticipant?.id;
+    if (currentUserId == null) return false;
+    
+    final settings = participantSettings.firstWhere(
+      (s) => s.userId == currentUserId,
+      orElse: () => ParticipantSettings(
+        userId: currentUserId,
+        isMuted: false,
+        joinedAt: DateTime.now(),
+      ),
+    );
+    return settings.isMuted;
+  }
+
+  String get lastActivityFormatted {
+    final now = DateTime.now();
+    final difference = now.difference(lastActivity);
+
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()}y';
+    } else if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()}m';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays}d';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m';
+    } else {
+      return 'Just now';
+    }
   }
 }
 
-class MessageModel {
-  final String id;
-  final String senderId;
-  final String content;
-  final String time;
-  final bool isMe;
-  final String? filePath; // New field for file path or Data URL
-  final String? fileType; // New field for file type (e.g., image, video, pdf)
+class ParticipantSettings {
+  final String userId;
+  final bool isMuted;
+  final DateTime joinedAt;
+  final DateTime? leftAt;
+  final String? lastReadMessageId;
 
-  MessageModel({
-    required this.id,
-    required this.senderId,
-    required this.content,
-    required this.time,
-    required this.isMe,
-    this.filePath,
-    this.fileType,
+  ParticipantSettings({
+    required this.userId,
+    required this.isMuted,
+    required this.joinedAt,
+    this.leftAt,
+    this.lastReadMessageId,
   });
 
-  factory MessageModel.fromJson(Map<String, dynamic> json) {
-    return MessageModel(
-      id: json['id'],
-      senderId: json['senderId'],
-      content: json['content'],
-      time: json['time'],
-      isMe: json['isMe'],
-      filePath: json['filePath'],
-      fileType: json['fileType'],
+  factory ParticipantSettings.fromJson(Map<String, dynamic> json) {
+    return ParticipantSettings(
+      userId: json['user'],
+      isMuted: json['isMuted'] ?? false,
+      joinedAt: DateTime.parse(json['joinedAt']),
+      leftAt: json['leftAt'] != null ? DateTime.parse(json['leftAt']) : null,
+      lastReadMessageId: json['lastReadMessage'],
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'senderId': senderId,
-      'content': content,
-      'time': time,
-      'isMe': isMe,
-      'filePath': filePath,
-      'fileType': fileType,
-    };
   }
 }
