@@ -232,7 +232,7 @@ export default function UsersPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8"
               />
-            </div>
+            </div> 
             <div className="flex gap-2">
               <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
                 <SelectTrigger className="w-[150px]">

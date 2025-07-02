@@ -32,4 +32,6 @@ router.post("/:postId/prayer", postController.addPrayer);
 router.post("/:postId/virtual-hug", postController.sendVirtualHug);
 router.post("/:postId/report", validateReport, reportController.reportPost);
 
+
+
 module.exports = router;

@@ -53,6 +53,10 @@ class UserModel {
 
   get isOnline => null;
 
+  String? get initials => null;
+
+  get lastActive => null;
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,

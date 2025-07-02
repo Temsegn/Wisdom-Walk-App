@@ -13,7 +13,7 @@ import 'package:wisdomwalk/providers/her_move_provider.dart';
 import 'package:wisdomwalk/themes/app_theme.dart';
 import 'package:wisdomwalk/providers/reflection_provider.dart';
 import 'package:wisdomwalk/services/chat_service.dart';
-
+import 'package:wisdomwalk/providers/user_provider.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
@@ -35,10 +35,14 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => WisdomCircleProvider()),
         ChangeNotifierProvider(create: (_) => AnonymousShareProvider()),
         ChangeNotifierProvider(create: (_) => HerMoveProvider()),
-        ChangeNotifierProvider(create: (_) => ChatProvider(ChatService())),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => ReflectionProvider()),
         ChangeNotifierProvider(create: (_) => EventProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(
+          create: (_) => MessageProvider(),
+        ),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {

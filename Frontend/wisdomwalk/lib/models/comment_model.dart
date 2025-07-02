@@ -1,62 +1,75 @@
-import 'package:flutter/foundation.dart';
+import 'package:wisdomwalk/models/user_model.dart';
+
 import 'user_model.dart';
 
 class Comment {
   final String id;
   final String postId;
-  final String authorId;
+  final UserModel author;
   final String content;
   final String? parentCommentId;
   final List<String> replies;
   final List<CommentLike> likes;
   final bool isModerated;
-  final String? moderatedBy;
+  final String? moderatedById;
   final bool isHidden;
   final bool isReported;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final UserModel? author; // Populated author info
 
   Comment({
     required this.id,
     required this.postId,
-    required this.authorId,
+    required this.author,
     required this.content,
     this.parentCommentId,
-    required this.replies,
-    required this.likes,
-    required this.isModerated,
-    this.moderatedBy,
-    required this.isHidden,
-    required this.isReported,
+    this.replies = const [],
+    this.likes = const [],
+    this.isModerated = false,
+    this.moderatedById,
+    this.isHidden = false,
+    this.isReported = false,
     required this.createdAt,
     required this.updatedAt,
-    this.author,
   });
 
   factory Comment.fromJson(Map<String, dynamic> json) {
     return Comment(
-      id: json['_id'],
-      postId: json['post'],
-      authorId: json['author'],
-      content: json['content'],
+      id: json['_id'] ?? json['id'] ?? '',
+      postId: json['post'] ?? '',
+      author: UserModel.fromJson(json['author']),
+      content: json['content'] ?? '',
       parentCommentId: json['parentComment'],
-      replies: List<String>.from(json['replies'] ?? []),
-      likes: (json['likes'] as List)
-          .map((e) => CommentLike.fromJson(e))
-          .toList(),
+      replies: (json['replies'] as List<dynamic>?)?.cast<String>() ?? [],
+      likes: (json['likes'] as List<dynamic>?)
+          ?.map((e) => CommentLike.fromJson(e))
+          .toList() ?? [],
       isModerated: json['isModerated'] ?? false,
-      moderatedBy: json['moderatedBy'],
+      moderatedById: json['moderatedBy'],
       isHidden: json['isHidden'] ?? false,
       isReported: json['isReported'] ?? false,
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
-      author: json['author'] != null ? UserModel.fromJson(json['author']) : null,
     );
   }
 
-  int get likeCount => likes.length;
-  bool get isReply => parentCommentId != null;
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'post': postId,
+      'author': author.toJson(),
+      'content': content,
+      'parentComment': parentCommentId,
+      'replies': replies,
+      'likes': likes.map((e) => e.toJson()).toList(),
+      'isModerated': isModerated,
+      'moderatedBy': moderatedById,
+      'isHidden': isHidden,
+      'isReported': isReported,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
 }
 
 class CommentLike {
@@ -70,8 +83,15 @@ class CommentLike {
 
   factory CommentLike.fromJson(Map<String, dynamic> json) {
     return CommentLike(
-      userId: json['user'],
+      userId: json['user'] ?? '',
       createdAt: DateTime.parse(json['createdAt']),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'user': userId,
+      'createdAt': createdAt.toIso8601String(),
+    };
   }
 }

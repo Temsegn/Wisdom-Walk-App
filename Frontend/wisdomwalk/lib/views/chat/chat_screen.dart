@@ -1,8 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/chat_model.dart';
 import '../../models/message_model.dart';
+import '../../providers/message_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../widgets/message_bubble.dart';
+import '../../widgets/message_input.dart';
 
 class ChatScreen extends StatefulWidget {
   final Chat chat;
@@ -10,291 +15,438 @@ class ChatScreen extends StatefulWidget {
   const ChatScreen({Key? key, required this.chat}) : super(key: key);
 
   @override
-  _ChatScreenState createState() => _ChatScreenState();
+  State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _messageController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = Provider.of<ChatProvider>(context, listen: false);
-      provider.setCurrentChat(widget.chat);
+      context.read<MessageProvider>().loadMessages(widget.chat.id, refresh: true);
+      context.read<ChatProvider>().markChatAsRead(widget.chat.id);
     });
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels ==
+        _scrollController.position.maxScrollExtent) {
+      context.read<MessageProvider>().loadMessages(widget.chat.id);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _messageController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final chatProvider = Provider.of<ChatProvider>(context);
-
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
             CircleAvatar(
-              backgroundImage: widget.chat.displayImage != null
-                  ? NetworkImage(widget.chat.displayImage!)
+              radius: 18,
+              backgroundImage: widget.chat.chatImage != null
+                  ? NetworkImage(widget.chat.chatImage!)
                   : null,
-              child: widget.chat.displayImage == null
-                  ? Text(widget.chat.displayName[0])
+              child: widget.chat.chatImage == null
+                  ? Text(
+                      widget.chat.chatName?.substring(0, 1).toUpperCase() ?? 'C',
+                      style: const TextStyle(fontSize: 16),
+                    )
                   : null,
             ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.chat.displayName),
-                if (widget.chat.type == 'direct')
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    widget.chat.otherParticipant?.isOnline ?? false
-                        ? 'Online'
-                        : 'Last seen ${widget.chat.lastActivityFormatted}',
-                    style: const TextStyle(fontSize: 12),
+                    widget.chat.chatName ?? 'Unknown Chat',
+                    style: const TextStyle(fontSize: 16),
                   ),
-              ],
+                  if (widget.chat.isOnline == true)
+                    const Text(
+                      'Online',
+                      style: TextStyle(fontSize: 12, color: Colors.green),
+                    ),
+                ],
+              ),
             ),
           ],
         ),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () => _showChatOptions(context),
+            icon: const Icon(Icons.videocam),
+            onPressed: () {
+              // Implement video call
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.call),
+            onPressed: () {
+              // Implement voice call
+            },
+          ),
+          PopupMenuButton<String>(
+            onSelected: _handleMenuAction,
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'search',
+                child: Text('Search'),
+              ),
+              const PopupMenuItem(
+                value: 'mute',
+                child: Text('Mute'),
+              ),
+              const PopupMenuItem(
+                value: 'block',
+                child: Text('Block'),
+              ),
+            ],
           ),
         ],
       ),
       body: Column(
         children: [
           Expanded(
-            child: chatProvider.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : chatProvider.error != null
-                    ? Center(child: Text('Error: ${chatProvider.error}'))
-                    : chatProvider.currentChatMessages.isEmpty
-                        ? Center(
-                            child: ElevatedButton.icon(
-                              onPressed: () async {
-                                final provider = Provider.of<ChatProvider>(context, listen: false);
-                                if (provider.currentChat == null) {
-                                  await provider.createDirectChat(widget.chat.otherParticipant!.id);
-                                }
-                                await provider.sendMessage("Hi 👋");
-                              },
-                              icon: const Icon(Icons.message),
-                              label: const Text("Say Hi 👋"),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                textStyle: const TextStyle(fontSize: 16),
-                              ),
-                            ),
-                          )
-                        : ListView.builder(
-                            controller: _scrollController,
-                            reverse: true,
-                            itemCount: chatProvider.currentChatMessages.length,
-                            itemBuilder: (context, index) {
-                              final message = chatProvider.currentChatMessages[
-                                  chatProvider.currentChatMessages.length - 1 - index];
-                              return _buildMessageItem(message);
-                            },
-                          ),
-          ),
-          _buildMessageInput(),
-        ],
-      ),
-    );
-  }
+            child: Consumer<MessageProvider>(
+              builder: (context, messageProvider, child) {
+                final messages = messageProvider.getChatMessages(widget.chat.id);
+                final isLoading = messageProvider.isLoading(widget.chat.id);
+                final error = messageProvider.getError(widget.chat.id);
 
-  Widget _buildMessageItem(Message message) {
-    final isMe = message.senderId ==
-        Provider.of<ChatProvider>(context, listen: false).currentUser?.id;
+                if (messages.isEmpty && isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isMe ? Colors.blue[100] : Colors.grey[200],
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(12),
-            topRight: const Radius.circular(12),
-            bottomLeft: isMe ? const Radius.circular(12) : Radius.zero,
-            bottomRight: isMe ? Radius.zero : const Radius.circular(12),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            if (message.sender != null && !isMe)
-              Text(
-                message.sender!.displayName ?? '',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-              ),
-            if (message.replyTo != null)
-              Container(
-                padding: const EdgeInsets.all(8),
-                margin: const EdgeInsets.only(top: 4, bottom: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'Replying to a message',
-                  style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
-                ),
-              ),
-            if (message.content != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(message.content!),
-              ),
-            if (message.attachments != null && message.attachments!.isNotEmpty)
-              ...message.attachments!.map((attachment) {
-                if (attachment.fileType == 'image') {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Image.network(
-                      attachment.type,
-                      width: 200,
-                      height: 200,
-                      fit: BoxFit.cover,
-                    ),
-                  );
-                } else {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
+                if (error != null) {
+                  return Center(
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.insert_drive_file),
-                        Text(attachment.fileName),
+                        Text(
+                          'Error: $error',
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            messageProvider.clearError(widget.chat.id);
+                            messageProvider.loadMessages(widget.chat.id, refresh: true);
+                          },
+                          child: const Text('Retry'),
+                        ),
                       ],
                     ),
                   );
                 }
-              }),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  message.timeFormatted,
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
-                ),
-                if (message.isEdited)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 4),
-                    child: Text(
-                      'edited',
-                      style: TextStyle(fontSize: 10, color: Colors.grey),
-                    ),
-                  ),
-              ],
-            ),
-            if (message.reactions.isNotEmpty)
-              Wrap(
-                spacing: 4,
-                children: message.reactions
-                    .map((reaction) => Chip(
-                          label: Text(reaction.emoji),
-                          backgroundColor: Colors.grey[300],
-                          visualDensity: VisualDensity.compact,
-                        ))
-                    .toList(),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildMessageInput() {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.attach_file),
-            onPressed: () {
-              // Implement attachment logic
+                if (messages.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No messages yet\nSend the first message!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  reverse: true,
+                  itemCount: messages.length + 
+                      (messageProvider.hasMoreMessages(widget.chat.id) ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == messages.length) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    }
+
+                    final message = messages[index];
+                    return MessageBubble(
+                      message: message,
+                      onReply: () => _setReplyMessage(message),
+                      onEdit: () => _editMessage(message),
+                      onDelete: () => _deleteMessage(message),
+                      onReact: (emoji) => _addReaction(message, emoji),
+                      onPin: () => _pinMessage(message),
+                      onForward: () => _forwardMessage(message),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          Consumer<MessageProvider>(
+            builder: (context, messageProvider, child) {
+              if (messageProvider.replyToMessage != null) {
+                return Container(
+                  padding: const EdgeInsets.all(8),
+                  color: Colors.grey[100],
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Replying to ${messageProvider.replyToMessage!.sender.fullName}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              messageProvider.replyToMessage!.content,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () {
+                          messageProvider.setReplyToMessage(null);
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
             },
           ),
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-              onSubmitted: (_) => _sendMessage(),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.send),
-            onPressed: _sendMessage,
+          MessageInput(
+            controller: _messageController,
+            onSendMessage: _sendMessage,
+            onAttachFile: _attachFile,
           ),
         ],
       ),
     );
   }
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
+  void _handleMenuAction(String action) {
+    switch (action) {
+      case 'search':
+        // Implement search
+        break;
+      case 'mute':
+        // Implement mute
+        break;
+      case 'block':
+        // Implement block
+        break;
+    }
+  }
 
-    Provider.of<ChatProvider>(context, listen: false).sendMessage(
-      _messageController.text.trim(),
+  void _setReplyMessage(Message message) {
+    context.read<MessageProvider>().setReplyToMessage(message);
+  }
+
+  void _editMessage(Message message) {
+    showDialog(
+      context: context,
+      builder: (context) => EditMessageDialog(
+        message: message,
+        onEdit: (newContent) {
+          context.read<MessageProvider>().editMessage(message.id, newContent);
+        },
+      ),
     );
+  }
+
+  void _deleteMessage(Message message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Message'),
+        content: const Text('Are you sure you want to delete this message?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.read<MessageProvider>().deleteMessage(message.id);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addReaction(Message message, String emoji) {
+    context.read<MessageProvider>().addReaction(message.id, emoji);
+  }
+
+  void _pinMessage(Message message) {
+    context.read<MessageProvider>().pinMessage(widget.chat.id, message.id);
+  }
+
+  void _forwardMessage(Message message) {
+    // Implement forward message dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Forward Message'),
+        content: const Text('Feature coming soon!'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendMessage(String content) async {
+    if (content.trim().isEmpty) return;
+
+    await context.read<MessageProvider>().sendMessage(
+      chatId: widget.chat.id,
+      content: content.trim(),
+    );
+
     _messageController.clear();
   }
 
-  void _showChatOptions(BuildContext context) {
-    final chat = widget.chat;
+  Future<void> _attachFile() async {
     showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return Column(
+      builder: (context) => SafeArea(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.notifications_off),
-              title: Text(chat.isMuted ? 'Unmute Chat' : 'Mute Chat'),
-              onTap: () {
+              leading: const Icon(Icons.photo),
+              title: const Text('Photo'),
+              onTap: () async {
                 Navigator.pop(context);
-                Provider.of<ChatProvider>(context, listen: false)
-                    .muteCurrentChat();
+                final image = await _imagePicker.pickImage(source: ImageSource.gallery);
+                if (image != null) {
+                  await context.read<MessageProvider>().sendMessage(
+                    chatId: widget.chat.id,
+                    content: 'Photo',
+                    messageType: 'image',
+                    attachments: [File(image.path)],
+                  );
+                }
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete),
-              title: const Text('Delete Chat'),
-              onTap: () {
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Camera'),
+              onTap: () async {
                 Navigator.pop(context);
-                // Implement delete chat logic
+                final image = await _imagePicker.pickImage(source: ImageSource.camera);
+                if (image != null) {
+                  await context.read<MessageProvider>().sendMessage(
+                    chatId: widget.chat.id,
+                    content: 'Photo',
+                    messageType: 'image',
+                    attachments: [File(image.path)],
+                  );
+                }
               },
             ),
             ListTile(
-              leading: const Icon(Icons.block),
-              title: const Text('Block User'),
+              leading: const Icon(Icons.insert_drive_file),
+              title: const Text('Document'),
               onTap: () {
                 Navigator.pop(context);
-                // Implement block user logic
+                // Implement document picker
               },
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
+  }
+}
+
+class EditMessageDialog extends StatefulWidget {
+  final Message message;
+  final Function(String) onEdit;
+
+  const EditMessageDialog({
+    Key? key,
+    required this.message,
+    required this.onEdit,
+  }) : super(key: key);
+
+  @override
+  State<EditMessageDialog> createState() => _EditMessageDialogState();
+}
+
+class _EditMessageDialogState extends State<EditMessageDialog> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.message.content);
   }
 
   @override
   void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
+    _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Message'),
+      content: TextField(
+        controller: _controller,
+        maxLines: 3,
+        decoration: const InputDecoration(
+          hintText: 'Enter your message...',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            if (_controller.text.trim().isNotEmpty) {
+              widget.onEdit(_controller.text.trim());
+              Navigator.pop(context);
+            }
+          },
+          child: const Text('Save'),
+        ),
+      ],
+    );
   }
 }
