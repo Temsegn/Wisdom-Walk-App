@@ -15,6 +15,7 @@ const getPendingVerifications = async (req, res) => {
     const pendingUsers = await User.find({
       isEmailVerified: true,
       verificationStatus: "pending",
+      isAdminVerified: false,
     })
       .select("firstName lastName email phoneNumber location livePhoto nationalId createdAt")
       .sort({ createdAt: -1 })
