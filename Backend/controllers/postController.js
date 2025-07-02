@@ -31,8 +31,7 @@ const createPost = async (req, res) => {
       title,
       isAnonymous: isAnonymous || false,
       visibility: visibility || "public",
-      targetGroup: targetGroup || "general",
-      tags: tags || [],
+       tags: tags || [],
     }
 
     // Handle location data for location posts
