@@ -1,50 +1,126 @@
+import 'package:http/http.dart' as http;
 import 'package:wisdomwalk/models/prayer_model.dart';
+import 'package:wisdomwalk/services/local_storage_service.dart';
+import 'dart:convert';
 
 class PrayerService {
-  // Mock data for demonstration
-  final List<PrayerModel> _prayers = [
-    PrayerModel(
-      id: '1',
-      userId: '1',
-      userName: 'Lidaya Mamo',
-      userAvatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-      content:
-          'Please pray for my upcoming job interview. I\'m feeling anxious but trusting God\'s plan.',
-      isAnonymous: false,
-      prayingUsers: ['2', '3'],
-      comments: [
-        PrayerComment(
-          id: '101',
-          userId: '2',
-          userName: 'Rebecca Smith',
-          userAvatar: 'https://randomuser.me/api/portraits/women/67.jpg',
-          content: 'Praying for peace and favor! Remember Jeremiah 29:11.',
-          isAnonymous: false,
-          createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        ),
-      ],
-      createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-    ),
-    PrayerModel(
-      id: '2',
-      userId: '3',
-      userName: null,
-      userAvatar: null,
-      content:
-          'My mother is in the hospital. Please pray for her healing and for strength for our family during this difficult time.',
-      isAnonymous: true,
-      prayingUsers: ['1', '4'],
-      comments: [],
-      createdAt: DateTime.now().subtract(const Duration(hours: 8)),
-    ),
-  ];
+  static const String apiBaseUrl = 'https://wisdom-walk-app.onrender.com/api';
+  final LocalStorageService _localStorageService;
+
+  PrayerService({required LocalStorageService localStorageService})
+    : _localStorageService = localStorageService;
+
+  Future<http.Response> _authenticatedRequest({
+    required String method,
+    required String endpoint,
+    Map<String, dynamic>? body,
+  }) async {
+    final token = await _localStorageService.getAuthToken();
+    print(
+      'Making $method request to $apiBaseUrl$endpoint with token: ${token?.substring(0, 10)}...',
+    );
+
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    final uri = Uri.parse('$apiBaseUrl$endpoint');
+    print('Sending $method request to $uri with body: $body');
+
+    try {
+      if (method == 'GET') {
+        return await http.get(uri, headers: headers);
+      } else if (method == 'POST') {
+        return await http.post(uri, headers: headers, body: jsonEncode(body));
+      } else if (method == 'PUT') {
+        return await http.put(uri, headers: headers, body: jsonEncode(body));
+      }
+      throw Exception('Unsupported HTTP method');
+    } catch (e) {
+      print('Network error in _authenticatedRequest: $e');
+      throw Exception('Network error: $e');
+    }
+  }
 
   Future<List<PrayerModel>> getPrayers({String filter = 'all'}) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 1));
+    print('PrayerService.getPrayers called with filter: $filter');
+    final endpoint =
+        filter == 'all' ? '/posts/feed' : '/posts/feed?type=$filter';
+    final response = await _authenticatedRequest(
+      method: 'GET',
+      endpoint: endpoint,
+    );
 
-    // In a real app, this would filter based on the user's ID and friends
-    return _prayers;
+    print('PrayerService: Get prayers response status: ${response.statusCode}');
+    print('PrayerService: Get prayers response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (!data['success']) {
+        throw Exception(data['message'] ?? 'Failed to fetch prayers');
+      }
+      final posts = data['data'] as List;
+      print('PrayerService: Fetched ${posts.length} posts');
+
+      // Fetch comments for each post
+      final List<PrayerModel> prayers = [];
+      for (var json in posts) {
+        List<PrayerComment> comments = [];
+        try {
+          comments = await getComments(json['_id']);
+        } catch (e) {
+          print(
+            'PrayerService: Failed to fetch comments for post ${json['_id']}: $e',
+          );
+        }
+        prayers.add(
+          PrayerModel.fromJson({
+            'id': json['_id'],
+            'userId': json['author']['_id'] ?? json['author'],
+            'userName':
+                json['isAnonymous']
+                    ? null
+                    : '${json['author']['firstName']} ${json['author']['lastName']}'
+                        .trim(),
+            'userAvatar':
+                json['isAnonymous'] ? null : json['author']['profilePicture'],
+            'content': json['content'],
+            'title': json['title'],
+            'isAnonymous': json['isAnonymous'] ?? false,
+            'prayingUsers':
+                (json['prayers'] as List?)
+                    ?.map((prayer) => prayer['user']['_id'].toString())
+                    .toList() ??
+                [],
+            'comments':
+                comments
+                    .map(
+                      (comment) => {
+                        'id': comment.id,
+                        'userId': comment.userId,
+                        'userName': comment.userName,
+                        'userAvatar': comment.userAvatar,
+                        'content': comment.content,
+                        'isAnonymous': comment.isAnonymous,
+                        'createdAt': comment.createdAt.toIso8601String(),
+                      },
+                    )
+                    .toList(),
+            'createdAt': json['createdAt'],
+          }),
+        );
+      }
+      return prayers;
+    } else {
+      throw Exception(
+        'Failed to fetch prayers: ${response.statusCode} - ${response.body}',
+      );
+    }
   }
 
   Future<PrayerModel> addPrayer({
@@ -53,45 +129,79 @@ class PrayerService {
     required bool isAnonymous,
     String? userName,
     String? userAvatar,
+    String? title,
   }) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 1));
+    print(
+      'PrayerService.addPrayer called with userId=$userId, content=$content, isAnonymous=$isAnonymous',
+    );
+    final body = {
+      'type': 'prayer',
+      'content': content,
+      'isAnonymous': isAnonymous,
+      if (title != null) 'title': title,
+    };
+    print('Request body: $body');
 
-    final prayer = PrayerModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      userId: userId,
-      userName: isAnonymous ? null : userName,
-      userAvatar: isAnonymous ? null : userAvatar,
-      content: content,
-      isAnonymous: isAnonymous,
-      prayingUsers: [],
-      comments: [],
-      createdAt: DateTime.now(),
+    final response = await _authenticatedRequest(
+      method: 'POST',
+      endpoint: '/posts',
+      body: body,
     );
 
-    _prayers.insert(0, prayer);
-    return prayer;
+    print('Backend response status: ${response.statusCode}');
+    print('Backend response body: ${response.body}');
+
+    if (response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+      if (data['success']) {
+        print('Prayer created successfully: ${data['data']['_id']}');
+        return PrayerModel.fromJson({
+          'id': data['data']['_id'],
+          'userId': data['data']['author']['_id'] ?? data['data']['author'],
+          'userName':
+              isAnonymous
+                  ? null
+                  : '${data['data']['author']['firstName']} ${data['data']['author']['lastName']}',
+          'userAvatar':
+              isAnonymous ? null : data['data']['author']['profilePicture'],
+          'content': data['data']['content'],
+          'title': data['data']['title'],
+          'isAnonymous': data['data']['isAnonymous'],
+          'prayingUsers': [],
+          'comments': [],
+          'createdAt': data['data']['createdAt'],
+        });
+      } else {
+        throw Exception(data['message'] ?? 'Failed to create post');
+      }
+    } else if (response.statusCode == 401) {
+      print('Unauthorized request - clearing token');
+      await _localStorageService.clearAuthToken();
+      throw Exception('Unauthorized: Session expired. Please log in again.');
+    } else {
+      throw Exception(
+        'Failed to add prayer: ${response.statusCode} - ${response.body}',
+      );
+    }
   }
 
   Future<void> updatePrayingUsers({
     required String prayerId,
     required List<String> prayingUsers,
   }) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 1));
+    print('PrayerService.updatePrayingUsers called with prayerId=$prayerId');
+    final response = await _authenticatedRequest(
+      method: 'POST',
+      endpoint: '/posts/$prayerId/prayer',
+      body: {'message': 'Praying for you ❤️'},
+    );
 
-    final index = _prayers.indexWhere((prayer) => prayer.id == prayerId);
-    if (index != -1) {
-      _prayers[index] = PrayerModel(
-        id: _prayers[index].id,
-        userId: _prayers[index].userId,
-        userName: _prayers[index].userName,
-        userAvatar: _prayers[index].userAvatar,
-        content: _prayers[index].content,
-        isAnonymous: _prayers[index].isAnonymous,
-        prayingUsers: prayingUsers,
-        comments: _prayers[index].comments,
-        createdAt: _prayers[index].createdAt,
+    print('Update praying users response status: ${response.statusCode}');
+    print('Update praying users response body: ${response.body}');
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        'Failed to update praying status: ${response.statusCode} - ${response.body}',
       );
     }
   }
@@ -104,36 +214,83 @@ class PrayerService {
     String? userName,
     String? userAvatar,
   }) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    final comment = PrayerComment(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      userId: userId,
-      userName: isAnonymous ? null : userName,
-      userAvatar: isAnonymous ? null : userAvatar,
-      content: content,
-      isAnonymous: isAnonymous,
-      createdAt: DateTime.now(),
+    print(
+      'PrayerService.addComment called with prayerId=$prayerId, content=$content',
+    );
+    final response = await _authenticatedRequest(
+      method: 'POST',
+      endpoint: '/posts/$prayerId/comments',
+      body: {'content': content, 'isAnonymous': isAnonymous},
     );
 
-    final index = _prayers.indexWhere((prayer) => prayer.id == prayerId);
-    if (index != -1) {
-      final updatedComments = List<PrayerComment>.from(_prayers[index].comments)
-        ..add(comment);
-      _prayers[index] = PrayerModel(
-        id: _prayers[index].id,
-        userId: _prayers[index].userId,
-        userName: _prayers[index].userName,
-        userAvatar: _prayers[index].userAvatar,
-        content: _prayers[index].content,
-        isAnonymous: _prayers[index].isAnonymous,
-        prayingUsers: _prayers[index].prayingUsers,
-        comments: updatedComments,
-        createdAt: _prayers[index].createdAt,
+    print('Add comment response status: ${response.statusCode}');
+    print('Add comment response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success']) {
+        return PrayerComment.fromJson({
+          'id': data['data']['_id'],
+          'userId': data['data']['author']['_id'] ?? data['data']['author'],
+          'userName':
+              isAnonymous
+                  ? null
+                  : '${data['data']['author']['firstName']} ${data['data']['author']['lastName']}',
+          'userAvatar':
+              isAnonymous ? null : data['data']['author']['profilePicture'],
+          'content': data['data']['content'],
+          'isAnonymous': data['data']['isAnonymous'],
+          'createdAt': data['data']['createdAt'],
+        });
+      } else {
+        throw Exception(data['message'] ?? 'Failed to add comment');
+      }
+    } else {
+      throw Exception(
+        'Failed to add comment: ${response.statusCode} - ${response.body}',
       );
     }
+  }
 
-    return comment;
+  Future<List<PrayerComment>> getComments(String prayerId) async {
+    print('PrayerService.getComments called with prayerId=$prayerId');
+    final response = await _authenticatedRequest(
+      method: 'GET',
+      endpoint: '/posts/$prayerId/comments',
+    );
+
+    print('Get comments response status: ${response.statusCode}');
+    print('Get comments response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success']) {
+        return (data['data'] as List)
+            .map(
+              (json) => PrayerComment.fromJson({
+                'id': json['_id'],
+                'userId': json['author']['_id'] ?? json['author'],
+                'userName':
+                    json['isAnonymous']
+                        ? null
+                        : '${json['author']['firstName']} ${json['author']['lastName']}',
+                'userAvatar':
+                    json['isAnonymous']
+                        ? null
+                        : json['author']['profilePicture'],
+                'content': json['content'],
+                'isAnonymous': json['isAnonymous'] ?? false,
+                'createdAt': json['createdAt'],
+              }),
+            )
+            .toList();
+      } else {
+        throw Exception(data['message'] ?? 'Failed to fetch comments');
+      }
+    } else {
+      throw Exception(
+        'Failed to fetch comments: ${response.statusCode} - ${response.body}',
+      );
+    }
   }
 }

@@ -18,152 +18,25 @@ import 'package:wisdomwalk/views/wisdom_circles/wisdom_circle_detail_screen.dart
 import 'package:wisdomwalk/views/profile/profile_screen.dart';
 import 'package:wisdomwalk/views/settings/settings_screen.dart';
 import 'package:wisdomwalk/views/notifications/notifications_screen.dart';
-//  class AppRouter {
-//   static GoRouter createRouter() {
-//     return GoRouter(
-//       initialLocation: '/welcome',
-//       routes: [
-//         // Authentication Routes
-//         GoRoute(
-//           path: '/welcome',
-//           builder: (context, state) => const WelcomeScreen(),
-//         ),
-//         GoRoute(
-//           path: '/login',
-//           builder: (context, state) => const LoginScreen(),
-//         ),
-//         GoRoute(
-//           path: '/register',
-//           builder: (context, state) => const MultiStepRegistration(),
-//         ),
-//         GoRoute(
-//           path: '/otp',
-//           builder: (context, state) {
-//             final Map<String, dynamic> extra =
-//                 state.extra as Map<String, dynamic>? ?? {};
-//             return OtpScreen(email: extra['email'] as String? ?? '');
-//           },
-//         ),
-//         GoRoute(
-//           path: '/forgot-password',
-//           builder: (context, state) => const ForgotPasswordScreen(),
-//         ),
-//         GoRoute(
-//           path: '/reset-password',
-//           builder: (context, state) {
-//             final email = state.extra as String? ?? '';
-//             return ResetPasswordScreen(email: email, otp: '');
-//           },
-//         ),
-
-//         // Main App Routes
-//         GoRoute(
-//           path: '/dashboard',
-//           builder: (context, state) => const DashboardScreen(),
-//         ),
-//         GoRoute(
-//           path: '/prayer-detail/:prayerId',
-//           builder: (context, state) {
-//             final prayerId = state.pathParameters['prayerId']!;
-//             return PrayerDetailScreen(prayerId: prayerId);
-//           },
-//         ),
-//         GoRoute(
-//           path: '/anonymous-share-detail/:shareId',
-//           builder: (context, state) {
-//             final shareId = state.pathParameters['shareId']!;
-//             return AnonymousShareDetailScreen(shareId: shareId);
-//           },
-//         ),
-//         GoRoute(
-//           path: '/wisdom-circle-detail/:circleId',
-//           builder: (context, state) {
-//             final circleId = state.pathParameters['circleId']!;
-//             return WisdomCircleDetailScreen(circleId: circleId);
-//           },
-//         ),
-
-//         // Her Move Routes
-//         GoRoute(
-//           path: '/add-location-request',
-//           builder: (context, state) => const AddLocationRequestScreen(),
-//         ),
-//         GoRoute(
-//           path: '/location-request-detail/:requestId',
-//           builder: (context, state) {
-//             final requestId = state.pathParameters['requestId']!;
-//             return LocationRequestDetailScreen(requestId: requestId);
-//           },
-//         ),
-//         GoRoute(
-//           path: '/her-move-search',
-//           builder: (context, state) => const SearchScreen(),
-//         ),
-
-//         // Notification Routes
-//         GoRoute(
-//           path: '/notifications',
-//           builder: (context, state) => const NotificationsScreen(),
-//         ),
-
-//         // Search routes
-//         GoRoute(
-//           path: '/search',
-//           builder: (context, state) => const SearchScreen(),
-//         ),
-
-//         // Profile & Settings Routes
-//         GoRoute(
-//           path: '/profile',
-//           builder: (context, state) => const ProfileScreen(),
-//         ),
-//         GoRoute(
-//           path: '/settings',
-//           builder: (context, state) => const SettingsScreen(),
-//         ),
-//       ],
-//       redirect: (context, state) {
-//         final authProvider = Provider.of<AuthProvider>(context, listen: false);
-//         final isAuthenticated = authProvider.isAuthenticated;
-//         final isLoading = authProvider.isLoading;
-
-//         // Don't redirect while loading
-//         if (isLoading) return null;
-
-//         // Public routes that don't require authentication
-//         final publicRoutes = [
-//           '/welcome',
-//           '/login',
-//           '/register',
-//           '/otp',
-//           '/forgot-password',
-//           '/reset-password',
-//         ];
-
-//         final isPublicRoute = publicRoutes.contains(state.matchedLocation);
-
-//         // If not authenticated and trying to access private route
-//         if (!isAuthenticated && !isPublicRoute) {
-//           return '/welcome';
-//         }
-
-//         // If authenticated and on public route, redirect to dashboard
-//         if (isAuthenticated && isPublicRoute) {
-//           return '/dashboard';
-//         }
-
-//         return null;
-//       },
-//     );
-//   }
-// }
 
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/',
     routes: [
-      // Authentication routes
-      GoRoute(path: '/', builder: (context, state) => const WelcomeScreen()),
+      GoRoute(
+        path: '/',
+        builder: (context, state) {
+          final authProvider = Provider.of<AuthProvider>(context);
+          print(
+            'Root route: isLoading=${authProvider.isLoading}, isAuthenticated=${authProvider.isAuthenticated}',
+          );
+          return authProvider.isLoading
+              ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+              : authProvider.isAuthenticated
+              ? const DashboardScreen()
+              : const WelcomeScreen();
+        },
+      ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/register',
@@ -196,13 +69,10 @@ class AppRouter {
         path: '/notifications',
         builder: (context, state) => const NotificationsScreen(),
       ),
-
       GoRoute(
         path: '/her-move-search',
         builder: (context, state) => const SearchScreen(),
       ),
-
-      // Main app routes
       GoRoute(
         path: '/dashboard',
         builder: (context, state) => const DashboardScreen(),
@@ -215,8 +85,6 @@ class AppRouter {
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
       ),
-
-      // Feature-specific routes
       GoRoute(
         path: '/prayer/:id',
         builder:
@@ -259,5 +127,43 @@ class AppRouter {
             ),
       ),
     ],
+    redirect: (context, state) async {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final isAuthenticated = authProvider.isAuthenticated;
+      final isLoading = authProvider.isLoading;
+      final path = state.fullPath ?? '/';
+
+      print(
+        'AppRouter redirect: isLoading=$isLoading, isAuthenticated=$isAuthenticated, path=$path',
+      );
+
+      if (isLoading) {
+        return null; // Wait for loading to complete
+      }
+
+      final publicRoutes = [
+        '/',
+        '/login',
+        '/register',
+        '/otp',
+        '/forgot-password',
+        '/reset-password',
+      ];
+
+      if (!isAuthenticated && !publicRoutes.contains(path)) {
+        print('Redirecting to /welcome (not authenticated)');
+        return '/welcome';
+      }
+
+      if (isAuthenticated && publicRoutes.contains(path)) {
+        print('Redirecting to /dashboard (authenticated)');
+        return '/dashboard';
+      }
+
+      return null;
+    },
+    errorBuilder:
+        (context, state) =>
+            Scaffold(body: Center(child: Text('Error: ${state.error}'))),
   );
 }
