@@ -223,37 +223,8 @@ const getPost = async (req, res) => {
     })
   }
 }
-const getAllPosts = async (req, res) => {
-  try {
-    const posts = await Post.find({ isHidden: false, isPublished: true })
-      .populate("author", "firstName lastName profilePicture")
-      .sort({ createdAt: -1 });
-
-    const formattedPosts = posts.map((post) => {
-      const postObj = post.toObject();
-      if (postObj.isAnonymous) {
-        postObj.author = {
-          firstName: "Anonymous",
-          lastName: "Sister",
-          profilePicture: null,
-        };
-      }
-      return postObj;
-    });
-
-    res.json({
-      success: true,
-      data: formattedPosts,
-    });
-  } catch (error) {
-    console.error("Get all posts error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch all posts",
-      error: error.message,
-    });
-  }
-};
+ 
+      
 // Like/unlike a post
 const toggleLike = async (req, res) => {
   try {
