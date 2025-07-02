@@ -231,6 +231,7 @@ class _AddPrayerModalState extends State<AddPrayerModal> {
       }
 
       final success = await prayerProvider.addPrayer(
+        category: 'testimony', // Default category, can be changed later
         userId: currentUser.id,
         content: _contentController.text.trim(),
         isAnonymous: _isAnonymous,

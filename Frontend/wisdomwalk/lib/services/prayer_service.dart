@@ -127,6 +127,7 @@ class PrayerService {
   Future<PrayerModel> addPrayer({
     required String userId,
     required String content,
+    required String category,
     required bool isAnonymous,
     String? userName,
     String? userAvatar,
@@ -136,9 +137,11 @@ class PrayerService {
       'PrayerService.addPrayer called with userId=$userId, content=$content, isAnonymous=$isAnonymous',
     );
     final body = {
-      'type': 'prayer',
+      'type': 'prayer', // Hardcode to ensure correctness
       'content': content,
+      'category': category, // Add category to the request body
       'isAnonymous': isAnonymous,
+      'visibility': 'public', // Add if required
       if (title != null) 'title': title,
     };
     print('Request body: $body');
@@ -151,38 +154,54 @@ class PrayerService {
 
     print('Backend response status: ${response.statusCode}');
     print('Backend response body: ${response.body}');
-
     if (response.statusCode == 201) {
       final data = jsonDecode(response.body);
-      if (data['success']) {
-        print('Prayer created successfully: ${data['data']['_id']}');
+
+      if (data['success'] == true) {
+        final post = data['data'];
+        final author = post['author'];
+
+        // Safe parsing
+        final String userId =
+            author is Map
+                ? (author['_id']?.toString() ?? '')
+                : author.toString();
+        final String? userName =
+            isAnonymous
+                ? null
+                : (author is Map
+                    ? '${author['firstName'] ?? ''} ${author['lastName'] ?? ''}'
+                        .trim()
+                    : null);
+        final String? userAvatar =
+            isAnonymous
+                ? null
+                : (author is Map ? author['profilePicture'] : null);
+
+        print('Prayer created successfully: ${post['_id']}');
+
         return PrayerModel.fromJson({
-          'id': data['data']['_id'],
-          'userId': data['data']['author']['_id'] ?? data['data']['author'],
-          'userName':
-              isAnonymous
-                  ? null
-                  : '${data['data']['author']['firstName']} ${data['data']['author']['lastName']}',
-          'userAvatar':
-              isAnonymous ? null : data['data']['author']['profilePicture'],
-          'content': data['data']['content'],
-          'title': data['data']['title'],
-          'isAnonymous': data['data']['isAnonymous'],
+          'id': post['_id'],
+          'userId': userId,
+          'userName': userName,
+          'userAvatar': userAvatar,
+          'content': post['content'],
+          'title': post['title'],
+          'isAnonymous': post['isAnonymous'],
           'prayingUsers': [],
           'comments': [],
-          'createdAt': data['data']['createdAt'],
+          'createdAt': post['createdAt'],
         });
       } else {
-        throw Exception(data['message'] ?? 'Failed to create post');
+        throw Exception('${data['message']}: ${data['error']}');
       }
     } else if (response.statusCode == 401) {
       print('Unauthorized request - clearing token');
       await _localStorageService.clearAuthToken();
-      throw Exception('Unauthorized: Session expired. Please log in again.');
+      throw Exception('Unauthorized: Please log in again');
     } else {
-      throw Exception(
-        'Failed to add prayer: ${response.statusCode} - ${response.body}',
-      );
+      final data = jsonDecode(response.body);
+      throw Exception('${data['message']}: ${data['error']}');
     }
   }
 

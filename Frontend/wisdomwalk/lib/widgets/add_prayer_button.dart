@@ -1,20 +1,13 @@
 import 'package:flutter/material.dart';
-
 import 'package:provider/provider.dart';
-
 import '../providers/auth_provider.dart';
 import '../providers/prayer_provider.dart';
 
-class AddPrayerButton extends StatefulWidget {
+class AddPrayerButton extends StatelessWidget {
   final bool isAnonymous;
 
   const AddPrayerButton({Key? key, this.isAnonymous = false}) : super(key: key);
 
-  @override
-  _AddPrayerButtonState createState() => _AddPrayerButtonState();
-}
-
-class _AddPrayerButtonState extends State<AddPrayerButton> {
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton(
@@ -27,7 +20,7 @@ class _AddPrayerButtonState extends State<AddPrayerButton> {
                 padding: EdgeInsets.only(
                   bottom: MediaQuery.of(context).viewInsets.bottom,
                 ),
-                child: AddPrayerModal(isAnonymous: widget.isAnonymous),
+                child: AddPrayerModal(isAnonymous: isAnonymous),
               ),
         );
       },
@@ -39,17 +32,18 @@ class _AddPrayerButtonState extends State<AddPrayerButton> {
 class AddPrayerModal extends StatefulWidget {
   final bool isAnonymous;
 
-  const AddPrayerModal({Key? key, required this.isAnonymous}) : super(key: key);
+  const AddPrayerModal({Key? key, this.isAnonymous = false}) : super(key: key);
 
   @override
-  _AddPrayerModalState createState() => _AddPrayerModalState();
+  State<AddPrayerModal> createState() => _AddPrayerModalState();
 }
 
 class _AddPrayerModalState extends State<AddPrayerModal> {
   final _formKey = GlobalKey<FormState>();
-  final _prayerTextController = TextEditingController();
+  final TextEditingController _contentController = TextEditingController();
   bool _isSubmitting = false;
   bool _isAnonymous = false;
+  String _selectedCategory = 'testimony'; // default
 
   @override
   void initState() {
@@ -59,15 +53,13 @@ class _AddPrayerModalState extends State<AddPrayerModal> {
 
   @override
   void dispose() {
-    _prayerTextController.dispose();
+    _contentController.dispose();
     super.dispose();
   }
 
   Future<void> _submitPrayer() async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isSubmitting = true;
-      });
+      setState(() => _isSubmitting = true);
 
       try {
         final prayerProvider = Provider.of<PrayerProvider>(
@@ -79,13 +71,14 @@ class _AddPrayerModalState extends State<AddPrayerModal> {
 
         final success = await prayerProvider.addPrayer(
           userId: currentUser?.id ?? 'anonymous',
-          content: _prayerTextController.text.trim(),
+          content: _contentController.text.trim(),
           isAnonymous: _isAnonymous,
+          category: _selectedCategory,
           userName: _isAnonymous ? null : currentUser?.fullName,
           userAvatar: _isAnonymous ? null : currentUser?.avatarUrl,
         );
 
-        if (success) {
+        if (success && mounted) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -94,123 +87,162 @@ class _AddPrayerModalState extends State<AddPrayerModal> {
             ),
           );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to post prayer request. Please try again.'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          throw Exception('Failed to post prayer');
         }
       } catch (e) {
-        print('Error submitting prayer: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('An error occurred. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
       } finally {
-        setState(() {
-          _isSubmitting = false;
-        });
+        if (mounted) setState(() => _isSubmitting = false);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return SafeArea(
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight:
+              MediaQuery.of(context).size.height * 0.8, // Limit modal height
+        ),
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Share a Prayer Request',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Share a Prayer Request',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
                 ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _prayerTextController,
-              decoration: const InputDecoration(
-                hintText: 'Share what\'s on your heart...',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.all(16),
-              ),
-              maxLines: 4,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter your prayer request.';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Checkbox(
-                  value: _isAnonymous,
-                  onChanged: (value) {
-                    setState(() {
-                      _isAnonymous = value ?? false;
-                    });
-                  },
-                  activeColor: const Color(0xFFE91E63),
-                ),
-                const Text('Post anonymously'),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _submitPrayer,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE91E63),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _contentController,
+                  maxLines: 5,
+                  decoration: const InputDecoration(
+                    hintText: 'Ask for Prayer...',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.all(16),
                   ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your prayer request';
+                    }
+                    return null;
+                  },
                 ),
-                child:
-                    _isSubmitting
-                        ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedCategory,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    border: OutlineInputBorder(),
+                  ),
+                  items:
+                      ['testimony', 'confession', 'struggle']
+                          .map(
+                            (category) => DropdownMenuItem<String>(
+                              value: category,
+                              child: Text(
+                                category[0].toUpperCase() +
+                                    category.substring(1),
+                              ),
                             ),
-                          ),
-                        )
-                        : const Text(
-                          'Share Prayer',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                          )
+                          .toList(),
+                  onChanged:
+                      (value) => setState(() {
+                        _selectedCategory = value!;
+                      }),
+                  validator:
+                      (value) =>
+                          value == null || value.isEmpty
+                              ? 'Please select a category'
+                              : null,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Switch(
+                      value: _isAnonymous,
+                      onChanged:
+                          (value) => setState(() {
+                            _isAnonymous = value;
+                          }),
+                      activeColor: const Color(0xFFE91E63),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Post anonymously'),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed:
+                            _isSubmitting ? null : () => Navigator.pop(context),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submitPrayer,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE91E63),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-              ),
+                        child:
+                            _isSubmitting
+                                ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                                : const Text('Share Prayer'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
-          ],
+          ),
         ),
       ),
     );

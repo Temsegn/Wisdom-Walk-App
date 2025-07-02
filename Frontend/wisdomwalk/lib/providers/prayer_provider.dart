@@ -15,6 +15,7 @@ class PrayerProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   String get filter => _filter;
+  String _selectedCategory = 'testimony'; // default category
 
   PrayerProvider(BuildContext context)
     : _prayerService = PrayerService(
@@ -53,6 +54,7 @@ class PrayerProvider extends ChangeNotifier {
     required String userId,
     required String content,
     required bool isAnonymous,
+    required String category, // ✅ now required
     String? userName,
     String? userAvatar,
     String? title,
@@ -67,6 +69,7 @@ class PrayerProvider extends ChangeNotifier {
         userId: userId,
         content: content,
         isAnonymous: isAnonymous,
+        category: category, // ✅ send to backend
         userName: userName,
         userAvatar: userAvatar,
         title: title,
