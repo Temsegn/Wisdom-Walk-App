@@ -311,5 +311,4 @@ module.exports = {
   clearAllNotifications,
   getNotificationSettings,
   updateNotificationSettings,
-  getAllNotifications, // Admin view to get all notifications
-};
+ };
