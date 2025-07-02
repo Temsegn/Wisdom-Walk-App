@@ -43,7 +43,57 @@ const getUserNotifications = async (req, res) => {
     });
   }
 };
+// controllers/notificationController.js
 
+// Get all notifications (admin view)
+exports.getAllNotifications = async (req, res) => {
+  try {
+    const notifications = await Notification.find({})
+      .populate('sender', 'firstName lastName profilePicture role')
+      .populate('recipient', 'firstName lastName profilePicture role')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      notifications
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch notifications'
+    });
+  }
+};
+
+// Mark notification as read
+exports.markAsRead = async (req, res) => {
+  try {
+    const notification = await Notification.findByIdAndUpdate(
+      req.params.id,
+      { isRead: true, readAt: new Date() },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      notification
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to mark as read'
+    });
+  }
+};
 // Get count of unread notifications
 const getUnreadNotificationCount = async (req, res) => {
   try {
@@ -261,4 +311,5 @@ module.exports = {
   clearAllNotifications,
   getNotificationSettings,
   updateNotificationSettings,
+  getAllNotifications, // Admin view to get all notifications
 };

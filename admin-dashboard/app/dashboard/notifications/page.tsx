@@ -63,7 +63,7 @@ export default function NotificationPage() {
   const fetchNotifications = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch('/api/notifications', {
+      const response = await fetch('/api/admin/notifications', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
@@ -134,7 +134,7 @@ export default function NotificationPage() {
 
   // Mark notification as read
   const markAsRead = async (notificationId: string) => {
-    try {
+    try { 
       const response = await fetch(`/api/notifications/${notificationId}/read`, {
         method: 'PUT',
         headers: {
