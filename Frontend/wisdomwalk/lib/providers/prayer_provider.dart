@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:wisdomwalk/models/prayer_model.dart';
 import 'package:wisdomwalk/services/prayer_service.dart';
 import 'package:wisdomwalk/services/local_storage_service.dart';
@@ -9,20 +8,20 @@ class PrayerProvider extends ChangeNotifier {
   List<PrayerModel> _prayers = [];
   bool _isLoading = false;
   String? _error;
-  String _filter = 'all'; // Default to 'prayer' for PrayerWallTab
+  String _filter = 'prayer';
+  String _selectedCategory = 'testimony';
 
   List<PrayerModel> get prayers => _prayers;
   bool get isLoading => _isLoading;
   String? get error => _error;
   String get filter => _filter;
-  String _selectedCategory = 'testimony'; // default category
 
   PrayerProvider(BuildContext context)
     : _prayerService = PrayerService(
         localStorageService: LocalStorageService(),
       ) {
     print('PrayerProvider: Initializing with filter: $_filter');
-    fetchPrayers(); // Fetch prayers on initialization
+    fetchPrayers();
   }
 
   Future<void> fetchPrayers() async {
@@ -54,7 +53,7 @@ class PrayerProvider extends ChangeNotifier {
     required String userId,
     required String content,
     required bool isAnonymous,
-    required String category, // ✅ now required
+    required String category,
     String? userName,
     String? userAvatar,
     String? title,
@@ -69,7 +68,7 @@ class PrayerProvider extends ChangeNotifier {
         userId: userId,
         content: content,
         isAnonymous: isAnonymous,
-        category: category, // ✅ send to backend
+        category: category,
         userName: userName,
         userAvatar: userAvatar,
         title: title,
@@ -90,51 +89,247 @@ class PrayerProvider extends ChangeNotifier {
   Future<bool> togglePraying({
     required String prayerId,
     required String userId,
+    String? message,
   }) async {
     print(
       'PrayerProvider: Toggling praying for prayer $prayerId, user $userId',
     );
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
     try {
-      final index = _prayers.indexWhere((prayer) => prayer.id == prayerId);
-      if (index == -1) {
-        print('PrayerProvider: Prayer $prayerId not found');
-        return false;
-      }
-
-      final prayer = _prayers[index];
-      final isPraying = prayer.prayingUsers.contains(userId);
-      List<String> updatedPrayingUsers = List.from(prayer.prayingUsers);
-      if (isPraying) {
-        updatedPrayingUsers.remove(userId);
-      } else {
-        updatedPrayingUsers.add(userId);
-      }
-
-      await _prayerService.updatePrayingUsers(
+      final success = await _prayerService.togglePraying(
         prayerId: prayerId,
-        prayingUsers: updatedPrayingUsers,
+        userId: userId,
+        message: message,
       );
 
-      _prayers[index] = PrayerModel(
-        id: prayer.id,
-        userId: prayer.userId,
-        userName: prayer.userName,
-        userAvatar: prayer.userAvatar,
-        content: prayer.content,
+      if (success) {
+        final index = _prayers.indexWhere((prayer) => prayer.id == prayerId);
+        if (index == -1) {
+          print('PrayerProvider: Prayer $prayerId not found');
+          return false;
+        }
 
-        isAnonymous: prayer.isAnonymous,
-        prayingUsers: updatedPrayingUsers,
-        comments: prayer.comments,
-        createdAt: prayer.createdAt,
-      );
-      print('PrayerProvider: Updated praying users for prayer $prayerId');
-      notifyListeners();
-      return true;
+        final prayer = _prayers[index];
+        final updatedPrayingUsers =
+            prayer.prayingUsers.contains(userId)
+                ? prayer.prayingUsers.where((id) => id != userId).toList()
+                : [...prayer.prayingUsers, userId];
+
+        _prayers[index] = PrayerModel(
+          id: prayer.id,
+          userId: prayer.userId,
+          userName: prayer.userName,
+          userAvatar: prayer.userAvatar,
+          content: prayer.content,
+          title: prayer.title,
+          isAnonymous: prayer.isAnonymous,
+          prayingUsers: updatedPrayingUsers,
+          virtualHugUsers: prayer.virtualHugUsers,
+          likedUsers: prayer.likedUsers,
+          reportCount: prayer.reportCount,
+          isReported: prayer.isReported,
+          comments: prayer.comments,
+          createdAt: prayer.createdAt,
+        );
+        print('PrayerProvider: Updated praying users for prayer $prayerId');
+        notifyListeners();
+        return true;
+      }
+      return false;
     } catch (e) {
       print('PrayerProvider: Error toggling praying: $e');
       _error = e.toString();
       notifyListeners();
       return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> toggleVirtualHug({
+    required String prayerId,
+    required String userId,
+    String? scripture,
+  }) async {
+    print(
+      'PrayerProvider: Toggling virtual hug for prayer $prayerId, user $userId',
+    );
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final success = await _prayerService.toggleVirtualHug(
+        prayerId: prayerId,
+        userId: userId,
+        scripture: scripture,
+      );
+
+      if (success) {
+        final index = _prayers.indexWhere((prayer) => prayer.id == prayerId);
+        if (index == -1) {
+          print('PrayerProvider: Prayer $prayerId not found');
+          return false;
+        }
+
+        final prayer = _prayers[index];
+        final updatedVirtualHugUsers =
+            prayer.virtualHugUsers.contains(userId)
+                ? prayer.virtualHugUsers.where((id) => id != userId).toList()
+                : [...prayer.virtualHugUsers, userId];
+
+        _prayers[index] = PrayerModel(
+          id: prayer.id,
+          userId: prayer.userId,
+          userName: prayer.userName,
+          userAvatar: prayer.userAvatar,
+          content: prayer.content,
+          title: prayer.title,
+          isAnonymous: prayer.isAnonymous,
+          prayingUsers: prayer.prayingUsers,
+          virtualHugUsers: updatedVirtualHugUsers,
+          likedUsers: prayer.likedUsers,
+          reportCount: prayer.reportCount,
+          isReported: prayer.isReported,
+          comments: prayer.comments,
+          createdAt: prayer.createdAt,
+        );
+        print('PrayerProvider: Updated virtual hug users for prayer $prayerId');
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('PrayerProvider: Error toggling virtual hug: $e');
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> toggleLike({
+    required String prayerId,
+    required String userId,
+  }) async {
+    print('PrayerProvider: Toggling like for prayer $prayerId, user $userId');
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final success = await _prayerService.toggleLike(
+        prayerId: prayerId,
+        userId: userId,
+      );
+
+      if (success) {
+        final index = _prayers.indexWhere((prayer) => prayer.id == prayerId);
+        if (index == -1) {
+          print('PrayerProvider: Prayer $prayerId not found');
+          return false;
+        }
+
+        final prayer = _prayers[index];
+        final updatedLikedUsers =
+            prayer.likedUsers.contains(userId)
+                ? prayer.likedUsers.where((id) => id != userId).toList()
+                : [...prayer.likedUsers, userId];
+
+        _prayers[index] = PrayerModel(
+          id: prayer.id,
+          userId: prayer.userId,
+          userName: prayer.userName,
+          userAvatar: prayer.userAvatar,
+          content: prayer.content,
+          title: prayer.title,
+          isAnonymous: prayer.isAnonymous,
+          prayingUsers: prayer.prayingUsers,
+          virtualHugUsers: prayer.virtualHugUsers,
+          likedUsers: updatedLikedUsers,
+          reportCount: prayer.reportCount,
+          isReported: prayer.isReported,
+          comments: prayer.comments,
+          createdAt: prayer.createdAt,
+        );
+        print('PrayerProvider: Updated liked users for prayer $prayerId');
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('PrayerProvider: Error toggling like: $e');
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> reportPost({
+    required String prayerId,
+    required String userId,
+    required String reason,
+    String type = 'inappropriate_content',
+  }) async {
+    print('PrayerProvider: Reporting post $prayerId for user $userId');
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final success = await _prayerService.reportPost(
+        prayerId: prayerId,
+        userId: userId,
+        reason: reason,
+        type: type,
+      );
+
+      if (success) {
+        final index = _prayers.indexWhere((prayer) => prayer.id == prayerId);
+        if (index == -1) {
+          print('PrayerProvider: Prayer $prayerId not found');
+          return false;
+        }
+
+        final prayer = _prayers[index];
+        _prayers[index] = PrayerModel(
+          id: prayer.id,
+          userId: prayer.userId,
+          userName: prayer.userName,
+          userAvatar: prayer.userAvatar,
+          content: prayer.content,
+          title: prayer.title,
+          isAnonymous: prayer.isAnonymous,
+          prayingUsers: prayer.prayingUsers,
+          virtualHugUsers: prayer.virtualHugUsers,
+          likedUsers: prayer.likedUsers,
+          reportCount: prayer.reportCount + 1,
+          isReported: true,
+          comments: prayer.comments,
+          createdAt: prayer.createdAt,
+        );
+        print('PrayerProvider: Reported post $prayerId');
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('PrayerProvider: Error reporting post: $e');
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -173,17 +368,21 @@ class PrayerProvider extends ChangeNotifier {
         userName: prayer.userName,
         userAvatar: prayer.userAvatar,
         content: prayer.content,
-
+        title: prayer.title,
         isAnonymous: prayer.isAnonymous,
         prayingUsers: prayer.prayingUsers,
+        virtualHugUsers: prayer.virtualHugUsers,
+        likedUsers: prayer.likedUsers,
+        reportCount: prayer.reportCount,
+        isReported: prayer.isReported,
         comments: updatedComments,
         createdAt: prayer.createdAt,
       );
       print('PrayerProvider: Added comment to prayer $prayerId');
-      notifyListeners();
+      notifyListeners(); // Trigger UI update
       return true;
     } catch (e) {
-      print('PrayerProvider: Error adding comment: $e');
+      print('PrayerProvider: Error adding comment: $e - prayerId: $prayerId');
       _error = e.toString();
       notifyListeners();
       return false;

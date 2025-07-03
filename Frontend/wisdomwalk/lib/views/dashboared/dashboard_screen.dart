@@ -1404,12 +1404,11 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
   @override
   void initState() {
     super.initState();
-    // Fetch prayers when the tab is initialized
     final prayerProvider = Provider.of<PrayerProvider>(context, listen: false);
     print(
       'PrayerWallTab initState: Setting filter to "prayer" and fetching prayers',
     );
-    prayerProvider.setFilter('prayer'); // Explicitly set filter to 'prayer'
+    prayerProvider.setFilter('prayer');
   }
 
   @override
@@ -1468,20 +1467,24 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
-                    prayerProvider.error!,
-                    style: const TextStyle(color: Colors.red),
-                    textAlign: TextAlign.center,
+                    'Error loading prayers',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const SizedBox(height: 8),
+                  Text(
+                    prayerProvider.error!,
+                    style: TextStyle(color: Colors.grey[500]),
+                  ),
+                  const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () => prayerProvider.setFilter('prayer'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE91E63),
-                      foregroundColor: Colors.white,
-                    ),
+                    onPressed: () => prayerProvider.fetchPrayers(),
                     child: const Text('Retry'),
                   ),
                 ],
@@ -1542,177 +1545,560 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
   }
 
   Widget _buildPrayerCard(PrayerModel prayer) {
-    // Unchanged from your original code
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: Colors.grey[300],
-                radius: 25,
-                child:
-                    prayer.isAnonymous || prayer.userAvatar == null
-                        ? const Icon(Icons.person, color: Colors.black54)
-                        : null,
-                backgroundImage:
-                    prayer.isAnonymous || prayer.userAvatar == null
-                        ? null
-                        : NetworkImage(prayer.userAvatar!),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      prayer.isAnonymous
-                          ? 'Anonymous Sister'
-                          : (prayer.userName ?? 'Unknown'),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF9C27B0),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            'Prayer Request',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _formatTimeAgo(prayer.createdAt),
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.currentUser?.id ?? 'current_user';
+
+    return Stack(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            prayer.content,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.black87,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 20),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.grey[300],
+                    radius: 25,
+                    child:
+                        prayer.isAnonymous || prayer.userAvatar == null
+                            ? const Icon(Icons.person, color: Colors.black54)
+                            : null,
+                    backgroundImage:
+                        prayer.isAnonymous || prayer.userAvatar == null
+                            ? null
+                            : NetworkImage(prayer.userAvatar!),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: _buildActionButton(
-                      icon: Icons.volunteer_activism,
-                      label: 'Praying (${prayer.prayingUsers.length})',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          prayer.isAnonymous
+                              ? 'Anonymous Sister'
+                              : (prayer.userName ?? 'Unknown'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF9C27B0),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'Prayer Request',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _formatTimeAgo(prayer.createdAt),
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                prayer.content,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.black87,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildActionButton(
+                      icon:
+                          prayer.prayingUsers.contains(userId)
+                              ? Icons.volunteer_activism
+                              : Icons.volunteer_activism_outlined,
+                      label: ' (${prayer.prayingUsers.length})',
                       color: const Color(0xFF9C27B0),
-                      maxWidth: constraints.maxWidth / 3 - 8,
+                      isActive: prayer.prayingUsers.contains(userId),
                       onPressed: () async {
-                        final authProvider = Provider.of<AuthProvider>(
-                          context,
-                          listen: false,
-                        );
+                        if (userId == 'current_user') {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Please log in to pray for this request',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
                         final prayerProvider = Provider.of<PrayerProvider>(
                           context,
                           listen: false,
                         );
-                        final userId =
-                            authProvider.currentUser?.id ?? 'current_user';
-
                         final success = await prayerProvider.togglePraying(
                           prayerId: prayer.id,
                           userId: userId,
+                          message: 'Praying for you ❤️',
                         );
-                        if (success) {
+                        if (success && context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
                                 prayer.prayingUsers.contains(userId)
-                                    ? '🙏 You are now praying for this request'
-                                    : '✨ Removed from praying list',
+                                    ? 'Removed from praying list'
+                                    : 'You are now praying for this request 🙏',
                               ),
                               backgroundColor: const Color(0xFF9C27B0),
+                            ),
+                          );
+                        } else if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Failed to toggle praying: ${prayerProvider.error ?? 'Unknown error'}',
+                              ),
+                              backgroundColor: Colors.red,
                             ),
                           );
                         }
                       },
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildActionButton(
-                      icon: Icons.chat_bubble_outline,
-                      label: 'Encourage',
-                      color: Colors.grey[600]!,
-                      maxWidth: constraints.maxWidth / 3 - 8,
+                    const SizedBox(width: 7),
+                    _buildActionButton(
+                      icon: Icons.comment_outlined,
+                      label: '(${prayer.comments.length})',
+                      color: const Color(0xFF2196F3),
+                      isActive: prayer.comments.any(
+                        (comment) => comment.userId == userId,
+                      ),
                       onPressed: () {
-                        final authProvider = Provider.of<AuthProvider>(
+                        if (userId == 'current_user') {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Please log in to comment on this post',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        _showCommentDialog(context, prayer, userId);
+                      },
+                    ),
+                    const SizedBox(width: 7),
+                    _buildActionButton(
+                      icon:
+                          prayer.likedUsers.contains(userId)
+                              ? Icons.thumb_up
+                              : Icons.thumb_up_outlined,
+                      label:
+                          prayer.likedUsers.contains(userId)
+                              ? '(${prayer.likedUsers.length})'
+                              : '(${prayer.likedUsers.length})',
+                      color: const Color(0xFF2196F3),
+                      isActive: prayer.likedUsers.contains(userId),
+                      onPressed: () async {
+                        if (userId == 'current_user') {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please log in to like this post'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        final prayerProvider = Provider.of<PrayerProvider>(
                           context,
                           listen: false,
                         );
-                        _showEncourageDialog(
-                          context,
-                          prayer,
-                          authProvider.currentUser,
+                        final success = await prayerProvider.toggleLike(
+                          prayerId: prayer.id,
+                          userId: userId,
                         );
+                        if (success && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                prayer.likedUsers.contains(userId)
+                                    ? 'Removed like'
+                                    : 'Post liked! 👍',
+                              ),
+                              backgroundColor: const Color(0xFF2196F3),
+                            ),
+                          );
+                        } else if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Failed to toggle like: ${prayerProvider.error ?? 'Unknown error'}',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
                       },
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildActionButton(
-                      icon: Icons.chat,
+                    const SizedBox(width: 7),
+                    _buildActionButton(
+                      icon: Icons.chat_outlined,
                       label: 'Chat',
-                      color: const Color(0xFF2196F3),
-                      maxWidth: constraints.maxWidth / 3 - 8,
+                      color: const Color(0xFF4CAF50),
+                      isActive: false,
                       onPressed: () {
                         context.push('/prayer/${prayer.id}');
                       },
                     ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (prayer.comments.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Divider(),
+                    ...prayer.comments.map(
+                      (comment) => Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              radius: 12,
+                              backgroundColor: Colors.grey[300],
+                              child:
+                                  comment.userAvatar == null
+                                      ? const Icon(
+                                        Icons.person,
+                                        size: 12,
+                                        color: Colors.black54,
+                                      )
+                                      : null,
+                              backgroundImage:
+                                  comment.userAvatar != null
+                                      ? NetworkImage(comment.userAvatar!)
+                                      : null,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    comment.userName ?? 'Anonymous',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  Text(
+                                    comment.content,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+        Positioned(
+          top: 10,
+          right: 10,
+          child: _buildReportButton(prayer, userId),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    bool isActive = false,
+    required VoidCallback onPressed,
+  }) {
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: const Size(0, 36),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: isActive ? color : color.withOpacity(0.7),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: isActive ? color : color.withOpacity(0.7),
+              fontSize: 12, // Decreased font size
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildReportButton(PrayerModel prayer, String userId) {
+    final prayerProvider = Provider.of<PrayerProvider>(context, listen: false);
+    return IconButton(
+      icon: Icon(
+        prayer.isReported
+            ? Icons.report_problem
+            : Icons.report_problem_outlined,
+        color: prayer.isReported ? Colors.red : Colors.grey,
+        size: 20,
+      ),
+      onPressed: () {
+        if (userId == 'current_user') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please log in to report this post'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        _showReportDialog(context, prayer, userId);
+      },
+    );
+  }
+
+  void _showCommentDialog(
+    BuildContext context,
+    PrayerModel prayer,
+    String userId,
+  ) {
+    final commentController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            'Add a Comment to ${prayer.isAnonymous ? "Anonymous Sister" : prayer.userName ?? 'Unknown'}',
+          ),
+          content: TextField(
+            controller: commentController,
+            decoration: const InputDecoration(
+              labelText: 'Your Comment',
+              hintText: 'Write your comment here...',
+            ),
+            maxLines: 3,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (commentController.text.trim().isNotEmpty) {
+                  final authProvider = Provider.of<AuthProvider>(
+                    context,
+                    listen: false,
+                  );
+                  final prayerProvider = Provider.of<PrayerProvider>(
+                    context,
+                    listen: false,
+                  );
+                  final success = await prayerProvider.addComment(
+                    prayerId: prayer.id,
+                    userId: userId,
+                    content: commentController.text.trim(),
+                    isAnonymous: false,
+                    userName: authProvider.currentUser?.name,
+                    userAvatar: authProvider.currentUser?.avatar,
+                  );
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? 'Comment added successfully!'
+                              : 'Failed to add comment: ${prayerProvider.error ?? 'Unknown error'}',
+                        ),
+                        backgroundColor: success ? Colors.blue : Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+              child: const Text('Post'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showReportDialog(
+    BuildContext context,
+    PrayerModel prayer,
+    String userId,
+  ) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Report Post'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Please provide a reason for reporting this post.'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Reason',
+                  hintText: 'Enter reason (10-1000 characters)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                maxLength: 1000,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final reason = reasonController.text.trim();
+                if (reason.length < 10) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Reason must be at least 10 characters'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                final prayerProvider = Provider.of<PrayerProvider>(
+                  context,
+                  listen: false,
+                );
+                try {
+                  final success = await prayerProvider.reportPost(
+                    prayerId: prayer.id,
+                    userId: userId,
+                    reason: reason,
+                  );
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? 'Post reported successfully 🚨'
+                              : 'Failed to report post',
+                        ),
+                        backgroundColor: success ? Colors.red : Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to report post: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Report'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _formatTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  void _showAddPrayerDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: const AddPrayerModal(isAnonymous: false),
+          ),
     );
   }
 
@@ -1721,7 +2107,6 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
     PrayerModel prayer,
     dynamic user,
   ) {
-    // Unchanged from your original code
     final TextEditingController encourageController = TextEditingController();
 
     showDialog(
@@ -1767,20 +2152,16 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
                       userAvatar: authProvider.currentUser?.avatar,
                     );
 
-                    Navigator.pop(context);
-
-                    if (success) {
+                    if (context.mounted) {
+                      Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('💝 Encouragement sent successfully!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Failed to send encouragement'),
-                          backgroundColor: Colors.red,
+                        SnackBar(
+                          content: Text(
+                            success
+                                ? '💝 Encouragement sent successfully!'
+                                : 'Failed to send encouragement',
+                          ),
+                          backgroundColor: success ? Colors.green : Colors.red,
                         ),
                       );
                     }
@@ -1792,77 +2173,6 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
                 child: const Text('Send'),
               ),
             ],
-          ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onPressed,
-    required double maxWidth,
-  }) {
-    // Unchanged from your original code
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth),
-      child: TextButton(
-        onPressed: onPressed,
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          minimumSize: const Size(0, 36),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatTimeAgo(DateTime dateTime) {
-    // Unchanged from your original code
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
-    } else {
-      return 'Just now';
-    }
-  }
-
-  void _showAddPrayerDialog(BuildContext context) {
-    // Unchanged from your original code
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder:
-          (context) => Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: const AddPrayerModal(isAnonymous: false),
           ),
     );
   }
@@ -2780,5 +3090,3 @@ extension StringExtension on String {
     return "${this[0].toUpperCase()}${this.substring(1).toLowerCase()}";
   }
 }
-
- 
