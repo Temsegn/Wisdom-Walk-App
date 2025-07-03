@@ -52,8 +52,8 @@ const validateLogin = [
 // Post creation validation
 const validatePost = [
   body("type")
-    .isIn(["prayer", "confession", "location"])
-    .withMessage("Post type must be prayer, confession, or location"),
+    .isIn(["prayer", "share"])
+    .withMessage("Post type must be prayer or share"),
 
   body("content").trim().isLength({ min: 10, max: 2000 }).withMessage("Content must be between 10 and 2000 characters"),
 
