@@ -49,45 +49,46 @@ export default function SettingsPage() {
       }
     }
   }, [])
+const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0]
+  if (!file) return
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const token = localStorage.getItem("adminToken")
+  const form = new FormData()
+  form.append("profilePicture", file)  // <-- changed from "photo" to "profilePicture"
 
-    const token = localStorage.getItem("adminToken")
-    const form = new FormData()
-    form.append("photo", file)
+  try {
+    const response = await fetch("https://wisdom-walk-app.onrender.com/api/users/profile/photo", {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        // DO NOT set Content-Type header here when sending FormData
+      },
+      body: form,
+    })
 
-    try {
-      const response = await fetch("https://wisdom-walk-app.onrender.com/api/users/profile/photo", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: form,
-      })
+    const data = await response.json()
+    if (response.ok && data.profilePicture) {
+      const updatedUser = { ...adminUser, profilePicture: data.profilePicture }
+      setAdminUser(updatedUser)
+      localStorage.setItem("adminUser", JSON.stringify(updatedUser))
 
-      const data = await response.json()
-      if (response.ok && data.profilePicture) {
-        const updatedUser = { ...adminUser, profilePicture: data.profilePicture }
-        setAdminUser(updatedUser)
-        localStorage.setItem("adminUser", JSON.stringify(updatedUser))
-
-        toast({
-          title: "Success",
-          description: "Profile photo updated successfully",
-        })
-      } else {
-        throw new Error(data.message || "Failed to upload photo")
-      }
-    } catch (error) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Upload failed",
-        variant: "destructive",
+        title: "Success",
+        description: "Profile photo updated successfully",
       })
+    } else {
+      throw new Error(data.message || "Failed to upload photo")
     }
+  } catch (error) {
+    toast({
+      title: "Error",
+      description: error instanceof Error ? error.message : "Upload failed",
+      variant: "destructive",
+    })
   }
+}
+
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault()

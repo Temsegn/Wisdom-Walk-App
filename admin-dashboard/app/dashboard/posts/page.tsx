@@ -134,7 +134,7 @@ export default function PostsPage() {
     setFilters({
       type: "",
       category: "",
-      reportedOnly: false
+      reportedOnly: false 
     })
     setSearchTerm("")
   }
