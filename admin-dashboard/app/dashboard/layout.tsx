@@ -57,7 +57,9 @@ export default function DashboardLayout({
     verifications: 0,
     reports: 0,
     notifications: 0,
-    posts: 0
+    posts: 0,
+    users: 0,
+    bookings: 0,
   })
 
   useEffect(() => {
@@ -91,20 +93,35 @@ export default function DashboardLayout({
 
   useEffect(() => {
     // Fetch notification counts
-    const fetchNotificationCounts = async () => {
-      try {
-        // In a real app, you would make API calls here
-        // For demo purposes, we'll use mock data
-        setNotificationCounts({
-          verifications: 5, // Mock pending verification count
-          reports: 12,      // Mock report count
-          notifications: 8, // Mock notification count
-          posts: 3          // Mock pending posts count
-        })
-      } catch (error) {
-        console.error("Error fetching notification counts:", error)
-      }
-    }
+   const fetchNotificationCounts = async () => {
+  try {
+    const token = localStorage.getItem("adminToken")
+
+    const res = await fetch("https://wisdom-walk-app.onrender.com/api/admin/dashboard/stats", {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.message || "Failed to fetch stats")
+
+    const stats = json.data
+
+    setNotificationCounts({
+      verifications: stats.users.pendingVerifications || 0,
+      reports: stats.reports.pending || 0,
+      notifications: stats.content.hiddenPosts || 0, // Adjust if needed
+      posts: stats.content.totalPosts || 0,
+      users: stats.users.total || 0,
+      bookings: stats.bookings.total || 0,
+    })
+  } catch (error) {
+    console.error("Error fetching notification counts:", error)
+  }
+}
+
 
     fetchNotificationCounts()
     const interval = setInterval(fetchNotificationCounts, 30000) // Refresh every 30 seconds
@@ -159,6 +176,12 @@ export default function DashboardLayout({
               badgeCount = notificationCounts.notifications
             } else if (item.href === "/dashboard/posts") {
               badgeCount = notificationCounts.posts
+            }
+            else if (item.href === "/dashboard/users") {
+              badgeCount = notificationCounts.users
+            }
+            else if (item.href === "/dashboard/bookings") {
+              badgeCount = notificationCounts.bookings
             }
 
             return (

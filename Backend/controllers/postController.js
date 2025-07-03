@@ -53,7 +53,7 @@ const createPost = async (req, res) => {
     // Populate author info for response
     if(isAnonymous) {
     await post.populate("author", "firstName lastName profilePicture")
-    }
+    } 
     // Create notifications for group members (if group post)
     // if (targetGroup && targetGroup !== "general") {
     //   const groupMembers = await User.find({
@@ -74,10 +74,10 @@ const createPost = async (req, res) => {
     //       : `${req.user.firstName} shared a ${type} in the ${targetGroup} group`,
     //     relatedPost: post._id,
     //   }))
-  
+    
     //   await Notification.insertMany(notifications)
     // }
-
+      
     res.status(201).json({
       success: true,
       message: "Post created successfully",
@@ -222,7 +222,7 @@ const getPost = async (req, res) => {
   }
 }
  
-      
+     
 // Like/unlike a post
 const toggleLike = async (req, res) => {
   try {
