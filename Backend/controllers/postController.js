@@ -440,14 +440,57 @@ const updatePost = async (req, res) => {
     })
   }
 }
+// Delete (soft-delete) post
+// const deletePost = async (req, res) => {
+//   try {
+//     const { postId } = req.params
+//     const userId = req.user._id
 
-// Delete post
+//     const post = await Post.findById(postId)
+//     if (!post) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Post not found",
+//       })
+//     }
+
+//     // Check if user owns the post or is a global admin
+//     if (post.author.toString() !== userId.toString() && !req.user.isGlobalAdmin) {
+//       return res.status(403).json({
+//         success: false,
+//         message: "You can only delete your own posts",
+//       })
+//     }
+
+//     // Soft delete - mark the post as hidden
+//     post.isHidden = true
+//     await post.save()
+
+//     // Also soft-delete related comments
+//     await Comment.updateMany({ post: postId }, { isHidden: true })
+
+//     res.json({
+//       success: true,
+//       message: "Post deleted successfully (soft-deleted)",
+//     })
+//   } catch (error) {
+//     console.error("Delete post error:", error)
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to delete post",
+//       error: error.message,
+//     })
+//   }
+// }
+
+// Hard delete post
 const deletePost = async (req, res) => {
   try {
     const { postId } = req.params
     const userId = req.user._id
 
-    const post = await Post.findByIdAndDelete(postId)
+    // Find post first to check permissions
+    const post = await Post.findById(postId)
     if (!post) {
       return res.status(404).json({
         success: false,
@@ -455,7 +498,7 @@ const deletePost = async (req, res) => {
       })
     }
 
-    // Check if user owns the post or is admin
+    // Check if user is author or global admin
     if (post.author.toString() !== userId.toString() && !req.user.isGlobalAdmin) {
       return res.status(403).json({
         success: false,
@@ -463,15 +506,15 @@ const deletePost = async (req, res) => {
       })
     }
 
-    // Soft delete - hide the post
-     await post.save()
+    // Delete the post permanently
+    await Post.findByIdAndDelete(postId)
 
-    // Also delete related comments
-    await Comment.updateMany({ post: postId }, { isHidden: true })
+    // Also delete all related comments permanently
+    await Comment.deleteMany({ post: postId })
 
     res.json({
       success: true,
-      message: "Post deleted successfully",
+      message: "Post and related comments deleted successfully",
     })
   } catch (error) {
     console.error("Delete post error:", error)
@@ -482,6 +525,7 @@ const deletePost = async (req, res) => {
     })
   }
 }
+
 
 // Get post comments
 const getPostComments = async (req, res) => {
