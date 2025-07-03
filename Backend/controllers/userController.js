@@ -456,27 +456,30 @@ const unblockUser = async (req, res) => {
 };
 const updateProfilePhoto = async (req, res) => {
   try {
+    // Check for required file
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: "No photo uploaded"
+        message: 'Profile photo is required for update',
       });
     }
 
-    const userId = req.user.id; // Assuming user ID is available from authenticateToken middleware
-    
-    // Get the user to check if they have an existing profile photo
-    const user = await User.findById(userId);
-    if (!user) {
+    const userId = req.user.id; // From authentication middleware
+
+    // Check if user exists
+    const existingUser = await User.findById(userId);
+    if (!existingUser) {
       return res.status(404).json({
         success: false,
-        message: "User not found"
+        message: 'User not found',
       });
     }
 
-    // If user already has a profile picture, delete the old one from Cloudinary
-    if (user.profilePicture && user.profilePicture.publicId) {
-      await deleteFile(user.profilePicture.publicId);
+    // Delete old profile photo from Cloudinary if it exists
+    if (existingUser.profilePicture) {
+      // Extract publicId from the URL (assuming URL format is consistent)
+      const publicId = existingUser.profilePicture.split('/').pop().split('.')[0];
+      await deleteFile(publicId);
     }
 
     // Upload new profile photo to Cloudinary
@@ -486,36 +489,35 @@ const updateProfilePhoto = async (req, res) => {
       `profile_photos/${userId}`
     );
 
-    // Update user's profile photo in the database
+    // Update user document with just the URL string
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       {
-        profilePicture: {
-          url: uploadResult.secure_url,
-          publicId: uploadResult.public_id
-        }
+        profilePicture: uploadResult.secure_url // Store just the URL string
       },
       { new: true }
-    ).select("profilePicture firstName lastName email");
+    ).select('_id email firstName lastName profilePicture');
 
     res.status(200).json({
       success: true,
-      message: "Profile picture updated successfully",
+      message: 'Profile photo updated successfully',
       data: {
-        profilePicture: updatedUser.profilePicture,
         user: {
+          id: updatedUser._id,
+          email: updatedUser.email,
           firstName: updatedUser.firstName,
           lastName: updatedUser.lastName,
-          email: updatedUser.email
-        }
+        },
+        profilePicture: updatedUser.profilePicture, // This will be just the URL string
+        updateTimestamp: new Date()
       }
     });
   } catch (error) {
-    console.error("Error updating profile picture:", error);
+    console.error('Profile photo update error:', error);
     res.status(500).json({
       success: false,
-      message: "Server error while updating profile picture",
-      error: error.message
+      message: 'Profile photo update failed',
+      error: error.message,
     });
   }
 };
