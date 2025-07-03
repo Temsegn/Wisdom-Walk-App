@@ -8,12 +8,13 @@ const { validatePost, validateComment, validateReport } = require("../middleware
 const { uploadMultiple, handleUploadError } = require("../middleware/upload");
 
 // All routes require authentication
-router.use(authenticateToken);
+router.use(authenticateToken); 
 
 // Comments (specific first)
 router.get("/:postId/comments", postController.getPostComments);
 router.post("/:postId/comments", validateComment, commentController.createComment);
-c// Other comment actions 
+router.get("/posts",postController.getAllPosts);
+// Other comment actions 
 router.put("/comments/:commentId", validateComment, commentController.updateComment);
 router.delete("/comments/:commentId", commentController.deleteComment);
 router.post("/comments/:commentId/like", commentController.toggleCommentLike);

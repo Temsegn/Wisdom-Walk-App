@@ -45,7 +45,7 @@ exports.getAllBookings = async (req, res) => {
 
     res.status(200).json(normalizedBookings);
   } catch (error) {
-    console.error('Error fetching bookings:', error);
+    console.error('Error fetching booking:', error);
     res.status(500).json({ 
       message: 'Error fetching bookings',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
