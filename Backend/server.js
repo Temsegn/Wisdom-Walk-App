@@ -44,12 +44,7 @@ const io = new Server(server, {
 
 app.use(cookieParser());
 app.use(helmet());
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-});
-app.use(limiter);
-
+ 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
