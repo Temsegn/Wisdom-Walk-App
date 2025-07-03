@@ -36,9 +36,7 @@ const createPost = async (req, res) => {
     }
 
     // Handle location data for location posts
-    if (type === "location" && location) {
-      postData.location = location
-    }
+    
 
     // Handle image uploads
     if (req.files && req.files.length > 0) {
