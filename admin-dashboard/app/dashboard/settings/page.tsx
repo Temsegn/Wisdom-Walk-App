@@ -1,9 +1,13 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect, useRef } from "react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,109 +25,160 @@ export default function SettingsPage() {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+  })
   const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const user = localStorage.getItem("adminUser")
     if (user) {
       try {
-        setAdminUser(JSON.parse(user))
+        const parsedUser = JSON.parse(user)
+        setAdminUser(parsedUser)
+        setFormData({
+          firstName: parsedUser.firstName || "",
+          lastName: parsedUser.lastName || "",
+          email: parsedUser.email || "",
+        })
       } catch (error) {
         console.error("Error parsing user data:", error)
       }
     }
   }, [])
-  const handlePasswordChange = async (e: React.FormEvent) => {
-  e.preventDefault();
 
-  // Validate inputs
-  if (newPassword !== confirmPassword) {
-    toast({
-      title: "Error",
-      description: "New passwords do not match",
-      variant: "destructive",
-    });
-    return;
-  }
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
 
-  setIsLoading(true);
+    const token = localStorage.getItem("adminToken")
+    const form = new FormData()
+    form.append("photo", file)
 
-  try {
-    const token = localStorage.getItem("adminToken");
-    const response = await fetch("https://wisdom-walk-app.onrender.com/api/auth/change-password", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        currentPassword,
-        newPassword,
-      }),
-    });
+    try {
+      const response = await fetch("https://wisdom-walk-app.onrender.com/api/users/profile/photo", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
+      })
 
-    // Debugging logs
-    console.log("Response status:", response.status);
-    const data = await response.json();
-    console.log("Response data:", data);
+      const data = await response.json()
+      if (response.ok && data.profilePicture) {
+        const updatedUser = { ...adminUser, profilePicture: data.profilePicture }
+        setAdminUser(updatedUser)
+        localStorage.setItem("adminUser", JSON.stringify(updatedUser))
 
-    // Check for successful response (200-299 range)
-    if (response.ok) {
-      if (data.success) {
-        // Remove admin token and user data from localStorage
-        localStorage.removeItem("adminToken");
-        localStorage.removeItem("adminUser");
-        
         toast({
           title: "Success",
-          description: "Password changed successfully. Please login again.",
-        });
-        
-        // Reset form
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-        
-        // Redirect to login page
-        window.location.href = "http://localhost:3000/login";
-        return;
+          description: "Profile photo updated successfully",
+        })
       } else {
-        // Handle case where status is 200 but success is false
-        throw new Error(data.message || "Password change failed");
+        throw new Error(data.message || "Failed to upload photo")
       }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Upload failed",
+        variant: "destructive",
+      })
     }
-
-    // Handle HTTP error statuses
-    if (response.status === 401) {
-      throw new Error("Current password is incorrect");
-    } else if (response.status === 400) {
-      throw new Error(data.message || "Invalid request");
-    } else if (response.status === 500) {
-      throw new Error("Server error occurred");
-    }
-
-    // Fallback error
-    throw new Error(`Request failed with status ${response.status}`);
-
-  } catch (error) {
-    console.error("Error changing password:", error);
-    toast({
-      title: "Error",
-      description: error instanceof Error ? error.message : "Failed to change password",
-      variant: "destructive",
-    });
-  } finally {
-    setIsLoading(false);
   }
-};
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
-    // This would typically 
-    toast({
-      title: "Info",
-      description: "Profile update functionality would be implemented here",
-    })
+    const token = localStorage.getItem("adminToken")
+
+    try {
+      const response = await fetch("https://wisdom-walk-app.onrender.com/api/users/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const data = await response.json()
+      if (response.ok && data.success) {
+        const updatedUser = { ...adminUser, ...formData }
+        setAdminUser(updatedUser)
+        localStorage.setItem("adminUser", JSON.stringify(updatedUser))
+
+        toast({
+          title: "Success",
+          description: "Profile updated successfully",
+        })
+      } else {
+        throw new Error(data.message || "Failed to update profile")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Update failed",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords do not match",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsLoading(true)
+    const token = localStorage.getItem("adminToken")
+
+    try {
+      const response = await fetch("https://wisdom-walk-app.onrender.com/api/auth/change-password", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        localStorage.removeItem("adminToken")
+        localStorage.removeItem("adminUser")
+        toast({
+          title: "Success",
+          description: "Password changed. Please login again.",
+        })
+
+        setCurrentPassword("")
+        setNewPassword("")
+        setConfirmPassword("")
+        window.location.href = "/login"
+      } else {
+        throw new Error(data.message || "Password change failed")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to change password",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (!adminUser) {
@@ -153,34 +208,63 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-center space-x-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={adminUser.profilePicture || "/placeholder.svg"} alt={adminUser.firstName} />
-                <AvatarFallback className="text-lg">
-                  {adminUser.firstName?.[0]}
-                  {adminUser.lastName?.[0]}
+              <Avatar className="h-20 w-20 border-4 border-purple-400 shadow-md">
+                <AvatarImage
+                  src={adminUser.profilePicture}
+                  alt={adminUser.firstName}
+                  onError={(e) => (e.currentTarget.style.display = "none")}
+                />
+                <AvatarFallback className="text-2xl text-purple-600 bg-purple-100">
+                  {adminUser.firstName?.[0]?.toUpperCase()}
+                  {adminUser.lastName?.[0]?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <Button variant="outline" size="sm">
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <Camera className="h-4 w-4 mr-2" />
                 Change Photo
               </Button>
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
             </div>
 
             <form onSubmit={handleProfileUpdate} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" defaultValue={adminUser.firstName} placeholder="First name" />
+                  <Input
+                    id="firstName"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" defaultValue={adminUser.lastName} placeholder="Last name" />
+                  <Input
+                    id="lastName"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue={adminUser.email} placeholder="Email address" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
               </div>
 
               <Button type="submit" className="w-full">
@@ -202,6 +286,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handlePasswordChange} className="space-y-4">
+              {/* Current Password */}
               <div className="space-y-2">
                 <Label htmlFor="currentPassword">Current Password</Label>
                 <div className="relative">
@@ -210,14 +295,13 @@ export default function SettingsPage() {
                     type={showCurrentPassword ? "text" : "password"}
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Enter current password"
                     required
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    className="absolute right-0 top-0 h-full px-3 py-2"
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                   >
                     {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -225,6 +309,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              {/* New Password */}
               <div className="space-y-2">
                 <Label htmlFor="newPassword">New Password</Label>
                 <div className="relative">
@@ -233,14 +318,13 @@ export default function SettingsPage() {
                     type={showNewPassword ? "text" : "password"}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Enter new password"
                     required
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    className="absolute right-0 top-0 h-full px-3 py-2"
                     onClick={() => setShowNewPassword(!showNewPassword)}
                   >
                     {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -248,6 +332,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              {/* Confirm Password */}
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm New Password</Label>
                 <div className="relative">
@@ -256,14 +341,13 @@ export default function SettingsPage() {
                     type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm new password"
                     required
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    className="absolute right-0 top-0 h-full px-3 py-2"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -279,7 +363,7 @@ export default function SettingsPage() {
         </Card>
       </div>
 
-      {/* Additional Settings */}
+      {/* Notifications */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -289,39 +373,18 @@ export default function SettingsPage() {
           <CardDescription>Configure how you receive admin notifications.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium">Email Notifications</h4>
-              <p className="text-sm text-muted-foreground">Receive email alerts for important admin activities</p>
+          {["Email Notifications", "Report Alerts", "User Verification Alerts"].map((title, index) => (
+            <div key={index}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">{title}</h4>
+                  <p className="text-sm text-muted-foreground">Configure your preferences</p>
+                </div>
+                <Button variant="outline" size="sm">Configure</Button>
+              </div>
+              {index < 2 && <Separator />}
             </div>
-            <Button variant="outline" size="sm">
-              Configure
-            </Button>
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium">Report Alerts</h4>
-              <p className="text-sm text-muted-foreground">Get notified immediately when new reports are submitted</p>
-            </div>
-            <Button variant="outline" size="sm">
-              Configure
-            </Button>
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium">User Verification Alerts</h4>
-              <p className="text-sm text-muted-foreground">Notifications for pending user verifications</p>
-            </div>
-            <Button variant="outline" size="sm">
-              Configure
-            </Button>
-          </div>
+          ))}
         </CardContent>
       </Card>
     </div>

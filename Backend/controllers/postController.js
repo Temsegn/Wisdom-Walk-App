@@ -447,7 +447,7 @@ const deletePost = async (req, res) => {
     const { postId } = req.params
     const userId = req.user._id
 
-    const post = await Post.findById(postId)
+    const post = await Post.findByIdAndDelete(postId)
     if (!post) {
       return res.status(404).json({
         success: false,
@@ -464,8 +464,7 @@ const deletePost = async (req, res) => {
     }
 
     // Soft delete - hide the post
-    post.isHidden = true
-    await post.save()
+     await post.save()
 
     // Also delete related comments
     await Comment.updateMany({ post: postId }, { isHidden: true })
