@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:wisdomwalk/models/user_model.dart';
 import '../../models/message_model.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -358,3 +359,23 @@ class MessageBubble extends StatelessWidget {
     }
   }
 }
+class CurrentUser {
+  static UserModel? _user;
+
+  static void setUser(UserModel user) {
+    _user = user;
+  }
+
+  static UserModel? get user => _user;
+
+  static void clear() {
+    _user = null;
+  }
+
+  static bool get isLoggedIn => _user != null;
+
+  static bool isCurrentUser(String id) {
+    return _user?.id == id;
+  }
+}
+

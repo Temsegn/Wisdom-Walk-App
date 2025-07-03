@@ -30,7 +30,8 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final newChats = await ApiService.getUserChats(
+      final apiService = ApiService();
+      final newChats = await apiService.getUserChats(
         page: _currentPage,
         limit: 20,
       );

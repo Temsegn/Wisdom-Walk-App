@@ -13,8 +13,7 @@ router.use(authenticateToken);
 // Comments (specific first)
 router.get("/:postId/comments", postController.getPostComments);
 router.post("/:postId/comments", validateComment, commentController.createComment);
-router.get("/posts",postController.getAllPosts);
-// Other comment actions 
+c// Other comment actions 
 router.put("/comments/:commentId", validateComment, commentController.updateComment);
 router.delete("/comments/:commentId", commentController.deleteComment);
 router.post("/comments/:commentId/like", commentController.toggleCommentLike);
