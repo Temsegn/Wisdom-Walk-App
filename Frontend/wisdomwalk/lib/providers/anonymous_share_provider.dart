@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:wisdomwalk/models/anonymous_share_model.dart';
-import 'package:wisdomwalk/services/anonymous_share_service.dart';
+import '../models/anonymous_share_model.dart';
+import '../services/anonymous_share_service.dart';
+import '../providers/auth_provider.dart';
+import '../services/local_storage_service.dart';
 
 class AnonymousShareProvider extends ChangeNotifier {
   final AnonymousShareService _anonymousShareService = AnonymousShareService();
+  final LocalStorageService _localStorageService = LocalStorageService();
 
   List<AnonymousShareModel> _shares = [];
   List<AnonymousShareModel> _allShares = [];
@@ -22,22 +25,7 @@ class AnonymousShareProvider extends ChangeNotifier {
 
   AnonymousShareProvider() {
     print('AnonymousShareProvider: Constructor called');
-    _initializeWithMockData();
-  }
-
-  void _initializeWithMockData() {
-    print('AnonymousShareProvider: Initializing with mock data');
-    try {
-      _allShares = _anonymousShareService.getMockShares();
-      _shares = List.from(_allShares);
-      _showingAll = true;
-      print(
-        'AnonymousShareProvider: Initialized with ${_shares.length} shares',
-      );
-      notifyListeners();
-    } catch (e) {
-      print('AnonymousShareProvider: Error initializing mock data: $e');
-    }
+    fetchAllShares();
   }
 
   Future<void> fetchAllShares() async {
@@ -48,9 +36,7 @@ class AnonymousShareProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final fetchedShares =
-          await _anonymousShareService.getAllAnonymousShares();
-      _allShares = fetchedShares;
+      _allShares = await _anonymousShareService.getAllAnonymousShares();
       _shares = List.from(_allShares);
       print(
         'AnonymousShareProvider: Successfully fetched ${_shares.length} total shares',
@@ -58,43 +44,30 @@ class AnonymousShareProvider extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
       print('AnonymousShareProvider: Error fetching all shares: $e');
-      _allShares = _anonymousShareService.getMockShares();
-      _shares = List.from(_allShares);
-      print(
-        'AnonymousShareProvider: Using fallback mock data with ${_shares.length} shares',
-      );
+      _shares = [];
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> fetchShares({AnonymousShareType? type}) async {
+  Future<void> fetchShares({required AnonymousShareType type}) async {
     print('AnonymousShareProvider: fetchShares called with type: $type');
     _isLoading = true;
     _error = null;
     _showingAll = false;
-    if (type != null) {
-      _filter = type;
-    }
+    _filter = type;
     notifyListeners();
 
     try {
-      final fetchedShares = await _anonymousShareService.getAnonymousShares(
-        type: _filter,
-      );
-      _shares = fetchedShares;
+      _shares = await _anonymousShareService.getAnonymousShares(type: type);
       print(
-        'AnonymousShareProvider: Successfully fetched ${_shares.length} shares for type: $_filter',
+        'AnonymousShareProvider: Successfully fetched ${_shares.length} shares for type: $type',
       );
     } catch (e) {
       _error = e.toString();
       print('AnonymousShareProvider: Error fetching shares: $e');
-      final mockShares = _anonymousShareService.getMockShares();
-      _shares = mockShares.where((share) => share.type == _filter).toList();
-      print(
-        'AnonymousShareProvider: Using fallback filtered mock data with ${_shares.length} shares',
-      );
+      _shares = [];
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -125,8 +98,12 @@ class AnonymousShareProvider extends ChangeNotifier {
       _selectedShare = await _anonymousShareService.getAnonymousShareDetails(
         shareId,
       );
+      _selectedShare = _selectedShare!.copyWith(
+        comments: await _anonymousShareService.getPostComments(shareId),
+      );
     } catch (e) {
       _error = e.toString();
+      print('AnonymousShareProvider: Error fetching share details: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -137,6 +114,8 @@ class AnonymousShareProvider extends ChangeNotifier {
     required String userId,
     required String content,
     required AnonymousShareType type,
+    String? title,
+    List<Map<String, String>> images = const [],
   }) async {
     print('AnonymousShareProvider: addShare called');
     _isLoading = true;
@@ -144,10 +123,17 @@ class AnonymousShareProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final token = await _localStorageService.getAuthToken();
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
       final share = await _anonymousShareService.addAnonymousShare(
         userId: userId,
         content: content,
         type: type,
+        title: title,
+        images: images,
+        token: token,
       );
 
       _allShares.insert(0, share);
@@ -171,35 +157,32 @@ class AnonymousShareProvider extends ChangeNotifier {
     required String shareId,
     required String userId,
   }) async {
+    print('AnonymousShareProvider: toggleHeart called');
     try {
+      final token = await _localStorageService.getAuthToken();
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
       final index = _shares.indexWhere((share) => share.id == shareId);
       if (index == -1) return false;
 
       final share = _shares[index];
-      final hasHeart = share.hearts.contains(userId);
-
-      List<String> updatedHearts;
-      if (hasHeart) {
-        updatedHearts = List.from(share.hearts)..remove(userId);
-      } else {
-        updatedHearts = List.from(share.hearts)..add(userId);
-      }
+      final hasHeart = share.likes.contains(userId);
 
       await _anonymousShareService.updateHearts(
         shareId: shareId,
-        hearts: updatedHearts,
+        userId: userId,
+        token: token,
       );
 
-      _shares[index] = AnonymousShareModel(
-        id: share.id,
-        userId: share.userId,
-        content: share.content,
-        type: share.type,
-        hearts: updatedHearts,
-        comments: share.comments,
-        prayingUsers: share.prayingUsers,
-        createdAt: share.createdAt,
-      );
+      List<String> updatedLikes;
+      if (hasHeart) {
+        updatedLikes = List<String>.from(share.likes)..remove(userId);
+      } else {
+        updatedLikes = List<String>.from(share.likes)..add(userId);
+      }
+
+      _shares[index] = share.copyWith(likes: updatedLikes);
 
       final allIndex = _allShares.indexWhere((share) => share.id == shareId);
       if (allIndex != -1) {
@@ -214,6 +197,7 @@ class AnonymousShareProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _error = e.toString();
+      print('AnonymousShareProvider: Error toggling heart: $e');
       return false;
     }
   }
@@ -221,36 +205,45 @@ class AnonymousShareProvider extends ChangeNotifier {
   Future<bool> togglePraying({
     required String shareId,
     required String userId,
+    String? message,
   }) async {
+    print('AnonymousShareProvider: togglePraying called');
     try {
+      final token = await _localStorageService.getAuthToken();
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
       final index = _shares.indexWhere((share) => share.id == shareId);
       if (index == -1) return false;
 
       final share = _shares[index];
-      final isPraying = share.prayingUsers.contains(userId);
-
-      List<String> updatedPrayingUsers;
-      if (isPraying) {
-        updatedPrayingUsers = List.from(share.prayingUsers)..remove(userId);
-      } else {
-        updatedPrayingUsers = List.from(share.prayingUsers)..add(userId);
-      }
+      final isPraying = share.prayers.any((prayer) => prayer['user'] == userId);
 
       await _anonymousShareService.updatePrayingUsers(
         shareId: shareId,
-        prayingUsers: updatedPrayingUsers,
+        userId: userId,
+        message: message,
+        token: token,
       );
 
-      _shares[index] = AnonymousShareModel(
-        id: share.id,
-        userId: share.userId,
-        content: share.content,
-        type: share.type,
-        hearts: share.hearts,
-        comments: share.comments,
-        prayingUsers: updatedPrayingUsers,
-        createdAt: share.createdAt,
-      );
+      final updatedPrayers =
+          isPraying
+              ? (() {
+                final list = List<Map<String, dynamic>>.from(share.prayers);
+                list.removeWhere((prayer) => prayer['user'] == userId);
+                return list;
+              })()
+              : (() {
+                final list = List<Map<String, dynamic>>.from(share.prayers);
+                list.add({
+                  'user': userId,
+                  'message': message ?? 'Praying for you ❤️',
+                  'createdAt': DateTime.now(),
+                });
+                return list;
+              })();
+
+      _shares[index] = share.copyWith(prayers: updatedPrayers);
 
       final allIndex = _allShares.indexWhere((share) => share.id == shareId);
       if (allIndex != -1) {
@@ -265,99 +258,44 @@ class AnonymousShareProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _error = e.toString();
+      print('AnonymousShareProvider: Error toggling prayer: $e');
       return false;
     }
   }
 
-  Future<bool> addComment({
-    required String shareId,
-    required String userId,
-    required String content,
-  }) async {
-    try {
-      final comment = await _anonymousShareService.addComment(
-        shareId: shareId,
-        userId: userId,
-        content: content,
-      );
-
-      final index = _shares.indexWhere((share) => share.id == shareId);
-      if (index != -1) {
-        final share = _shares[index];
-        final updatedComments = List<AnonymousShareComment>.from(share.comments)
-          ..add(comment);
-
-        _shares[index] = AnonymousShareModel(
-          id: share.id,
-          userId: share.userId,
-          content: share.content,
-          type: share.type,
-          hearts: share.hearts,
-          comments: updatedComments,
-          prayingUsers: share.prayingUsers,
-          createdAt: share.createdAt,
-        );
-
-        final allIndex = _allShares.indexWhere((share) => share.id == shareId);
-        if (allIndex != -1) {
-          _allShares[allIndex] = _shares[index];
-        }
-      }
-
-      if (_selectedShare?.id == shareId) {
-        final updatedComments = List<AnonymousShareComment>.from(
-          _selectedShare!.comments,
-        )..add(comment);
-
-        _selectedShare = AnonymousShareModel(
-          id: _selectedShare!.id,
-          userId: _selectedShare!.userId,
-          content: _selectedShare!.content,
-          type: _selectedShare!.type,
-          hearts: _selectedShare!.hearts,
-          comments: updatedComments,
-          prayingUsers: _selectedShare!.prayingUsers,
-          createdAt: _selectedShare!.createdAt,
-        );
-      }
-
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      return false;
-    }
-  }
-
-  // lib/providers/anonymous_share_provider.dart
   Future<bool> sendVirtualHug({
     required String shareId,
     required String userId,
+    String? scripture,
   }) async {
+    print('AnonymousShareProvider: sendVirtualHug called');
     try {
+      final token = await _localStorageService.getAuthToken();
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
       final index = _shares.indexWhere((share) => share.id == shareId);
       if (index == -1) return false;
 
       final share = _shares[index];
-      final virtualHugs = List<String>.from(share.virtualHugs);
-      if (!virtualHugs.contains(userId)) {
-        virtualHugs.add(userId);
+      final hasHugged = share.virtualHugs.any((hug) => hug['user'] == userId);
+
+      if (!hasHugged) {
         await _anonymousShareService.sendVirtualHug(
           shareId: shareId,
           userId: userId,
+          scripture: scripture,
+          token: token,
         );
 
-        _shares[index] = AnonymousShareModel(
-          id: share.id,
-          userId: share.userId,
-          content: share.content,
-          type: share.type,
-          hearts: share.hearts,
-          comments: share.comments,
-          prayingUsers: share.prayingUsers,
-          virtualHugs: virtualHugs,
-          createdAt: share.createdAt,
-        );
+        final updatedHugs = List<Map<String, dynamic>>.from(share.virtualHugs)
+          ..add({
+            'user': userId,
+            'scripture': scripture ?? '',
+            'createdAt': DateTime.now(),
+          });
+
+        _shares[index] = share.copyWith(virtualHugs: updatedHugs);
 
         final allIndex = _allShares.indexWhere((share) => share.id == shareId);
         if (allIndex != -1) {
@@ -371,9 +309,91 @@ class AnonymousShareProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       }
-      return false; // User already sent a hug
+      return false;
     } catch (e) {
       _error = 'Failed to send virtual hug: $e';
+      print('AnonymousShareProvider: Error sending virtual hug: $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> addComment({
+    required String shareId,
+    required String userId,
+    required String content,
+  }) async {
+    print('AnonymousShareProvider: addComment called');
+    try {
+      final token = await _localStorageService.getAuthToken();
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
+      final comment = await _anonymousShareService.addComment(
+        shareId: shareId,
+        userId: userId,
+        content: content,
+        token: token,
+      );
+
+      final index = _shares.indexWhere((share) => share.id == shareId);
+      if (index != -1) {
+        final share = _shares[index];
+        final updatedComments = List<AnonymousShareComment>.from(share.comments)
+          ..add(comment);
+
+        _shares[index] = share.copyWith(
+          comments: updatedComments,
+          commentsCount: share.commentsCount + 1,
+        );
+
+        final allIndex = _allShares.indexWhere((share) => share.id == shareId);
+        if (allIndex != -1) {
+          _allShares[allIndex] = _shares[index];
+        }
+      }
+
+      if (_selectedShare?.id == shareId) {
+        final updatedComments = List<AnonymousShareComment>.from(
+          _selectedShare!.comments,
+        )..add(comment);
+        _selectedShare = _selectedShare!.copyWith(
+          comments: updatedComments,
+          commentsCount: _selectedShare!.commentsCount + 1,
+        );
+      }
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      print('AnonymousShareProvider: Error adding comment: $e');
+      return false;
+    }
+  }
+
+  Future<bool> reportShare({
+    required String shareId,
+    required String userId,
+    required String reason,
+  }) async {
+    print('AnonymousShareProvider: reportShare called');
+    try {
+      final token = await _localStorageService.getAuthToken();
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
+      await _anonymousShareService.reportShare(
+        shareId: shareId,
+        userId: userId,
+        reason: reason,
+        token: token,
+      );
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      print('AnonymousShareProvider: Error reporting share: $e');
       notifyListeners();
       return false;
     }
@@ -383,7 +403,7 @@ class AnonymousShareProvider extends ChangeNotifier {
     print('AnonymousShareProvider: setFilter called with type: $type');
     _filter = type;
     _showingAll = false;
-    fetchShares();
+    fetchShares(type: type);
   }
 
   void clearSelectedShare() {
@@ -394,5 +414,51 @@ class AnonymousShareProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+}
+
+extension AnonymousShareModelExtension on AnonymousShareModel {
+  AnonymousShareModel copyWith({
+    String? id,
+    String? userId,
+    String? content,
+    AnonymousShareType? category,
+    String? title,
+    List<Map<String, String>>? images,
+    bool? isAnonymous,
+    List<String>? likes,
+    List<Map<String, dynamic>>? prayers,
+    List<Map<String, dynamic>>? virtualHugs,
+    int? commentsCount,
+    List<AnonymousShareComment>? comments,
+    bool? isReported,
+    int? reportCount,
+    bool? isHidden,
+    List<String>? tags,
+    DateTime? scheduledFor,
+    bool? isPublished,
+    DateTime? createdAt,
+  }) {
+    return AnonymousShareModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      content: content ?? this.content,
+      category: category ?? this.category,
+      title: title ?? this.title,
+      images: images ?? this.images,
+      isAnonymous: isAnonymous ?? this.isAnonymous,
+      likes: likes ?? this.likes,
+      prayers: prayers ?? this.prayers,
+      virtualHugs: virtualHugs ?? this.virtualHugs,
+      commentsCount: commentsCount ?? this.commentsCount,
+      comments: comments ?? this.comments,
+      isReported: isReported ?? this.isReported,
+      reportCount: reportCount ?? this.reportCount,
+      isHidden: isHidden ?? this.isHidden,
+      tags: tags ?? this.tags,
+      scheduledFor: scheduledFor ?? this.scheduledFor,
+      isPublished: isPublished ?? this.isPublished,
+      createdAt: createdAt ?? this.createdAt,
+    );
   }
 }

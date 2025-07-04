@@ -9,7 +9,6 @@ class PrayerProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   String _filter = 'prayer';
-  String _selectedCategory = 'testimony';
 
   List<PrayerModel> get prayers => _prayers;
   bool get isLoading => _isLoading;

@@ -9,7 +9,7 @@ const { getRandomScripture, getPaginationMeta } = require("../utils/helpers")
 const createPost = async (req, res) => {
   try {
     const { type, content, title, isAnonymous, visibility, tags,category } = req.body
-    const authorId = req.user._id
+    const authorId = req.user._id 
 
     // Validate group membership for group posts 
   
