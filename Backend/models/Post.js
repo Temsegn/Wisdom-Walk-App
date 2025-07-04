@@ -17,8 +17,7 @@ const postSchema = new mongoose.Schema(
     category:{
             type:String,
             enum:["testimony","confession","struggle"],
-            default:""
-    },
+     },
 
     content: {
       type: String,
