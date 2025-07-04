@@ -11,9 +11,7 @@ class UserService {
   }
 
   static Map<String, String> get _headers {
-    final headers = {
-      'Content-Type': 'application/json',
-    };
+    final headers = {'Content-Type': 'application/json'};
     if (_authToken != null) {
       headers['Authorization'] = 'Bearer $_authToken';
     }
@@ -30,9 +28,10 @@ class UserService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
-          final users = (data['data'] as List)
-              .map((userJson) => UserModel.fromJson(userJson))
-              .toList();
+          final users =
+              (data['data'] as List)
+                  .map((userJson) => UserModel.fromJson(userJson))
+                  .toList();
           return users;
         } else {
           throw Exception(data['message'] ?? 'Failed to search users');
@@ -104,9 +103,10 @@ class UserService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
-          final users = (data['data'] as List)
-              .map((userJson) => UserModel.fromJson(userJson))
-              .toList();
+          final users =
+              (data['data'] as List)
+                  .map((userJson) => UserModel.fromJson(userJson))
+                  .toList();
           return users;
         } else {
           throw Exception(data['message'] ?? 'Failed to get recent users');
@@ -118,4 +118,10 @@ class UserService {
       return []; // Return empty list on error
     }
   }
+}
+
+class CurrentUser {
+  static void setUser(UserModel user) {}
+
+  static isCurrentUser(String id) {}
 }

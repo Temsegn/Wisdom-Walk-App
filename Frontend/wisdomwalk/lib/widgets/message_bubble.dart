@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:wisdomwalk/services/user_service.dart';
 import '../../models/message_model.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -20,30 +21,32 @@ class MessageBubble extends StatelessWidget {
     required this.onPin,
     required this.onForward,
   }) : super(key: key);
-  
- 
+
   @override
   Widget build(BuildContext context) {
     final isMe = CurrentUser.isCurrentUser(message.sender.id);
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
             CircleAvatar(
               radius: 16,
-              backgroundImage: message.sender.profilePicture != null
-                  ? NetworkImage(message.sender.profilePicture!)
-                  : null,
-              child: message.sender.profilePicture == null
-                  ? Text(
-                      message.sender.fullName.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(fontSize: 12),
-                    )
-                  : null,
+              backgroundImage:
+                  message.sender.profilePicture != null
+                      ? NetworkImage(message.sender.profilePicture!)
+                      : null,
+              child:
+                  message.sender.profilePicture == null
+                      ? Text(
+                        message.sender.fullName.substring(0, 1).toUpperCase(),
+                        style: const TextStyle(fontSize: 12),
+                      )
+                      : null,
             ),
             const SizedBox(width: 8),
           ],
@@ -51,7 +54,10 @@ class MessageBubble extends StatelessWidget {
             child: GestureDetector(
               onLongPress: () => _showMessageOptions(context, isMe),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: isMe ? Colors.blue : Colors.grey[300],
                   borderRadius: BorderRadius.circular(18),
@@ -187,22 +193,23 @@ class MessageBubble extends StatelessWidget {
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 4,
-                        children: message.reactions.map((reaction) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${reaction.emoji} 1',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          );
-                        }).toList(),
+                        children:
+                            message.reactions.map((reaction) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${reaction.emoji} 1',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              );
+                            }).toList(),
                       ),
                     ],
                     const SizedBox(height: 4),
@@ -232,9 +239,10 @@ class MessageBubble extends StatelessWidget {
                           Icon(
                             Icons.done_all,
                             size: 16,
-                            color: message.readBy.length > 1 
-                                ? Colors.blue 
-                                : Colors.white70,
+                            color:
+                                message.readBy.length > 1
+                                    ? Colors.blue
+                                    : Colors.white70,
                           ),
                         ],
                       ],
@@ -253,96 +261,101 @@ class MessageBubble extends StatelessWidget {
   void _showMessageOptions(BuildContext context, bool isMe) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.reply),
-              title: const Text('Reply'),
-              onTap: () {
-                Navigator.pop(context);
-                onReply();
-              },
+      builder:
+          (context) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.reply),
+                  title: const Text('Reply'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onReply();
+                  },
+                ),
+                if (isMe) ...[
+                  ListTile(
+                    leading: const Icon(Icons.edit),
+                    title: const Text('Edit'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onEdit();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.delete),
+                    title: const Text('Delete'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      onDelete();
+                    },
+                  ),
+                ],
+                ListTile(
+                  leading: const Icon(Icons.emoji_emotions),
+                  title: const Text('React'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showReactionPicker(context);
+                  },
+                ),
+                ListTile(
+                  leading: Icon(
+                    message.isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+                  ),
+                  title: Text(message.isPinned ? 'Unpin' : 'Pin'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onPin();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.forward),
+                  title: const Text('Forward'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onForward();
+                  },
+                ),
+              ],
             ),
-            if (isMe) ...[
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('Edit'),
-                onTap: () {
-                  Navigator.pop(context);
-                  onEdit();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete),
-                title: const Text('Delete'),
-                onTap: () {
-                  Navigator.pop(context);
-                  onDelete();
-                },
-              ),
-            ],
-            ListTile(
-              leading: const Icon(Icons.emoji_emotions),
-              title: const Text('React'),
-              onTap: () {
-                Navigator.pop(context);
-                _showReactionPicker(context);
-              },
-            ),
-            ListTile(
-              leading: Icon(message.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
-              title: Text(message.isPinned ? 'Unpin' : 'Pin'),
-              onTap: () {
-                Navigator.pop(context);
-                onPin();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.forward),
-              title: const Text('Forward'),
-              onTap: () {
-                Navigator.pop(context);
-                onForward();
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
   void _showReactionPicker(BuildContext context) {
     final reactions = ['👍', '❤️', '😂', '😮', '😢', '😡'];
-    
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('React to message'),
-        content: Wrap(
-          spacing: 8,
-          children: reactions.map((emoji) {
-            return GestureDetector(
-              onTap: () {
-                Navigator.pop(context);
-                onReact(emoji);
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  emoji,
-                  style: const TextStyle(fontSize: 24),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('React to message'),
+            content: Wrap(
+              spacing: 8,
+              children:
+                  reactions.map((emoji) {
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        onReact(emoji);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          emoji,
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+            ),
+          ),
     );
   }
 
