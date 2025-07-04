@@ -36,9 +36,7 @@ const createPost = async (req, res) => {
     }
 
     // Handle location data for location posts
-    if (type === "location" && location) {
-      postData.location = location
-    }
+    
 
     // Handle image uploads
     if (req.files && req.files.length > 0) {
@@ -55,7 +53,7 @@ const createPost = async (req, res) => {
     // Populate author info for response
     if(isAnonymous) {
     await post.populate("author", "firstName lastName profilePicture")
-    }
+    } 
     // Create notifications for group members (if group post)
     // if (targetGroup && targetGroup !== "general") {
     //   const groupMembers = await User.find({
@@ -76,10 +74,10 @@ const createPost = async (req, res) => {
     //       : `${req.user.firstName} shared a ${type} in the ${targetGroup} group`,
     //     relatedPost: post._id,
     //   }))
-  
+    
     //   await Notification.insertMany(notifications)
     // }
-
+      
     res.status(201).json({
       success: true,
       message: "Post created successfully",
@@ -224,7 +222,7 @@ const getPost = async (req, res) => {
   }
 }
  
-      
+     
 // Like/unlike a post
 const toggleLike = async (req, res) => {
   try {
@@ -442,13 +440,56 @@ const updatePost = async (req, res) => {
     })
   }
 }
+// Delete (soft-delete) post
+// const deletePost = async (req, res) => {
+//   try {
+//     const { postId } = req.params
+//     const userId = req.user._id
 
-// Delete post
+//     const post = await Post.findById(postId)
+//     if (!post) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Post not found",
+//       })
+//     }
+
+//     // Check if user owns the post or is a global admin
+//     if (post.author.toString() !== userId.toString() && !req.user.isGlobalAdmin) {
+//       return res.status(403).json({
+//         success: false,
+//         message: "You can only delete your own posts",
+//       })
+//     }
+
+//     // Soft delete - mark the post as hidden
+//     post.isHidden = true
+//     await post.save()
+
+//     // Also soft-delete related comments
+//     await Comment.updateMany({ post: postId }, { isHidden: true })
+
+//     res.json({
+//       success: true,
+//       message: "Post deleted successfully (soft-deleted)",
+//     })
+//   } catch (error) {
+//     console.error("Delete post error:", error)
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to delete post",
+//       error: error.message,
+//     })
+//   }
+// }
+
+// Hard delete post
 const deletePost = async (req, res) => {
   try {
     const { postId } = req.params
     const userId = req.user._id
 
+    // Find post first to check permissions
     const post = await Post.findById(postId)
     if (!post) {
       return res.status(404).json({
@@ -457,7 +498,7 @@ const deletePost = async (req, res) => {
       })
     }
 
-    // Check if user owns the post or is admin
+    // Check if user is author or global admin
     if (post.author.toString() !== userId.toString() && !req.user.isGlobalAdmin) {
       return res.status(403).json({
         success: false,
@@ -465,16 +506,15 @@ const deletePost = async (req, res) => {
       })
     }
 
-    // Soft delete - hide the post
-    post.isHidden = true
-    await post.save()
+    // Delete the post permanently
+    await Post.findByIdAndDelete(postId)
 
-    // Also delete related comments
-    await Comment.updateMany({ post: postId }, { isHidden: true })
+    // Also delete all related comments permanently
+    await Comment.deleteMany({ post: postId })
 
     res.json({
       success: true,
-      message: "Post deleted successfully",
+      message: "Post and related comments deleted successfully",
     })
   } catch (error) {
     console.error("Delete post error:", error)
@@ -485,6 +525,7 @@ const deletePost = async (req, res) => {
     })
   }
 }
+
 
 // Get post comments
 const getPostComments = async (req, res) => {

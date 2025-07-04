@@ -35,10 +35,17 @@ export default function DashboardPage() {
   const [bookingsCount, setBookingsCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
+  
+useEffect(() => {
+  fetchDashboardData(); // Initial load
 
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
+  const interval = setInterval(() => {
+    fetchDashboardData(); // Refresh every 3 minutes
+  }, 180000); // 180000 ms = 3 minutes
+
+  return () => clearInterval(interval); // Clear interval on component unmount
+}, []);
+
 
   const fetchDashboardData = async () => {
     try {

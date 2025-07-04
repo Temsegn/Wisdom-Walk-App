@@ -2,6 +2,7 @@ const User = require("../models/User")
 const Post = require("../models/Post")
 const Comment = require("../models/Comment")
 const Report = require("../models/Report")
+const Booking = require("../models/booking")
 const Notification = require("../models/Notification")
 const { sendUserNotificationEmail, sendAdminNotificationEmail } = require("../utils/emailService")
 const { getPaginationMeta } = require("../utils/helpers")
@@ -681,7 +682,7 @@ const nominateGroupAdmin = async (req, res) => {
 
 // Get admin dashboard stats
 const getDashboardStats = async (req, res) => {
-  try {
+  try { 
     // Get user statistics
     const totalUsers = await User.countDocuments()
     const activeUsers = await User.countDocuments({ status: "active", isAdminVerified: true })
@@ -692,7 +693,7 @@ const getDashboardStats = async (req, res) => {
     const totalPosts = await Post.countDocuments()
     const totalComments = await Comment.countDocuments()
     const hiddenPosts = await Post.countDocuments({ isHidden: true })
-
+    const totalBooks = await Booking.countDocuments() // Assuming Booking is the model for bookings
     // Get report statistics
     const pendingReports = await Report.countDocuments({ status: "pending" })
     const resolvedReports = await Report.countDocuments({ status: "resolved" })
@@ -732,6 +733,9 @@ const getDashboardStats = async (req, res) => {
         reports: {
           pending: pendingReports,
           resolved: resolvedReports,
+        },
+        bookings: {
+          total: totalBooks,
         },
         groups: groupStats,
       },

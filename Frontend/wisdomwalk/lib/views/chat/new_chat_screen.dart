@@ -68,7 +68,8 @@ class _NewChatScreenState extends State<NewChatScreen> {
     });
 
     try {
-      final users = await UserService.searchUsers(query.trim());
+      final userService = UserService();
+      final users = await userService.searchUsers(query.trim());
       setState(() {
         _searchResults = users;
         _isLoading = false;

@@ -8,7 +8,7 @@ const { validatePost, validateComment, validateReport } = require("../middleware
 const { uploadMultiple, handleUploadError } = require("../middleware/upload");
 
 // All routes require authentication
-router.use(authenticateToken);
+router.use(authenticateToken); 
 
 // Comments (specific first)
 router.get("/:postId/comments", postController.getPostComments);

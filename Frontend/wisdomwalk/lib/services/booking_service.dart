@@ -5,8 +5,7 @@ import 'package:wisdomwalk/services/local_storage_service.dart';
 
 class BookingService {
   // Backend API endpoint
-  static const String _baseUrl =
-      'https://wisdom-walk-app.onrender.com/api/bookings/book';
+  static const String _baseUrl ='https://wisdom-walk-app.onrender.com/api/bookings/book';
 
   final LocalStorageService _localStorageService = LocalStorageService();
 

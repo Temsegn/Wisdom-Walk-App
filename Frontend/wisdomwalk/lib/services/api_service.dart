@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:wisdomwalk/services/local_storage_service.dart';
 import '../../models/chat_model.dart';
 import '../../models/message_model.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://your-api-url.com/api';
+  static const String baseUrl ='https://wisdom-walk-app.onrender.com/api';
   static String? _authToken;
 
   static void setAuthToken(String token) {
@@ -21,34 +22,63 @@ class ApiService {
     }
     return headers;
   }
+  final LocalStorageService _localStorageService = LocalStorageService();
 
-  // Chat endpoints
-  static Future<List<Chat>> getUserChats({int page = 1, int limit = 20}) async {
+  Future<List<Chat>> getUserChats({int page = 1, int limit = 20}) async {
     try {
+      // Get the authentication token
+      final token = await _localStorageService.getAuthToken();
+      
+      // Debug prints
+      print('DEBUG: Fetching user chats...');
+      print('DEBUG: Using token: ${token != null ? '${token.substring(0, 5)}...' : 'NULL'}');
+
+      if (token == null || token.isEmpty) {
+        throw Exception('User not authenticated - No token available');
+      }
+
+      final url = Uri.parse('$baseUrl/chats?page=$page&limit=$limit');
+      print('DEBUG: Request URL: $url');
+
       final response = await http.get(
-        Uri.parse('$baseUrl/chat?page=$page&limit=$limit'),
-        headers: _headers,
-      );
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 30), onTimeout: () {
+        throw Exception('Request timed out');
+      });
+
+      print('DEBUG: Response status: ${response.statusCode}');
+      print('DEBUG: Response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          final chats = (data['data'] as List)
+        final responseData = json.decode(response.body);
+        
+        if (responseData['success'] == true) {
+          final chats = (responseData['data'] as List)
               .map((chatJson) => Chat.fromJson(chatJson))
               .toList();
+          print('DEBUG: Successfully loaded ${chats.length} chats');
           return chats;
         } else {
-          throw Exception(data['message'] ?? 'Failed to load chats');
+          throw Exception(responseData['message'] ?? 'Failed to load chats');
         }
+      } else if (response.statusCode == 401) {
+        throw Exception('Authentication failed - please login again');
       } else {
-        throw Exception('Failed to load chats');
+        throw Exception('Server responded with status ${response.statusCode}');
       }
+    } on FormatException {
+      throw Exception('Invalid server response format');
     } catch (e) {
-      throw Exception('Error fetching chats: $e');
+      print('ERROR in getUserChats: $e');
+      throw Exception('Failed to load chats: ${e.toString()}');
     }
   }
 
-  static Future<Chat> createDirectChat(String participantId) async {
+static Future<Chat> createDirectChat(String participantId) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/chat/direct'),
