@@ -17,7 +17,7 @@ class LocationRequestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('MMM d, yyyy');
-    final timeAgo = _getTimeAgo(request.createdAt);
+    final timeAgo = _getTimeAgo(request.createdAt ?? DateTime.now());
 
     return GestureDetector(
       onTap: onTap,
@@ -64,7 +64,7 @@ class LocationRequestCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          request.userName,
+                          request.firstName ?? 'Unknown',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -92,7 +92,9 @@ class LocationRequestCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      dateFormat.format(request.moveDate),
+                      request.moveDate != null
+                          ? dateFormat.format(request.moveDate!)
+                          : 'Unknown Date',
                       style: const TextStyle(
                         color: Color(0xFFE91E63),
                         fontSize: 11,
@@ -104,7 +106,30 @@ class LocationRequestCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
-              // Destination
+              // From Location (if available)
+              if (request.fromCity != null && request.fromCountry != null) ...[
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_city,
+                      color: Color(0xFFE91E63),
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'From: ${request.fromCity}, ${request.fromCountry}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+
+              // To Location
               Row(
                 children: [
                   const Icon(
@@ -114,7 +139,7 @@ class LocationRequestCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'Moving to ${request.city}, ${request.country}',
+                    'To: ${request.toCity ?? 'Unknown'}, ${request.toCountry ?? 'Unknown'}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
@@ -127,7 +152,7 @@ class LocationRequestCard extends StatelessWidget {
 
               // Description
               Text(
-                request.description,
+                request.description ?? 'No description provided',
                 style: const TextStyle(
                   fontSize: 14,
                   height: 1.4,
@@ -138,26 +163,16 @@ class LocationRequestCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Bottom row with responses and action button
+              // Action button
               Row(
                 children: [
-                  Icon(
-                    Icons.comment_outlined,
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${request.responses.length} ${request.responses.length == 1 ? 'response' : 'responses'}',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
                   const Spacer(),
-                  if (request.userId != currentUserId)
-                    ElevatedButton(
+                  if (request.userId != null && request.userId != currentUserId)
+                    OutlinedButton(
                       onPressed: onTap,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE91E63),
-                        foregroundColor: Colors.white,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFE91E63),
+                        side: const BorderSide(color: Color(0xFFE91E63)),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 8,
@@ -165,10 +180,9 @@ class LocationRequestCard extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        elevation: 0,
                       ),
                       child: const Text(
-                        'Offer Help',
+                        'View Details',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,

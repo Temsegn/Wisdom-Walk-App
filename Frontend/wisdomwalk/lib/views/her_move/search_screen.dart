@@ -22,13 +22,7 @@ class _SearchScreenState extends State<SearchScreen> {
   DateTimeRange? _selectedDateRange;
   bool _isSearching = false;
 
-  final List<String> _filterOptions = [
-    'All',
-    'This Week',
-    'This Month',
-    'Recent Responses',
-    'No Responses',
-  ];
+  final List<String> _filterOptions = ['All', 'This Week', 'This Month'];
 
   @override
   void initState() {
@@ -72,10 +66,12 @@ class _SearchScreenState extends State<SearchScreen> {
     if (query.isNotEmpty) {
       results =
           results.where((request) {
-            return request.city.toLowerCase().contains(query) ||
-                request.country.toLowerCase().contains(query) ||
-                request.description.toLowerCase().contains(query) ||
-                request.userName.toLowerCase().contains(query);
+            return (request.toCity?.toLowerCase().contains(query) ?? false) ||
+                (request.toCountry?.toLowerCase().contains(query) ?? false) ||
+                (request.fromCity?.toLowerCase().contains(query) ?? false) ||
+                (request.fromCountry?.toLowerCase().contains(query) ?? false) ||
+                (request.description?.toLowerCase().contains(query) ?? false) ||
+                (request.firstName?.toLowerCase().contains(query) ?? false);
           }).toList();
     }
 
@@ -94,18 +90,14 @@ class _SearchScreenState extends State<SearchScreen> {
     switch (_selectedFilter) {
       case 'This Week':
         final weekAgo = DateTime.now().subtract(const Duration(days: 7));
-        return requests.where((r) => r.createdAt.isAfter(weekAgo)).toList();
-
+        return requests
+            .where((r) => (r.createdAt ?? DateTime.now()).isAfter(weekAgo))
+            .toList();
       case 'This Month':
         final monthAgo = DateTime.now().subtract(const Duration(days: 30));
-        return requests.where((r) => r.createdAt.isAfter(monthAgo)).toList();
-
-      case 'Recent Responses':
-        return requests.where((r) => r.responses.isNotEmpty).toList();
-
-      case 'No Responses':
-        return requests.where((r) => r.responses.isEmpty).toList();
-
+        return requests
+            .where((r) => (r.createdAt ?? DateTime.now()).isAfter(monthAgo))
+            .toList();
       default:
         return requests;
     }
@@ -144,8 +136,6 @@ class _SearchScreenState extends State<SearchScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Filter options
                 const Text(
                   'Time Period',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -174,10 +164,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         );
                       }).toList(),
                 ),
-
                 const SizedBox(height: 24),
-
-                // Date range picker
                 const Text(
                   'Custom Date Range',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -196,7 +183,6 @@ class _SearchScreenState extends State<SearchScreen> {
                     side: const BorderSide(color: Color(0xFFE91E63)),
                   ),
                 ),
-
                 if (_selectedDateRange != null) ...[
                   const SizedBox(height: 8),
                   TextButton(
@@ -213,7 +199,6 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ),
                 ],
-
                 const SizedBox(height: 24),
               ],
             ),
@@ -263,7 +248,6 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
       body: Column(
         children: [
-          // Search bar
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,
@@ -321,8 +305,6 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
-
-          // Active filters display
           if (_selectedFilter != 'All' || _selectedDateRange != null)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -411,8 +393,6 @@ class _SearchScreenState extends State<SearchScreen> {
                 ],
               ),
             ),
-
-          // Results
           Expanded(
             child:
                 _isSearching
@@ -469,7 +449,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           currentUserId: currentUserId,
                           onTap: () {
                             context.push(
-                              '/location-request-detail/${request.id}',
+                              '/location-request-detail/${request.id ?? ''}',
                             );
                           },
                         );

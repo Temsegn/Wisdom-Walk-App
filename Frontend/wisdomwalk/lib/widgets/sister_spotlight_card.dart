@@ -45,7 +45,7 @@ class SisterSpotlightCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Sister Spotlight',
+                    'Spotlightister ',
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   Text(

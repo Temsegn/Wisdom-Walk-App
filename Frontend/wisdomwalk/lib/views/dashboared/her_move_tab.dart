@@ -3,10 +3,22 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:wisdomwalk/providers/her_move_provider.dart';
-import 'package:wisdomwalk/providers/auth_provider.dart';
 
-class HerMoveTab extends StatelessWidget {
+class HerMoveTab extends StatefulWidget {
   const HerMoveTab({Key? key}) : super(key: key);
+
+  @override
+  State<HerMoveTab> createState() => _HerMoveTabState();
+}
+
+class _HerMoveTabState extends State<HerMoveTab> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<HerMoveProvider>(context, listen: false).fetchRequests();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,13 +35,13 @@ class HerMoveTab extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-              context.go('/search-requests');
+              context.push('/search-requests');
             },
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () {
-              context.go('/settings');
+              context.push('/settings');
             },
           ),
         ],
@@ -57,7 +69,7 @@ class HerMoveTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Share your travel plans or help others',
+                    'Share your travel plans',
                     style: TextStyle(color: Colors.grey[500]),
                   ),
                 ],
@@ -91,7 +103,7 @@ class HerMoveTab extends StatelessWidget {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                '${request.city}, ${request.country}',
+                                '${request.toCity ?? 'Unknown'}, ${request.toCountry ?? 'Unknown'}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -100,6 +112,24 @@ class HerMoveTab extends StatelessWidget {
                             ),
                           ],
                         ),
+                        if (request.fromCity != null &&
+                            request.fromCountry != null) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.location_city,
+                                color: Colors.grey[600],
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'From: ${request.fromCity}, ${request.fromCountry}',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         Row(
                           children: [
@@ -110,7 +140,11 @@ class HerMoveTab extends StatelessWidget {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              DateFormat('dd/MM/yyyy').format(request.moveDate),
+                              request.moveDate != null
+                                  ? DateFormat(
+                                    'dd/MM/yyyy',
+                                  ).format(request.moveDate!)
+                                  : 'Unknown Date',
                               style: TextStyle(color: Colors.grey[600]),
                             ),
                             const SizedBox(width: 16),
@@ -121,55 +155,27 @@ class HerMoveTab extends StatelessWidget {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              request.userName,
+                              request.firstName ?? 'Unknown',
                               style: TextStyle(color: Colors.grey[600]),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          request.description,
+                          request.description ?? 'No description provided',
                           style: const TextStyle(fontSize: 14),
                         ),
                         const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () {
-                                  context.go('/location-request/${request.id}');
-                                },
-                                child: const Text('View Details'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  final authProvider =
-                                      context.read<AuthProvider>();
-                                  if (authProvider.currentUser == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Please log in to offer help',
-                                        ),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                    context.go('/login');
-                                    return;
-                                  }
-                                  // Navigate to detail screen for offering help
-                                  context.go('/location-request/${request.id}');
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFD4A017),
-                                ),
-                                child: const Text('Offer Help'),
-                              ),
-                            ),
-                          ],
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              context.push(
+                                '/location-request/${request.id ?? ''}',
+                              );
+                            },
+                            child: const Text('View Details'),
+                          ),
                         ),
                       ],
                     ),
@@ -182,7 +188,7 @@ class HerMoveTab extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          context.go('/add-location-request');
+          context.push('/add-location-request');
         },
         backgroundColor: const Color(0xFFD4A017),
         child: const Icon(Icons.add),

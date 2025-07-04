@@ -15,8 +15,10 @@ class AddLocationRequestScreen extends StatefulWidget {
 class _AddLocationRequestScreenState extends State<AddLocationRequestScreen> {
   final _formKey = GlobalKey<FormState>();
   final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
-  final _cityController = TextEditingController();
-  final _countryController = TextEditingController();
+  final _fromCityController = TextEditingController();
+  final _fromCountryController = TextEditingController();
+  final _toCityController = TextEditingController();
+  final _toCountryController = TextEditingController();
   final _descriptionController = TextEditingController();
 
   DateTime? _selectedDate;
@@ -24,8 +26,10 @@ class _AddLocationRequestScreenState extends State<AddLocationRequestScreen> {
 
   @override
   void dispose() {
-    _cityController.dispose();
-    _countryController.dispose();
+    _fromCityController.dispose();
+    _fromCountryController.dispose();
+    _toCityController.dispose();
+    _toCountryController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -49,20 +53,34 @@ class _AddLocationRequestScreenState extends State<AddLocationRequestScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Connect with sisters in your destination city',
+                  'Let others know about your upcoming move',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 24),
                 _buildTextField(
-                  controller: _cityController,
-                  label: 'City',
+                  controller: _fromCityController,
+                  label: 'From City',
+                  hint: 'Enter the city you\'re moving from (optional)',
+                  required: false,
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _fromCountryController,
+                  label: 'From Country',
+                  hint: 'Enter the country you\'re moving from (optional)',
+                  required: false,
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _toCityController,
+                  label: 'To City',
                   hint: 'Enter the city you\'re moving to',
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
-                  controller: _countryController,
-                  label: 'Country',
-                  hint: 'Enter the country',
+                  controller: _toCountryController,
+                  label: 'To Country',
+                  hint: 'Enter the country you\'re moving to',
                 ),
                 const SizedBox(height: 16),
                 _DatePickerTile(
@@ -103,6 +121,7 @@ class _AddLocationRequestScreenState extends State<AddLocationRequestScreen> {
     required TextEditingController controller,
     required String label,
     required String hint,
+    bool required = true,
   }) {
     return TextFormField(
       controller: controller,
@@ -112,10 +131,12 @@ class _AddLocationRequestScreenState extends State<AddLocationRequestScreen> {
         border: const OutlineInputBorder(),
       ),
       validator:
-          (value) =>
-              (value == null || value.trim().isEmpty)
-                  ? 'Please enter $label'.toLowerCase()
-                  : null,
+          required
+              ? (value) =>
+                  (value == null || value.trim().isEmpty)
+                      ? 'Please enter $label'.toLowerCase()
+                      : null
+              : null,
     );
   }
 
@@ -126,7 +147,7 @@ class _AddLocationRequestScreenState extends State<AddLocationRequestScreen> {
       decoration: const InputDecoration(
         labelText: 'Description',
         hintText:
-            'Tell us about your move and what kind of help you\'re looking for...',
+            'Tell us about your move and what kind of information you\'re seeking...',
         border: OutlineInputBorder(),
         alignLabelWithHint: true,
       ),
@@ -188,10 +209,18 @@ class _AddLocationRequestScreenState extends State<AddLocationRequestScreen> {
       userId: user.id,
       userName: user.fullName,
       userAvatar: user.avatarUrl,
-      city: _cityController.text.trim(),
-      country: _countryController.text.trim(),
-      moveDate: _selectedDate!,
+      toCity: _toCityController.text.trim(),
+      toCountry: _toCountryController.text.trim(),
       description: _descriptionController.text.trim(),
+      moveDate: _selectedDate!,
+      fromCity:
+          _fromCityController.text.trim().isNotEmpty
+              ? _fromCityController.text.trim()
+              : null,
+      fromCountry:
+          _fromCountryController.text.trim().isNotEmpty
+              ? _fromCountryController.text.trim()
+              : null,
     );
 
     setState(() => _isSaving = false);
@@ -199,7 +228,7 @@ class _AddLocationRequestScreenState extends State<AddLocationRequestScreen> {
     if (!mounted) return;
 
     if (success) {
-      context.go('/her-move-search'); // Navigate to the list of requests
+      context.push('/her-move-search'); // Navigate to the list of requests
       _scaffoldMessengerKey.currentState?.showSnackBar(
         const SnackBar(
           content: Text('Travel request shared successfully'),
@@ -286,7 +315,7 @@ class _PrivacyNoticeCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Your request will be visible to all WisdomWalk members. Only share information you\'re comfortable making public. Sisters who respond can share their contact information privately.',
+            'Your request will be visible to all WisdomWalk members. Only share information you\'re comfortable making public.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
