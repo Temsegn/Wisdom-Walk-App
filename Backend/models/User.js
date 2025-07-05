@@ -162,8 +162,8 @@ const userSchema = new mongoose.Schema(
     passwordResetExpires: Date,
   },
   {
-    timestamps: true,
-  },
+    timestamps: true, // Automatically manage createdAt and updatedAt fields
+  }
 )
 
 // Index for better performance
