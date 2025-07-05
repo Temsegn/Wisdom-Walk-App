@@ -12,7 +12,7 @@ class AnonymousShareService {
   Future<List<AnonymousShareModel>> getAllAnonymousShares() async {
     print('AnonymousShareService: getAllAnonymousShares called');
     final response = await http.get(
-      Uri.parse('$_baseUrl/posts'),
+      Uri.parse('$_baseUrl/posts?type="share"'),
       headers: {
         'Content-Type': 'application/json',
         "Authorization": 'Bearer ${await _localStorageService.getAuthToken()}',
