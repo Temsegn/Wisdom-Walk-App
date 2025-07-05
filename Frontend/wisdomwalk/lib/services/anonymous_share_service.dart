@@ -40,7 +40,7 @@ class AnonymousShareService {
     // final backendType = _mapTypeToBackend(type);
     final response = await http.get(
       Uri.parse(
-        '$_baseUrl/posts?type=share',
+        '$_baseUrl/posts?type="share"&category=${type.toString().split('.').last}&isAnonymous=true',
       ),
       headers: {
         'Content-Type': 'application/json',

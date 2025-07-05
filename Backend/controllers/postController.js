@@ -592,23 +592,10 @@ const getPostComments = async (req, res) => {
 }
 
 const getAllPosts = async (req, res) => {
-
-
   try {
-    
-   const { type } = req.query;
-const query = {
-  isHidden: false,
-  isPublished: true,
-};
-
-if (type) {
-  query.type = type;
-}
-const posts = await Post.find(query)
-  .populate("author", "firstName lastName profilePicture")
-  .sort({ createdAt: -1 });
-
+    const posts = await Post.find({ isHidden: false, isPublished: true })
+      .populate("author", "firstName lastName profilePicture")
+      .sort({ createdAt: -1 });
 
     const formattedPosts = posts.map((post) => {
       const postObj = post.toObject();
