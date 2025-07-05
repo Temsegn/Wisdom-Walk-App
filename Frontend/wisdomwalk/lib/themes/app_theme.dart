@@ -247,4 +247,6 @@ class AppTheme {
       thickness: 1,
     ),
   );
+
+  static var secondaryColor;
 }

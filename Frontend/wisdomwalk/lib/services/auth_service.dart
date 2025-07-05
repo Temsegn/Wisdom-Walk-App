@@ -226,6 +226,7 @@ class AuthService {
     String? firstName,
     String? lastName,
     String? city,
+    String? bio,
     String? country,
     String? avatarPath,
     List<String>? wisdomCircleInterests,
@@ -233,7 +234,7 @@ class AuthService {
     print('Updating profile with baseUrl: $baseUrl'); // Debug log
     var request = http.MultipartRequest(
       'PUT',
-      Uri.parse('$baseUrl/users/profile'),
+      Uri.parse('https://wisdom-walk-app.onrender.com/api/users/profile'),
     );
 
     // Add form fields
@@ -242,10 +243,7 @@ class AuthService {
       if (lastName != null) 'lastName': lastName,
       if (city != null) 'location[city]': city,
       if (country != null) 'location[country]': country,
-      if (wisdomCircleInterests != null)
-        'joinedGroups': jsonEncode(
-          wisdomCircleInterests.map((e) => {'groupType': e}).toList(),
-        ),
+      if (bio != null) 'bio': bio,
     });
 
     // Add profile picture if provided
@@ -276,6 +274,7 @@ class AuthService {
         'id': data['_id'],
         'fullName': '${data['firstName']} ${data['lastName']}'.trim(),
         'email': data['email'],
+        'bio' : data['bio'] ?? '',
         'avatarUrl': data['profilePicture'],
         'city': data['location']['city'],
         'country': data['location']['country'],

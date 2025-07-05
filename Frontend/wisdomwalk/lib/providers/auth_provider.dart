@@ -148,6 +148,7 @@ class AuthProvider extends ChangeNotifier {
     String? lastName,
     String? city,
     String? subcity,
+    String? bio,
     String? country,
     String? avatarPath,
     List<String>? wisdomCircleInterests,
@@ -165,9 +166,8 @@ class AuthProvider extends ChangeNotifier {
         lastName: lastName,
         city: city,
         country: country,
-        avatarPath: avatarPath,
-        wisdomCircleInterests: wisdomCircleInterests,
-      );
+        bio: bio,
+       );
       _currentUser = updatedUser;
       return true;
     } catch (e) {

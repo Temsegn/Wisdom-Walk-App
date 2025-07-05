@@ -436,7 +436,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               ),
             ),
             child: const Text(
-              'Save Changes',
+              'Save Change',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
@@ -485,7 +485,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         lastName: _nameController.text.split(' ').length > 1
             ? _nameController.text.split(' ').sublist(1).join(' ')
             : null,
-        wisdomCircleInterests: _selectedInterests,
+        bio: _bioController.text,
+        city: _locationController.text.split(',').first.trim(),
+        country: _locationController.text.split(',').length > 1
+            ? _locationController.text.split(',').sublist(1).join(',').trim()
+            : null,
       );
 
       if (success) {
@@ -535,4 +539,4 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           ),
     );
   }
-}
+}             
