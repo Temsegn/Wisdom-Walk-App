@@ -592,8 +592,10 @@ const getPostComments = async (req, res) => {
 }
 
 const getAllPosts = async (req, res) => {
+
+   const {type}=req.query
   try {
-    const posts = await Post.find({ isHidden: false, isPublished: true })
+    const posts = await Post.find({ isHidden: false, isPublished: true, type: type  })
       .populate("author", "firstName lastName profilePicture")
       .sort({ createdAt: -1 });
 
