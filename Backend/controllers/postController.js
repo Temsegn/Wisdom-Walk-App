@@ -202,15 +202,7 @@ const getPost = async (req, res) => {
     }
 
     // Check group access
-    if (post.targetGroup !== "general") {
-      const userInGroup = req.user.joinedGroups.some((group) => group.groupType === post.targetGroup)
-      if (!userInGroup) {
-        return res.status(403).json({
-          success: false,
-          message: "Access denied",
-        })
-      }
-    }
+     
 
     // Format anonymous post
     const postObj = post.toObject()
