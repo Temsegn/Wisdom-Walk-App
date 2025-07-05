@@ -590,10 +590,23 @@ const getPostComments = async (req, res) => {
     })
   }
 }
-
 const getAllPosts = async (req, res) => {
   try {
-    const posts = await Post.find({ isHidden: false, isPublished: true })
+    const { type } = req.query;
+
+    const query = {
+      isHidden: false,
+      isPublished: true,
+    };
+
+    // Sanitize 'type' query param (removes quotes if included)
+    if (type) {
+      query.type = type.replace(/"/g, '');
+    }
+
+    
+
+    const posts = await Post.find(query)
       .populate("author", "firstName lastName profilePicture")
       .sort({ createdAt: -1 });
 
@@ -622,6 +635,7 @@ const getAllPosts = async (req, res) => {
     });
   }
 };
+
 
 module.exports = {
   getAllPosts,
