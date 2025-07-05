@@ -18,8 +18,6 @@ class LocationRequestDetailScreen extends StatefulWidget {
 
 class _LocationRequestDetailScreenState
     extends State<LocationRequestDetailScreen> {
-  final TextEditingController _responseController = TextEditingController();
-
   @override
   void initState() {
     super.initState();
@@ -29,12 +27,6 @@ class _LocationRequestDetailScreenState
         listen: false,
       ).fetchRequestDetails(widget.requestId);
     });
-  }
-
-  @override
-  void dispose() {
-    _responseController.dispose();
-    super.dispose();
   }
 
   @override
@@ -71,26 +63,16 @@ class _LocationRequestDetailScreenState
               )
               : request == null
               ? const Center(child: Text('Request not found'))
-              : Column(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildRequestHeader(context, request),
-                          const SizedBox(height: 16),
-                          _buildRequestDetails(context, request),
-                          const SizedBox(height: 24),
-                          _buildResponsesSection(context, request),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (request.userId != authProvider.currentUser?.id)
-                    _buildResponseInput(context, herMoveProvider, authProvider),
-                ],
+              : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildRequestHeader(context, request),
+                    const SizedBox(height: 16),
+                    _buildRequestDetails(context, request),
+                  ],
+                ),
               ),
     );
   }
@@ -110,13 +92,13 @@ class _LocationRequestDetailScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                request.userName,
+                request.firstName ?? 'Unknown',
                 style: Theme.of(
                   context,
                 ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               Text(
-                'Posted ${_getTimeAgo(request.createdAt)}',
+                'Posted ${_getTimeAgo(request.createdAt ?? DateTime.now())}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -155,7 +137,10 @@ class _LocationRequestDetailScreenState
     BuildContext context,
     LocationRequestModel request,
   ) {
-    final moveDate = DateFormat('MMMM d, yyyy').format(request.moveDate);
+    final moveDate =
+        request.moveDate != null
+            ? DateFormat('MMMM d, yyyy').format(request.moveDate!)
+            : 'Unknown Date';
 
     return Container(
       width: double.infinity,
@@ -176,11 +161,28 @@ class _LocationRequestDetailScreenState
               ),
               const SizedBox(width: 8),
               Text(
-                '${request.city}, ${request.country}',
+                '${request.toCity ?? 'Unknown'}, ${request.toCountry ?? 'Unknown'}',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
             ],
           ),
+          if (request.fromCity != null && request.fromCountry != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.location_city,
+                  color: Theme.of(context).primaryColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'From: ${request.fromCity}, ${request.fromCountry}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             children: [
@@ -200,259 +202,12 @@ class _LocationRequestDetailScreenState
           ),
           const SizedBox(height: 16),
           Text(
-            request.description,
+            request.description ?? 'No description provided',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
         ],
       ),
     );
-  }
-
-  Widget _buildResponsesSection(
-    BuildContext context,
-    LocationRequestModel request,
-  ) {
-    if (request.responses.isEmpty) {
-      return Center(
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            Icon(
-              Icons.comment_outlined,
-              size: 48,
-              color: Theme.of(
-                context,
-              ).colorScheme.onBackground.withOpacity(0.3),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'No responses yet',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onBackground.withOpacity(0.5),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Responses', style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: 16),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: request.responses.length,
-          itemBuilder: (context, index) {
-            final response = request.responses[index];
-            return _buildResponseItem(context, response);
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildResponseItem(BuildContext context, LocationResponse response) {
-    final dateFormat = DateFormat('MMM d, yyyy • h:mm a');
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardTheme.color,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: const Color(0xFFE8E2DB)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                _buildResponseAvatar(context, response),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        response.userName,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        dateFormat.format(response.createdAt),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              response.content,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            if (response.contactInfo.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Contact Information:',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      response.contactInfo,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResponseAvatar(BuildContext context, LocationResponse response) {
-    if (response.userAvatar == null) {
-      return Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Center(
-          child: Icon(
-            Icons.person,
-            color: Theme.of(context).primaryColor,
-            size: 16,
-          ),
-        ),
-      );
-    } else {
-      return CircleAvatar(
-        radius: 16,
-        backgroundImage: NetworkImage(response.userAvatar!),
-      );
-    }
-  }
-
-  Widget _buildResponseInput(
-    BuildContext context,
-    HerMoveProvider herMoveProvider,
-    AuthProvider authProvider,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.background,
-        border: Border(
-          top: BorderSide(
-            color: Theme.of(context).dividerTheme.color ?? Colors.transparent,
-          ),
-        ),
-      ),
-      child: Column(
-        children: [
-          TextField(
-            controller: _responseController,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'Share your local knowledge or offer to help...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                _submitResponse(herMoveProvider, authProvider);
-              },
-              child: const Text('Send Response'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _submitResponse(
-    HerMoveProvider herMoveProvider,
-    AuthProvider authProvider,
-  ) {
-    final response = _responseController.text.trim();
-    if (response.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your response'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    final user = authProvider.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You must be logged in to respond'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    herMoveProvider
-        .addLocationResponse(
-          requestId: widget.requestId,
-          userId: user.id,
-          userName: user.fullName,
-          userAvatar: user.avatarUrl,
-          content: response,
-        )
-        .then((success) {
-          if (success) {
-            _responseController.clear();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Response sent successfully'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  herMoveProvider.error ?? 'Failed to send response',
-                ),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        });
   }
 
   String _getTimeAgo(DateTime dateTime) {

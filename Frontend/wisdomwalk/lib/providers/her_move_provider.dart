@@ -7,13 +7,13 @@ class HerMoveProvider extends ChangeNotifier {
 
   List<LocationRequestModel> _requests = [];
   LocationRequestModel? _selectedRequest;
-  List<LocationResponse> _nearbyResponses = [];
+  List<LocationRequestModel> _nearbyRequests = [];
   bool _isLoading = false;
   String? _error;
 
   List<LocationRequestModel> get requests => _requests;
   LocationRequestModel? get selectedRequest => _selectedRequest;
-  List<LocationResponse> get nearbyResponses => _nearbyResponses;
+  List<LocationRequestModel> get nearbyRequests => _nearbyRequests;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -58,7 +58,7 @@ class HerMoveProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _nearbyResponses = await _herMoveService.searchNearbyHelp(
+      _nearbyRequests = await _herMoveService.searchNearbyHelp(
         city: city,
         country: country,
       );
@@ -74,10 +74,12 @@ class HerMoveProvider extends ChangeNotifier {
     required String userId,
     required String userName,
     String? userAvatar,
-    required String city,
-    required String country,
+    required String toCity,
+    required String toCountry,
     required String description,
     required DateTime moveDate,
+    String? fromCity,
+    String? fromCountry,
   }) async {
     _isLoading = true;
     _error = null;
@@ -88,89 +90,14 @@ class HerMoveProvider extends ChangeNotifier {
         userId: userId,
         userName: userName,
         userAvatar: userAvatar,
-        city: city,
-        country: country,
+        city: toCity,
+        country: toCountry,
         description: description,
         moveDate: moveDate,
+        fromCity: fromCity,
+        fromCountry: fromCountry,
       );
       _requests.insert(0, request);
-      return true;
-    } catch (e) {
-      _error = e.toString();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> addLocationResponse({
-    required String requestId,
-    required String userId,
-    required String userName,
-    String? userAvatar,
-    required String content,
-    bool isChurch = false,
-    String? churchName,
-    String? churchAddress,
-    String? churchWebsite,
-  }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final response = await _herMoveService.addLocationResponse(
-        requestId: requestId,
-        userId: userId,
-        userName: userName,
-        userAvatar: userAvatar,
-        content: content,
-        isChurch: isChurch,
-        churchName: churchName,
-        churchAddress: churchAddress,
-        churchWebsite: churchWebsite,
-      );
-
-      // Update the request in the list
-      final index = _requests.indexWhere((request) => request.id == requestId);
-      if (index != -1) {
-        final request = _requests[index];
-        final updatedResponses = List<LocationResponse>.from(request.responses)
-          ..add(response);
-        _requests[index] = LocationRequestModel(
-          id: request.id,
-          userId: request.userId,
-          userName: request.userName,
-          userAvatar: request.userAvatar,
-          city: request.city,
-          country: request.country,
-          description: request.description,
-          moveDate: request.moveDate,
-          responses: updatedResponses,
-          createdAt: request.createdAt,
-        );
-      }
-
-      // Update the selected request if it's the same
-      if (_selectedRequest?.id == requestId) {
-        final updatedResponses = List<LocationResponse>.from(
-          _selectedRequest!.responses,
-        )..add(response);
-        _selectedRequest = LocationRequestModel(
-          id: _selectedRequest!.id,
-          userId: _selectedRequest!.userId,
-          userName: _selectedRequest!.userName,
-          userAvatar: _selectedRequest!.userAvatar,
-          city: _selectedRequest!.city,
-          country: _selectedRequest!.country,
-          description: _selectedRequest!.description,
-          moveDate: _selectedRequest!.moveDate,
-          responses: updatedResponses,
-          createdAt: _selectedRequest!.createdAt,
-        );
-      }
-
       return true;
     } catch (e) {
       _error = e.toString();
@@ -186,8 +113,8 @@ class HerMoveProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void clearNearbyResponses() {
-    _nearbyResponses = [];
+  void clearNearbyRequests() {
+    _nearbyRequests = [];
     notifyListeners();
   }
 

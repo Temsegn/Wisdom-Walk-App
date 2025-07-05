@@ -1745,6 +1745,7 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
               itemCount: prayerProvider.prayers.length,
               itemBuilder: (context, index) {
                 final prayer = prayerProvider.prayers[index];
+                print('Building prayer card for: ${prayer}');
                 return _buildPrayerCard(prayer);
               },
             ),
@@ -1974,7 +1975,7 @@ class _PrayerWallTabState extends State<PrayerWallTab> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Failed to toggle like: ${prayerProvider.error ?? 'Unknown error'}',
+                                'Failed to toggle like : ${prayerProvider.error ?? 'Unknown error'}',
                               ),
                               backgroundColor: Colors.red,
                             ),

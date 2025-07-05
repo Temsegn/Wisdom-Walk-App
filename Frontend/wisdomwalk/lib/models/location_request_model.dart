@@ -1,126 +1,93 @@
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 class LocationRequestModel {
-  final String id;
-  final String userId;
-  final String userName;
+  final String? id; // Made nullable to handle null _id
+  final String? userId; // Made nullable to handle null user
+  final String? firstName; // Made nullable to handle null userName
+  final String? lastName; // Made nullable to handle null userName
   final String? userAvatar;
-  final String city;
-  final String country;
-  final String description;
-  final DateTime moveDate;
-  final List<LocationResponse> responses;
-  final DateTime createdAt;
+  final String? fromCity;
+  final String? fromCountry;
+  final String? toCity; // Made nullable to handle null toLocation.city
+  final String? toCountry; // Made nullable to handle null toLocation.country
+  final String? description; // Made nullable to handle null note
+  final DateTime? moveDate; // Made nullable to handle null movementDate
+  final DateTime? createdAt; // Made nullable to handle null createdAt
 
   LocationRequestModel({
-    required this.id,
-    required this.userId,
-    required this.userName,
+    this.id,
+    this.userId,
+    this.firstName,
+    this.lastName,
     this.userAvatar,
-    required this.city,
-    required this.country,
-    required this.description,
-    required this.moveDate,
-    this.responses = const [],
-    required this.createdAt,
+    this.fromCity,
+    this.fromCountry,
+    this.toCity,
+    this.toCountry,
+    this.description,
+    this.moveDate,
+    this.createdAt,
   });
 
-  // Add getter methods for the missing properties
   String get fromLocation =>
-      'Current Location'; // You can modify this based on your needs
-  String get toLocation => '$city, $country';
-  DateTime get startDate => moveDate;
-  String get authorName => userName;
+      fromCity != null && fromCountry != null
+          ? '$fromCity, $fromCountry'
+          : 'Current Location';
+  String get toLocation =>
+      toCity != null && toCountry != null ? '$toCity, $toCountry' : 'Unknown';
+  DateTime get startDate => moveDate ?? DateTime.now();
+  String get authorName =>
+      (firstName != null && lastName != null)
+          ? '$firstName $lastName'
+          : firstName ?? 'Unknown';
 
   factory LocationRequestModel.fromJson(Map<String, dynamic> json) {
     return LocationRequestModel(
-      id: json['id'],
-      userId: json['userId'],
-      userName: json['userName'],
-      userAvatar: json['userAvatar'],
-      city: json['city'],
-      country: json['country'],
-      description: json['description'],
-      moveDate: DateTime.parse(json['moveDate']),
-      responses:
-          (json['responses'] as List?)
-              ?.map((response) => LocationResponse.fromJson(response))
-              .toList() ??
-          [],
-      createdAt: DateTime.parse(json['createdAt']),
+      id: json['_id']?.toString() ?? json['id']?.toString(),
+      userId:
+          json['user'] is String
+              ? json['user']?.toString()
+              : json['user']?['_id']?.toString() ?? json['userId']?.toString(),
+      firstName:
+          json['user'] is Map
+              ? json['user']['firstName']?.toString() ?? 'Unknown'
+              : json['userName']?.toString() ?? 'Unknown',
+      lastName:
+          json['user'] is Map ? json['user']['lastName']?.toString() : null,
+      userAvatar:
+          json['user'] is Map
+              ? json['user']['profilePicture']?.toString()
+              : json['userAvatar']?.toString(),
+      fromCity: json['fromLocation']?['city']?.toString(),
+      fromCountry: json['fromLocation']?['country']?.toString(),
+      toCity: json['toLocation']?['city']?.toString(),
+      toCountry: json['toLocation']?['country']?.toString(),
+      description: json['note']?.toString() ?? json['description']?.toString(),
+      moveDate:
+          json['movementDate'] != null
+              ? DateTime.tryParse(json['movementDate']!.toString()) ??
+                  DateTime.now()
+              : DateTime.now(),
+      createdAt:
+          json['createdAt'] != null
+              ? DateTime.tryParse(json['createdAt']!.toString()) ??
+                  DateTime.now()
+              : DateTime.now(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'userId': userId,
-      'userName': userName,
+      '_id': id,
+      'user': userId,
+      'firstName': firstName,
       'userAvatar': userAvatar,
-      'city': city,
-      'country': country,
-      'description': description,
-      'moveDate': moveDate.toIso8601String(),
-      'responses': responses.map((response) => response.toJson()).toList(),
-      'createdAt': createdAt.toIso8601String(),
-    };
-  }
-}
-
-class LocationResponse {
-  final String id;
-  final String userId;
-  final String userName;
-  final String? userAvatar;
-  final String content;
-  final String contactInfo;
-  final bool isChurch;
-  final String? churchName;
-  final String? churchAddress;
-  final String? churchWebsite;
-  final DateTime createdAt;
-
-  LocationResponse({
-    required this.id,
-    required this.userId,
-    required this.userName,
-    this.userAvatar,
-    required this.content,
-    this.contactInfo = '',
-    this.isChurch = false,
-    this.churchName,
-    this.churchAddress,
-    this.churchWebsite,
-    required this.createdAt,
-  });
-
-  factory LocationResponse.fromJson(Map<String, dynamic> json) {
-    return LocationResponse(
-      id: json['id'],
-      userId: json['userId'],
-      userName: json['userName'],
-      userAvatar: json['userAvatar'],
-      content: json['content'],
-      contactInfo: json['contactInfo'] ?? '',
-      isChurch: json['isChurch'] ?? false,
-      churchName: json['churchName'],
-      churchAddress: json['churchAddress'],
-      churchWebsite: json['churchWebsite'],
-      createdAt: DateTime.parse(json['createdAt']),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'userId': userId,
-      'userName': userName,
-      'userAvatar': userAvatar,
-      'content': content,
-      'contactInfo': contactInfo,
-      'isChurch': isChurch,
-      'churchName': churchName,
-      'churchAddress': churchAddress,
-      'churchWebsite': churchWebsite,
-      'createdAt': createdAt.toIso8601String(),
+      'fromLocation': {'city': fromCity, 'country': fromCountry},
+      'toLocation': {'city': toCity, 'country': toCountry},
+      'note': description,
+      'movementDate': moveDate?.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 }
