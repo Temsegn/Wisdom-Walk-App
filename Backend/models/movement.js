@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
-const { move } = require('../routes/movementRoute');
-
+ 
 const movementSchema = new mongoose.Schema({
     user : {
         type: mongoose.Schema.Types.ObjectId,
