@@ -6,61 +6,27 @@ const Booking = require("../models/booking")
 const Notification = require("../models/Notification")
 const { sendUserNotificationEmail, sendAdminNotificationEmail,sendBannedEmailToUser,sendBlockedEmailToUser,sendUnblockedEmailToUser } = require("../utils/emailService")
 const { getPaginationMeta } = require("../utils/helpers")
-
-// Get all notifications without pagination
+// Get all unread admin_message notifications
 const getAllNotifications = async (req, res) => {
   try {
-    const {
-      isRead=false,
-      type="admin_message", // now can be a comma-separated list
-    } = req.query;
-
-    const filter = {};
-
-    // Handle multiple types (e.g., "admin_message,alert")
-    if (type) {
-      const types = type.split(",");
-      filter.type = types.length > 1 ? { $in: types } : types[0];
-    }
-
-    if (isRead !== undefined) {
-      filter.isRead = isRead === "true";
-    }
-
-    if (priority) {
-      filter.priority = priority;
-    }
-    if (recipient) {
-      filter.recipient = recipient;
-    }
-    if (sender) {
-      filter.sender = sender;
-    }
-
-    if (startDate || endDate) {
-      filter.createdAt = {};
-      if (startDate) filter.createdAt.$gte = new Date(startDate);
-      if (endDate) filter.createdAt.$lte = new Date(endDate);
-    }
+    const filter = {
+      isRead: false,
+      type: "admin_message",
+    };
 
     const notifications = await Notification.find(filter)
       .populate("sender", "firstName lastName profilePicture role")
       .populate("recipient", "firstName lastName profilePicture role")
-       .sort({ createdAt: -1 })
+      .sort({ createdAt: -1 })
       .lean();
 
     const totalCount = await Notification.countDocuments(filter);
-    const unreadCount = await Notification.countDocuments({
-      ...filter,
-      isRead: false,
-    });
 
     res.status(200).json({
       success: true,
       data: notifications,
       counts: {
         total: totalCount,
-        unread: unreadCount,
       },
     });
   } catch (error) {
@@ -72,6 +38,7 @@ const getAllNotifications = async (req, res) => {
     });
   }
 };
+
 
 
 // Get pending user verificationsfff 
