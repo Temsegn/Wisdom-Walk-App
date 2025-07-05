@@ -590,6 +590,7 @@ const getPostComments = async (req, res) => {
     })
   }
 }
+
 const getAllPosts = async (req, res) => {
   try {
     const { type, category } = req.query;

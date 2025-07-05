@@ -51,7 +51,7 @@ class PrayerService {
   Future<List<PrayerModel>> getPrayers({required String filter}) async {
     print('PrayerService.getPrayers called');
     final endpoint =
-        '/posts?type="prayer"&category=${filter.toString().split('.').last}'; // at this place filter done
+        '/posts?type="prayer"'; // at this place filter done
     final response = await _authenticatedRequest(
       method: 'GET',
       endpoint: endpoint,
