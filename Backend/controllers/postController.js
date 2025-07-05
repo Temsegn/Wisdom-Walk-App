@@ -592,7 +592,7 @@ const getPostComments = async (req, res) => {
 }
 const getAllPosts = async (req, res) => {
   try {
-    const { type } = req.query;
+    const { type, category } = req.query;
 
     const query = {
       isHidden: false,
@@ -603,8 +603,10 @@ const getAllPosts = async (req, res) => {
     if (type) {
       query.type = type.replace(/"/g, '');
     }
-
     
+    if (category!=="all" && category) {
+      query.category = category;
+    }
 
     const posts = await Post.find(query)
       .populate("author", "firstName lastName profilePicture")
