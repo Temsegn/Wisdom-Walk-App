@@ -5,7 +5,8 @@ const User = require("../models/User")
 const Message = require("../models/Message")
 const Notification = require("../models/Notification")
 const { getPaginationMeta } = require("../utils/helpers")
-
+const {sendReportEmailToAdmin} = require("../utils/emailService")
+const { post } = require("../routes/movementRoute")
 // Create a report
 const createReport = async (req, res) => { 
   try {
@@ -127,6 +128,11 @@ const createReport = async (req, res) => {
     }))
 
     await Notification.insertMany(adminNotifications)
+    // Send email notification to admins
+    await sendReportEmailToAdmin(process.env.ADMIN_EMAIL, {
+      postId: reportedPostId,
+      commentId: reportedCommentId,
+    }, reporterId)
 
     // Populate the report for response
     await report.populate([
@@ -262,6 +268,7 @@ const reportPost = async (req, res) => {
       isReported: true,
       $inc: { reportCount: 1 },
     })
+    
 
     // Notify admins
     const admins = await User.find({

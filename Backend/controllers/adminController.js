@@ -4,7 +4,7 @@ const Comment = require("../models/Comment")
 const Report = require("../models/Report")
 const Booking = require("../models/booking")
 const Notification = require("../models/Notification")
-const { sendUserNotificationEmail, sendAdminNotificationEmail } = require("../utils/emailService")
+const { sendUserNotificationEmail, sendAdminNotificationEmail,sendBannedEmailToUser,sendBlockedEmailToUser,sendUnblockedEmailToUser } = require("../utils/emailService")
 const { getPaginationMeta } = require("../utils/helpers")
 
  // Get all notifications without pagination
@@ -263,7 +263,24 @@ const toggleUserBlock = async (req, res) => {
       await user.save()
 
       // Send notification
-      await sendUserNotificationEmail(
+      await  sendUnblockedEmailToUser(
+        user.email,
+        "Account Unblocked",
+        "Your account has been unblocked. You can now access WisdomWalk again.",
+        user.firstName,
+      )
+
+      // Create notification
+      await new Notification({
+        recipient: userId,
+        sender: adminId,
+        type: "unblocked",
+        title: "Account Unblocked",
+        message: "Your account has been unblocked. You can now access WisdomWalk again.",
+        priority: "high",
+      }).save()
+      // Send email notification
+      await sendUnblockedEmailToUser(
         user.email,
         "Account Unblocked",
         "Your account has been unblocked. You can now access WisdomWalk again.",
@@ -284,16 +301,16 @@ const toggleUserBlock = async (req, res) => {
       await user.save()
 
       // Send notification
-      await sendUserNotificationEmail(
+      await sendBlockedEmailToUser(
         user.email,
-        "Account Temporarily Blocked",
-        `Your account has been temporarily blocked. ${reason || "Please contact support for more information."}`,
+        reason || "You have been blocked from WisdomWalk.",
         user.firstName,
       )
 
       // Create notification
       await new Notification({
         recipient: userId,
+        sender: adminId,
         type: "account_status",
         title: "Account Blocked",
         message: `Your account has been temporarily blocked. ${reason || ""}`,
@@ -335,12 +352,12 @@ const banUser = async (req, res) => {
     await user.save()
 
     // Send notification
-    await sendUserNotificationEmail(
+    await sendBannedEmailToUser(
       user.email,
-      "Account Permanently Banned",
-      `Your account has been permanently banned from WisdomWalk. ${reason || "Please contact support for more information."}`,
+      reason || "You have been permanently banned from WisdomWalk.",
       user.firstName,
     )
+
 
     res.json({
       success: true,

@@ -12,6 +12,10 @@ router.post("/", movementController.postMove);
 // Get my own moves
 router.get("/me", movementController.getMyMoves);
 
+router.get("/moves", movementController.getAllMoves);
+// Get move details
+router.get("/moves/:moveId", movementController.getMovesDetail);
+
 // Get another user's moves
 router.get("/user/:userId", movementController.getUserMoves);
 

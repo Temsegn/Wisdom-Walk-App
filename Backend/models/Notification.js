@@ -30,8 +30,11 @@ const notificationSchema = new mongoose.Schema(
         "account_status",
         "signup",
         "post",
-        "report"
-      ],
+        "report",
+         "blocked",
+        "unblocked",
+        "banned",
+       ],
       required: true,
     },
 

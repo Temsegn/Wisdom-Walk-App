@@ -2,7 +2,6 @@ const User = require("../models/User")
 const Post = require("../models/Post")
 const { formatUserResponse, getPaginationMeta } = require("../utils/helpers")
 const { saveFile,deleteFile } = require("../utils/localStorageService")
-
 // Get current user profile
 const getProfile = async (req, res) => {
   try {
@@ -417,6 +416,8 @@ const blockUser = async (req, res) => {
     await User.findByIdAndUpdate(userId, {
       $addToSet: { blockedUsers: userIdToBlock },
     });
+   
+
 
     res.json({
       success: true,

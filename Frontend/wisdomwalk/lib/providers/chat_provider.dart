@@ -1,9 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:wisdomwalk/models/message_model.dart';
 import '../models/chat_model.dart';
-import '../models/message_model.dart';
 import '../services/api_service.dart';
-import '../models/user_model.dart';
-
+import '../models/user_model.dart'; 
 class ChatProvider with ChangeNotifier {
   List<Chat> _chats = [];
   bool _isLoading = false;
@@ -17,42 +16,42 @@ class ChatProvider with ChangeNotifier {
   bool get hasMoreChats => _hasMoreChats;
 
   Future<void> loadChats({bool refresh = false}) async {
-    if (refresh) {
-      _currentPage = 1;
-      _chats.clear();
-      _hasMoreChats = true;
-    }
-
-    if (_isLoading || !_hasMoreChats) return;
+    if (_isLoading || (!refresh && !_hasMoreChats)) return;
 
     _isLoading = true;
-    _error = null;
+    if (refresh) {
+      _currentPage = 1;
+      _hasMoreChats = true;
+      _error = null;
+    }
     notifyListeners();
 
     try {
-      final apiService = ApiService();
-      final newChats = await apiService.getUserChats(
+      final newChats = await ApiService().getUserChats(
         page: _currentPage,
         limit: 20,
       );
 
+      if (refresh) {
+        _chats = newChats;
+      } else {
+        _chats.addAll(newChats);
+      }
+
       if (newChats.isEmpty) {
         _hasMoreChats = false;
       } else {
-        if (refresh) {
-          _chats = newChats;
-        } else {
-          _chats.addAll(newChats);
-        }
         _currentPage++;
       }
     } catch (e) {
       _error = e.toString();
+      debugPrint('Error loading chats: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
+
 
   Future<Chat?> createDirectChat(String participantId) async {
     try {

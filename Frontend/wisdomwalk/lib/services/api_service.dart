@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:wisdomwalk/services/local_storage_service.dart';
 import '../../models/chat_model.dart';
@@ -7,12 +9,10 @@ import '../../models/message_model.dart';
 
 class ApiService {
   static const String baseUrl ='https://wisdom-walk-app.onrender.com/api';
+   
+ static const Duration timeoutDuration = Duration(seconds: 30);
+  final LocalStorageService _localStorageService = LocalStorageService();
   static String? _authToken;
-
-  static void setAuthToken(String token) {
-    _authToken = token;
-  }
-
   static Map<String, String> get _headers {
     final headers = {
       'Content-Type': 'application/json',
@@ -22,23 +22,25 @@ class ApiService {
     }
     return headers;
   }
-  final LocalStorageService _localStorageService = LocalStorageService();
+  
+  Future<String?> getAuthToken() async {
+    try {
+      return await _localStorageService.getAuthToken();
+    } catch (e) {
+      debugPrint('Error getting auth token: $e');
+      return null;
+    }
+  }
 
   Future<List<Chat>> getUserChats({int page = 1, int limit = 20}) async {
     try {
-      // Get the authentication token
-      final token = await _localStorageService.getAuthToken();
-      
-      // Debug prints
-      print('DEBUG: Fetching user chats...');
-      print('DEBUG: Using token: ${token != null ? '${token.substring(0, 5)}...' : 'NULL'}');
-
+      final token = await getAuthToken();
       if (token == null || token.isEmpty) {
-        throw Exception('User not authenticated - No token available');
+        throw Exception('Authentication required. Please login again.');
       }
 
       final url = Uri.parse('$baseUrl/chats?page=$page&limit=$limit');
-      print('DEBUG: Request URL: $url');
+      debugPrint('Fetching chats from: $url');
 
       final response = await http.get(
         url,
@@ -46,38 +48,41 @@ class ApiService {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-      ).timeout(const Duration(seconds: 30), onTimeout: () {
-        throw Exception('Request timed out');
-      });
+      ).timeout(timeoutDuration);
 
-      print('DEBUG: Response status: ${response.statusCode}');
-      print('DEBUG: Response body: ${response.body}');
+      debugPrint('Chats response status: ${response.statusCode}');
+      debugPrint('Chats response body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        
-        if (responseData['success'] == true) {
-          final chats = (responseData['data'] as List)
-              .map((chatJson) => Chat.fromJson(chatJson))
-              .toList();
-          print('DEBUG: Successfully loaded ${chats.length} chats');
-          return chats;
-        } else {
-          throw Exception(responseData['message'] ?? 'Failed to load chats');
-        }
-      } else if (response.statusCode == 401) {
-        throw Exception('Authentication failed - please login again');
+      final responseData = _parseResponse(response);
+
+      if (responseData['success'] == true) {
+        final chats = (responseData['data'] as List)
+            .whereType<Map<String, dynamic>>()
+            .map((chatJson) => Chat.fromJson(chatJson))
+            .toList();
+        return chats;
       } else {
-        throw Exception('Server responded with status ${response.statusCode}');
+        throw Exception(responseData['message'] ?? 'Failed to load chats');
       }
+    } on TimeoutException {
+      throw Exception('Request timed out. Please check your connection.');
+    } on http.ClientException {
+      throw Exception('Network error. Please check your internet connection.');
     } on FormatException {
-      throw Exception('Invalid server response format');
+      throw Exception('Invalid server response format.');
     } catch (e) {
-      print('ERROR in getUserChats: $e');
+      debugPrint('Error in getUserChats: $e');
       throw Exception('Failed to load chats: ${e.toString()}');
     }
   }
 
+  Map<String, dynamic> _parseResponse(http.Response response) {
+    try {
+      return json.decode(response.body) as Map<String, dynamic>;
+    } on FormatException {
+      throw Exception('Invalid JSON response from server');
+    }
+  }
 static Future<Chat> createDirectChat(String participantId) async {
     try {
       final response = await http.post(

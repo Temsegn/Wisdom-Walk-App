@@ -306,7 +306,7 @@ export default function UsersPage() {
                   <TableCell>{getVerificationBadge(user.verificationStatus, user.isAdminVerified)}</TableCell>
                   <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
+                    <DropdownMenu> 
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
                           <MoreHorizontal className="h-4 w-4" />
