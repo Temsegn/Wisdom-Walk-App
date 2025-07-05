@@ -8,21 +8,19 @@ import '../../models/chat_model.dart';
 import '../../models/message_model.dart';
 
 class ApiService {
-  static const String baseUrl ='https://wisdom-walk-app.onrender.com/api';
-   
- static const Duration timeoutDuration = Duration(seconds: 30);
+  static const String baseUrl = 'https://wisdom-walk-app.onrender.com/api';
+
+  static const Duration timeoutDuration = Duration(seconds: 30);
   final LocalStorageService _localStorageService = LocalStorageService();
   static String? _authToken;
   static Map<String, String> get _headers {
-    final headers = {
-      'Content-Type': 'application/json',
-    };
+    final headers = {'Content-Type': 'application/json'};
     if (_authToken != null) {
       headers['Authorization'] = 'Bearer $_authToken';
     }
     return headers;
   }
-  
+
   Future<String?> getAuthToken() async {
     try {
       return await _localStorageService.getAuthToken();
@@ -42,13 +40,15 @@ class ApiService {
       final url = Uri.parse('$baseUrl/chats?page=$page&limit=$limit');
       debugPrint('Fetching chats from: $url');
 
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(timeoutDuration);
+      final response = await http
+          .get(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(timeoutDuration);
 
       debugPrint('Chats response status: ${response.statusCode}');
       debugPrint('Chats response body: ${response.body}');
@@ -56,10 +56,11 @@ class ApiService {
       final responseData = _parseResponse(response);
 
       if (responseData['success'] == true) {
-        final chats = (responseData['data'] as List)
-            .whereType<Map<String, dynamic>>()
-            .map((chatJson) => Chat.fromJson(chatJson))
-            .toList();
+        final chats =
+            (responseData['data'] as List)
+                .whereType<Map<String, dynamic>>()
+                .map((chatJson) => Chat.fromJson(chatJson))
+                .toList();
         return chats;
       } else {
         throw Exception(responseData['message'] ?? 'Failed to load chats');
@@ -83,7 +84,8 @@ class ApiService {
       throw Exception('Invalid JSON response from server');
     }
   }
-static Future<Chat> createDirectChat(String participantId) async {
+
+  static Future<Chat> createDirectChat(String participantId) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/chat/direct'),
@@ -121,9 +123,10 @@ static Future<Chat> createDirectChat(String participantId) async {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
-          final messages = (data['data'] as List)
-              .map((messageJson) => Message.fromJson(messageJson))
-              .toList();
+          final messages =
+              (data['data'] as List)
+                  .map((messageJson) => Message.fromJson(messageJson))
+                  .toList();
           return messages;
         } else {
           throw Exception(data['message'] ?? 'Failed to load messages');
@@ -142,42 +145,23 @@ static Future<Chat> createDirectChat(String participantId) async {
     required String content,
     String messageType = 'text',
     String? replyToId,
-    List<File>? attachments,
+    List<Map<String, dynamic>>? attachments, // Changed from List<File>?
     Map<String, String>? scripture,
   }) async {
     try {
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$baseUrl/chat/$chatId/messages'),
-      );
-
-      // Add headers
-      if (_authToken != null) {
-        request.headers['Authorization'] = 'Bearer $_authToken';
-      }
-
-      // Add fields
-      request.fields['content'] = content;
-      request.fields['messageType'] = messageType;
-      if (replyToId != null) {
-        request.fields['replyToId'] = replyToId;
-      }
-      if (scripture != null) {
-        request.fields['scripture'] = json.encode(scripture);
-      }
-
-      // Add files
-      if (attachments != null) {
-        for (var file in attachments) {
-          request.files.add(await http.MultipartFile.fromPath(
-            'attachments',
-            file.path,
-          ));
-        }
-      }
-
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/chat/$chatId/messages'),
+            headers: _headers,
+            body: json.encode({
+              'content': content,
+              'messageType': messageType,
+              if (replyToId != null) 'replyToId': replyToId,
+              if (attachments != null) 'attachments': attachments,
+              if (scripture != null) 'scripture': scripture,
+            }),
+          )
+          .timeout(timeoutDuration);
 
       if (response.statusCode == 201) {
         final data = json.decode(response.body);
@@ -195,10 +179,7 @@ static Future<Chat> createDirectChat(String participantId) async {
     }
   }
 
-  static Future<Message> editMessage(
-    String messageId,
-    String content,
-  ) async {
+  static Future<Message> editMessage(String messageId, String content) async {
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/chat/messages/$messageId'),
@@ -338,15 +319,18 @@ static Future<Chat> createDirectChat(String participantId) async {
   }) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/chat/$chatId/messages/search?query=$query&page=$page&limit=$limit'),
+        Uri.parse(
+          '$baseUrl/chat/$chatId/messages/search?query=$query&page=$page&limit=$limit',
+        ),
         headers: _headers,
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final messages = (data['data'] as List)
-            .map((messageJson) => Message.fromJson(messageJson))
-            .toList();
+        final messages =
+            (data['data'] as List)
+                .map((messageJson) => Message.fromJson(messageJson))
+                .toList();
         return messages;
       } else {
         throw Exception('Failed to search messages');

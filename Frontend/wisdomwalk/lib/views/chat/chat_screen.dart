@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:wisdomwalk/services/local_storage_service.dart';
+import 'package:wisdomwalk/services/socket_service.dart';
 import '../../models/chat_model.dart';
 import '../../models/message_model.dart';
 import '../../providers/message_provider.dart';
@@ -22,14 +24,23 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
+  final LocalStorageService _localStorageService = LocalStorageService();
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MessageProvider>().loadMessages(widget.chat.id, refresh: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      context.read<MessageProvider>().loadMessages(
+        widget.chat.id,
+        refresh: true,
+      );
       context.read<ChatProvider>().markChatAsRead(widget.chat.id);
+      final token =
+          await _localStorageService.getAuthToken(); // Get the actual token
+      final socketService = SocketService(context);
+      socketService.connect(token!); // Use token from local storage
+      socketService.joinChat(widget.chat.id);
     });
   }
 
@@ -55,15 +66,18 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundImage: widget.chat.chatImage != null
-                  ? NetworkImage(widget.chat.chatImage!)
-                  : null,
-              child: widget.chat.chatImage == null
-                  ? Text(
-                      widget.chat.chatName?.substring(0, 1).toUpperCase() ?? 'C',
-                      style: const TextStyle(fontSize: 16),
-                    )
-                  : null,
+              backgroundImage:
+                  widget.chat.chatImage != null
+                      ? NetworkImage(widget.chat.chatImage!)
+                      : null,
+              child:
+                  widget.chat.chatImage == null
+                      ? Text(
+                        widget.chat.chatName?.substring(0, 1).toUpperCase() ??
+                            'C',
+                        style: const TextStyle(fontSize: 16),
+                      )
+                      : null,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -101,20 +115,12 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           PopupMenuButton<String>(
             onSelected: _handleMenuAction,
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'search',
-                child: Text('Search'),
-              ),
-              const PopupMenuItem(
-                value: 'mute',
-                child: Text('Mute'),
-              ),
-              const PopupMenuItem(
-                value: 'block',
-                child: Text('Block'),
-              ),
-            ],
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem(value: 'search', child: Text('Search')),
+                  const PopupMenuItem(value: 'mute', child: Text('Mute')),
+                  const PopupMenuItem(value: 'block', child: Text('Block')),
+                ],
           ),
         ],
       ),
@@ -123,7 +129,9 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: Consumer<MessageProvider>(
               builder: (context, messageProvider, child) {
-                final messages = messageProvider.getChatMessages(widget.chat.id);
+                final messages = messageProvider.getChatMessages(
+                  widget.chat.id,
+                );
                 final isLoading = messageProvider.isLoading(widget.chat.id);
                 final error = messageProvider.getError(widget.chat.id);
 
@@ -145,7 +153,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         ElevatedButton(
                           onPressed: () {
                             messageProvider.clearError(widget.chat.id);
-                            messageProvider.loadMessages(widget.chat.id, refresh: true);
+                            messageProvider.loadMessages(
+                              widget.chat.id,
+                              refresh: true,
+                            );
                           },
                           child: const Text('Retry'),
                         ),
@@ -159,10 +170,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Text(
                       'No messages yet\nSend the first message!',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
                     ),
                   );
                 }
@@ -170,7 +178,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 return ListView.builder(
                   controller: _scrollController,
                   reverse: true,
-                  itemCount: messages.length + 
+                  itemCount:
+                      messages.length +
                       (messageProvider.hasMoreMessages(widget.chat.id) ? 1 : 0),
                   itemBuilder: (context, index) {
                     if (index == messages.length) {
@@ -251,13 +260,10 @@ class _ChatScreenState extends State<ChatScreen> {
   void _handleMenuAction(String action) {
     switch (action) {
       case 'search':
-        // Implement search
         break;
       case 'mute':
-        // Implement mute
         break;
       case 'block':
-        // Implement block
         break;
     }
   }
@@ -269,35 +275,45 @@ class _ChatScreenState extends State<ChatScreen> {
   void _editMessage(Message message) {
     showDialog(
       context: context,
-      builder: (context) => EditMessageDialog(
-        message: message,
-        onEdit: (newContent) {
-          context.read<MessageProvider>().editMessage(message.id, newContent);
-        },
-      ),
+      builder:
+          (context) => EditMessageDialog(
+            message: message,
+            onEdit: (newContent) {
+              context.read<MessageProvider>().editMessage(
+                message.id,
+                newContent,
+              );
+            },
+          ),
     );
   }
 
   void _deleteMessage(Message message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Message'),
-        content: const Text('Are you sure you want to delete this message?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Message'),
+            content: const Text(
+              'Are you sure you want to delete this message?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.read<MessageProvider>().deleteMessage(message.id);
+                },
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<MessageProvider>().deleteMessage(message.id);
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
     );
   }
 
@@ -310,83 +326,86 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _forwardMessage(Message message) {
-    // Implement forward message dialog
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Forward Message'),
-        content: const Text('Feature coming soon!'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Forward Message'),
+            content: const Text('Feature coming soon!'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   Future<void> _sendMessage(String content) async {
     if (content.trim().isEmpty) return;
-
     await context.read<MessageProvider>().sendMessage(
       chatId: widget.chat.id,
       content: content.trim(),
     );
-
     _messageController.clear();
   }
 
   Future<void> _attachFile() async {
     showModalBottomSheet(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo),
-              title: const Text('Photo'),
-              onTap: () async {
-                Navigator.pop(context);
-                final image = await _imagePicker.pickImage(source: ImageSource.gallery);
-                if (image != null) {
-                  await context.read<MessageProvider>().sendMessage(
-                    chatId: widget.chat.id,
-                    content: 'Photo',
-                    messageType: 'image',
-                    attachments: [File(image.path)],
-                  );
-                }
-              },
+      builder:
+          (context) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo),
+                  title: const Text('Photo'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final image = await _imagePicker.pickImage(
+                      source: ImageSource.gallery,
+                    );
+                    if (image != null) {
+                      await context.read<MessageProvider>().sendMessage(
+                        chatId: widget.chat.id,
+                        content: 'Photo',
+                        messageType: 'image',
+                        attachments: [File(image.path)],
+                      );
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('Camera'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final image = await _imagePicker.pickImage(
+                      source: ImageSource.camera,
+                    );
+                    if (image != null) {
+                      await context.read<MessageProvider>().sendMessage(
+                        chatId: widget.chat.id,
+                        content: 'Photo',
+                        messageType: 'image',
+                        attachments: [File(image.path)],
+                      );
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.insert_drive_file),
+                  title: const Text('Document'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    // Implement document picker
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Camera'),
-              onTap: () async {
-                Navigator.pop(context);
-                final image = await _imagePicker.pickImage(source: ImageSource.camera);
-                if (image != null) {
-                  await context.read<MessageProvider>().sendMessage(
-                    chatId: widget.chat.id,
-                    content: 'Photo',
-                    messageType: 'image',
-                    attachments: [File(image.path)],
-                  );
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.insert_drive_file),
-              title: const Text('Document'),
-              onTap: () {
-                Navigator.pop(context);
-                // Implement document picker
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 }

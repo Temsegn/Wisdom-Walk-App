@@ -55,7 +55,11 @@ class ChatService {
     }
   }
 
-  Future<List<Message>> getChatMessages(String chatId, {int page = 1, int limit = 50}) async {
+  Future<List<Message>> getChatMessages(
+    String chatId, {
+    int page = 1,
+    int limit = 50,
+  }) async {
     final token = await _localStorageService.getAuthToken();
     final response = await http.get(
       Uri.parse('$baseUrl/chats/$chatId/messages?page=$page&limit=$limit'),
@@ -117,14 +121,14 @@ class ChatService {
     final token = await _localStorageService.getAuthToken();
     final response = await http.delete(
       Uri.parse('$baseUrl/chats/messages/$messageId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode != 200) {
       final data = json.decode(response.body);
-      throw Exception(data['message'] ?? 'Failed to delete message: ${response.statusCode}');
+      throw Exception(
+        data['message'] ?? 'Failed to delete message: ${response.statusCode}',
+      );
     }
   }
 
@@ -174,7 +178,9 @@ class ChatService {
 
     if (response.statusCode != 200) {
       final data = json.decode(response.body);
-      throw Exception(data['message'] ?? 'Failed to add reaction: ${response.statusCode}');
+      throw Exception(
+        data['message'] ?? 'Failed to add reaction: ${response.statusCode}',
+      );
     }
   }
 
@@ -182,29 +188,29 @@ class ChatService {
     final token = await _localStorageService.getAuthToken();
     final response = await http.post(
       Uri.parse('$baseUrl/chats/$chatId/pin/$messageId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode != 200) {
       final data = json.decode(response.body);
-      throw Exception(data['message'] ?? 'Failed to pin message: ${response.statusCode}');
+      throw Exception(
+        data['message'] ?? 'Failed to pin message: ${response.statusCode}',
+      );
     }
   }
 
   Future<void> unpinMessage(String chatId, String messageId) async {
     final token = await _localStorageService.getAuthToken();
     final response = await http.put(
-      Uri.parse('$baseUrl/ch armées/$chatId/unpin/$messageId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      Uri.parse('$baseUrl/chats/$chatId/unpin/$messageId'), // Fixed typo
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode != 200) {
       final data = json.decode(response.body);
-      throw Exception(data['message'] ?? 'Failed to unpin message: ${response.statusCode}');
+      throw Exception(
+        data['message'] ?? 'Failed to unpin message: ${response.statusCode}',
+      );
     }
   }
 
@@ -212,14 +218,14 @@ class ChatService {
     final token = await _localStorageService.getAuthToken();
     final response = await http.post(
       Uri.parse('$baseUrl/chats/$chatId/mute'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode != 200) {
       final data = json.decode(response.body);
-      throw Exception(data['message'] ?? 'Failed to mute chat: ${response.statusCode}');
+      throw Exception(
+        data['message'] ?? 'Failed to mute chat: ${response.statusCode}',
+      );
     }
   }
 
@@ -227,14 +233,14 @@ class ChatService {
     final token = await _localStorageService.getAuthToken();
     final response = await http.post(
       Uri.parse('$baseUrl/chats/$chatId/unmute'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode != 200) {
       final data = json.decode(response.body);
-      throw Exception(data['message'] ?? 'Failed to unmute chat: ${response.statusCode}');
+      throw Exception(
+        data['message'] ?? 'Failed to unmute chat: ${response.statusCode}',
+      );
     }
   }
 
@@ -242,14 +248,14 @@ class ChatService {
     final token = await _localStorageService.getAuthToken();
     final response = await http.delete(
       Uri.parse('$baseUrl/chats/$chatId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode != 200) {
       final data = json.decode(response.body);
-      throw Exception(data['message'] ?? 'Failed to delete chat: ${response.statusCode}');
+      throw Exception(
+        data['message'] ?? 'Failed to delete chat: ${response.statusCode}',
+      );
     }
   }
 
@@ -257,9 +263,7 @@ class ChatService {
     final token = await _localStorageService.getAuthToken();
     final response = await http.get(
       Uri.parse('$baseUrl/chats/$chatId/messages/search?query=$query'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode == 200) {

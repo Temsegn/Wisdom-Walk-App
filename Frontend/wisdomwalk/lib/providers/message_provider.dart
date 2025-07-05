@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:wisdomwalk/services/local_storage_service.dart';
 import '../models/message_model.dart';
 import '../services/api_service.dart';
 
@@ -84,24 +87,26 @@ class MessageProvider with ChangeNotifier {
     List<File>? attachments,
   }) async {
     try {
+      List<Map<String, dynamic>>? uploadedAttachments;
+      if (attachments != null && attachments.isNotEmpty) {
+        uploadedAttachments = await _uploadFiles(attachments);
+      }
+
       final message = await ApiService.sendMessage(
         chatId: chatId,
         content: content,
         messageType: messageType,
         replyToId: _replyToMessage?.id,
-        attachments: attachments,
+        attachments: uploadedAttachments,
       );
 
-      // Add message to the beginning of the list
       if (_chatMessages[chatId] != null) {
         _chatMessages[chatId]!.insert(0, message);
       } else {
         _chatMessages[chatId] = [message];
       }
 
-      // Clear reply message
       _replyToMessage = null;
-      
       notifyListeners();
       return message;
     } catch (e) {
@@ -111,10 +116,30 @@ class MessageProvider with ChangeNotifier {
     }
   }
 
+  Future<List<Map<String, dynamic>>> _uploadFiles(List<File> files) async {
+    final token = await LocalStorageService().getAuthToken();
+    final uri = Uri.parse('https://wisdom-walk-app.onrender.com/api/upload');
+    var request = http.MultipartRequest('POST', uri);
+    request.headers['Authorization'] = 'Bearer $token';
+
+    for (var file in files) {
+      request.files.add(await http.MultipartFile.fromPath('files', file.path));
+    }
+
+    final response = await request.send();
+    if (response.statusCode == 200) {
+      final responseData = await response.stream.bytesToString();
+      final data = json.decode(responseData);
+      return List<Map<String, dynamic>>.from(data['data']);
+    } else {
+      throw Exception('Failed to upload files: ${response.statusCode}');
+    }
+  }
+
   Future<void> editMessage(String messageId, String content) async {
     try {
       final editedMessage = await ApiService.editMessage(messageId, content);
-      
+
       // Update message in all chat lists
       for (String chatId in _chatMessages.keys) {
         final messages = _chatMessages[chatId]!;
@@ -124,7 +149,7 @@ class MessageProvider with ChangeNotifier {
           break;
         }
       }
-      
+
       notifyListeners();
     } catch (e) {
       // Handle error
@@ -135,13 +160,13 @@ class MessageProvider with ChangeNotifier {
   Future<void> deleteMessage(String messageId) async {
     try {
       await ApiService.deleteMessage(messageId);
-      
+
       // Remove message from all chat lists
       for (String chatId in _chatMessages.keys) {
         final messages = _chatMessages[chatId]!;
         messages.removeWhere((m) => m.id == messageId);
       }
-      
+
       notifyListeners();
     } catch (e) {
       // Handle error
@@ -162,7 +187,7 @@ class MessageProvider with ChangeNotifier {
   Future<void> pinMessage(String chatId, String messageId) async {
     try {
       await ApiService.pinMessage(chatId, messageId);
-      
+
       // Update message pin status
       final messages = _chatMessages[chatId];
       if (messages != null) {
@@ -173,7 +198,7 @@ class MessageProvider with ChangeNotifier {
           // or creating a new instance with updated properties
         }
       }
-      
+
       notifyListeners();
     } catch (e) {
       // Handle error
@@ -183,15 +208,18 @@ class MessageProvider with ChangeNotifier {
 
   Future<Message?> forwardMessage(String messageId, String targetChatId) async {
     try {
-      final forwardedMessage = await ApiService.forwardMessage(messageId, targetChatId);
-      
+      final forwardedMessage = await ApiService.forwardMessage(
+        messageId,
+        targetChatId,
+      );
+
       // Add forwarded message to target chat
       if (_chatMessages[targetChatId] != null) {
         _chatMessages[targetChatId]!.insert(0, forwardedMessage);
       } else {
         _chatMessages[targetChatId] = [forwardedMessage];
       }
-      
+
       notifyListeners();
       return forwardedMessage;
     } catch (e) {

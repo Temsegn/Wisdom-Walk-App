@@ -49,7 +49,8 @@ class Chat {
   factory Chat.fromJson(Map<String, dynamic> json) {
     try {
       // Parse participants safely
-      final participants = (json['participants'] as List<dynamic>?)
+      final participants =
+          (json['participants'] as List<dynamic>?)
               ?.whereType<Map<String, dynamic>>()
               .map((e) => UserModel.fromJson(e))
               .toList() ??
@@ -80,16 +81,22 @@ class Chat {
         ),
         groupName: json['groupName']?.toString(),
         groupDescription: json['groupDescription']?.toString(),
-        groupAdminId: json['groupAdmin']?.toString() ?? json['groupAdminId']?.toString(),
-        lastMessageId: json['lastMessage'] is String ? json['lastMessage']?.toString() : null,
+        groupAdminId:
+            json['groupAdmin']?.toString() ?? json['groupAdminId']?.toString(),
+        lastMessageId:
+            json['lastMessage'] is String
+                ? json['lastMessage']?.toString()
+                : null,
         lastMessage: lastMessage,
         lastActivity: parseDate(json['lastActivity']),
         isActive: json['isActive'] is bool ? json['isActive'] : true,
-        pinnedMessages: (json['pinnedMessages'] as List<dynamic>?)
+        pinnedMessages:
+            (json['pinnedMessages'] as List<dynamic>?)
                 ?.whereType<String>()
                 .toList() ??
             [],
-        participantSettings: (json['participantSettings'] as List<dynamic>?)
+        participantSettings:
+            (json['participantSettings'] as List<dynamic>?)
                 ?.map((e) => ParticipantSetting.fromJson(e))
                 .toList() ??
             [],
@@ -110,6 +117,29 @@ class Chat {
   }
 
   // ... toJson() method ...
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'participants': participants.map((p) => p.toJson()).toList(),
+      'type': type.toString().split('.').last,
+      'groupName': groupName,
+      'groupDescription': groupDescription,
+      'groupAdmin': groupAdminId,
+      'lastMessage': lastMessageId ?? lastMessage?.toJson(),
+      'lastActivity': lastActivity?.toIso8601String(),
+      'isActive': isActive,
+      'pinnedMessages': pinnedMessages,
+      'participantSettings':
+          participantSettings.map((ps) => ps.toJson()).toList(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
+      'unreadCount': unreadCount,
+      'chatName': chatName,
+      'chatImage': chatImage,
+      'isOnline': isOnline,
+      'lastActive': lastActive?.toIso8601String(),
+    };
+  }
 }
 
 enum ChatType { direct, group }
@@ -151,4 +181,13 @@ class ParticipantSetting {
   }
 
   // ... toJson() method ...
+  Map<String, dynamic> toJson() {
+    return {
+      'user': userId,
+      'isMuted': isMuted,
+      'joinedAt': joinedAt.toIso8601String(),
+      'leftAt': leftAt?.toIso8601String(),
+      'lastReadMessage': lastReadMessageId,
+    };
+  }
 }
