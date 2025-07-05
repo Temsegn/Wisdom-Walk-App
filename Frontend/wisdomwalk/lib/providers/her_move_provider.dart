@@ -23,9 +23,12 @@ class HerMoveProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _requests = await _herMoveService.getLocationRequests();
+      _requests = await _herMoveService.getAllMoves();
+      if (_requests.isEmpty) {
+        _error = 'No travel requests available';
+      }
     } catch (e) {
-      _error = e.toString();
+      _error = 'Failed to load requests: ${e.toString()}';
     } finally {
       _isLoading = false;
       notifyListeners();

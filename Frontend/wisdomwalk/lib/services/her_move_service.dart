@@ -42,7 +42,7 @@ class HerMoveService {
     }
 
     final response = await http.get(
-      Uri.parse('$_baseUrl/moves/$moveId'),
+      Uri.parse('$_baseUrl/moves/$moveId'), // Use /moves/:moveId
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -52,13 +52,7 @@ class HerMoveService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       print('getLocationRequestDetails response: $data'); // Debug log
-      if (data is Map<String, dynamic>) {
-        return LocationRequestModel.fromJson(data);
-      } else if (data is List && data.isNotEmpty) {
-        return LocationRequestModel.fromJson(data.first);
-      } else {
-        throw Exception('Invalid response format: ${response.body}');
-      }
+      return LocationRequestModel.fromJson(data);
     } else {
       throw Exception('Failed to fetch request details: ${response.body}');
     }
@@ -91,6 +85,33 @@ class HerMoveService {
       }
     } else {
       throw Exception('Failed to search nearby help: ${response.body}');
+    }
+  }
+
+  Future<List<LocationRequestModel>> getAllMoves() async {
+    final token = await _storageService.getAuthToken();
+    if (token == null) {
+      throw Exception('No authentication token found');
+    }
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl/moves'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      print('getAllMoves response: $data'); // Debug log
+      if (data is List) {
+        return data.map((json) => LocationRequestModel.fromJson(json)).toList();
+      } else {
+        throw Exception('Expected a list in response, got: ${response.body}');
+      }
+    } else {
+      throw Exception('Failed to fetch all moves: ${response.body}');
     }
   }
 

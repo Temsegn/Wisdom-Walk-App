@@ -47,6 +47,9 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {
       _allRequests = herMoveProvider.requests;
       _filteredRequests = _allRequests;
+      if (_allRequests.isEmpty) {
+        print('No requests loaded in SearchScreen');
+      }
     });
   }
 
