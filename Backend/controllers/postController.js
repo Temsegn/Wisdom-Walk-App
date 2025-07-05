@@ -4,7 +4,7 @@ const User = require("../models/User")
 const Notification = require("../models/Notification")
 const { saveMultipleFiles } = require("../utils/localStorageService")
 const { getRandomScripture, getPaginationMeta } = require("../utils/helpers")
-
+const {sendReportEmailToAdmin,sendNewPostEmailToAdmin,sendLikeNotificationEmail,sendCommentNotificationEmail} = require("../utils/emailService")
 // Create a new post
 const createPost = async (req, res) => {
   try {
@@ -77,7 +77,21 @@ const createPost = async (req, res) => {
     
     //   await Notification.insertMany(notifications)
     // }
-      
+    sendNewPostEmailToAdmin(
+      process.env.ADMIN_EMAIL,
+      post
+    )
+    // Create notification for post author
+    if (!isAnonymous && post.author.toString() !== authorId.toString()) {
+      await new Notification({
+        recipient: authorId,
+        sender: post.author,
+        type: "post",
+        title: "Your post was created successfully",
+        message: `Your ${type} has been created successfully`,
+        relatedPost: post._id,
+      }).save()
+    }
     res.status(201).json({
       success: true,
       message: "Post created successfully",
@@ -89,7 +103,7 @@ const createPost = async (req, res) => {
       success: false,
       message: "Failed to create post",
       error: error.message,
-    })
+    }) 
   }
 }
 
