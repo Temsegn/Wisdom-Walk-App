@@ -7,35 +7,29 @@ const Notification = require("../models/Notification")
 const { sendUserNotificationEmail, sendAdminNotificationEmail,sendBannedEmailToUser,sendBlockedEmailToUser,sendUnblockedEmailToUser } = require("../utils/emailService")
 const { getPaginationMeta } = require("../utils/helpers")
 
- // Get all notifications without pagination
+// Get all notifications without pagination
 const getAllNotifications = async (req, res) => {
   try {
-    // Extract filter parameters
-    const { 
-      isRead, 
-      type, 
-      recipient, 
-      sender, 
-      priority,
-      startDate,
-      endDate
+    const {
+      isRead=false,
+      type="admin_message", // now can be a comma-separated list
     } = req.query;
 
-    // Build filter object
     const filter = {};
 
-    // Basic filters
+    // Handle multiple types (e.g., "admin_message,alert")
+    if (type) {
+      const types = type.split(",");
+      filter.type = types.length > 1 ? { $in: types } : types[0];
+    }
+
     if (isRead !== undefined) {
       filter.isRead = isRead === "true";
     }
-    if (type) {
-      filter.type = type;
-    }
+
     if (priority) {
       filter.priority = priority;
     }
-
-    // User reference filters
     if (recipient) {
       filter.recipient = recipient;
     }
@@ -43,31 +37,22 @@ const getAllNotifications = async (req, res) => {
       filter.sender = sender;
     }
 
-    // Date range filtering
     if (startDate || endDate) {
       filter.createdAt = {};
-      if (startDate) {
-        filter.createdAt.$gte = new Date(startDate);
-      }
-      if (endDate) {
-        filter.createdAt.$lte = new Date(endDate);
-      }
+      if (startDate) filter.createdAt.$gte = new Date(startDate);
+      if (endDate) filter.createdAt.$lte = new Date(endDate);
     }
 
-    // Query database with all matching notifications
-    const getAllNotifications = await Notification.find(filter)
+    const notifications = await Notification.find(filter)
       .populate("sender", "firstName lastName profilePicture role")
       .populate("recipient", "firstName lastName profilePicture role")
-      .populate("relatedPost", "title content type")
-      .populate("relatedComment", "content")
-      .sort({ createdAt: -1 }) // Default sort by newest first
+       .sort({ createdAt: -1 })
       .lean();
 
-    // Get counts for statistics
     const totalCount = await Notification.countDocuments(filter);
-    const unreadCount = await Notification.countDocuments({ 
-      ...filter, 
-      isRead: false 
+    const unreadCount = await Notification.countDocuments({
+      ...filter,
+      isRead: false,
     });
 
     res.status(200).json({
@@ -75,10 +60,9 @@ const getAllNotifications = async (req, res) => {
       data: notifications,
       counts: {
         total: totalCount,
-        unread: unreadCount
-      }
+        unread: unreadCount,
+      },
     });
-
   } catch (error) {
     console.error("Get all notifications error:", error);
     res.status(500).json({
@@ -88,6 +72,7 @@ const getAllNotifications = async (req, res) => {
     });
   }
 };
+
 
 // Get pending user verificationsfff 
 const getPendingVerifications = async (req, res) => {

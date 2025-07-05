@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { move } = require('../routes/movementRoute');
 
 const movementSchema = new mongoose.Schema({
     user : {
@@ -24,7 +25,21 @@ const movementSchema = new mongoose.Schema({
         default: Date.now
     }
 
-})
+}
+, {
+    timestamps: true, // Automatically manage createdAt and updatedAt fields
+});
+
+
+movementSchema.pre('save', function(next) {
+    // Ensure movementDate is set to current date if not provided
+    if (!this.movementDate) {
+        this.movementDate = new Date();
+    }
+    next();
+});
+
+movementSchema.index({ user: 1, movementDate: -1 }); // Index for efficient querying
 
 module.exports = mongoose.model('Movement', movementSchema);
 

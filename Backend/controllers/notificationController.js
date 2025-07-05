@@ -6,12 +6,15 @@ const { getPaginationMeta } = require("../utils/helpers");
 const getUserNotifications = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { page = 1, limit = 20, isRead } = req.query;
+    const { page = 1, limit = 20, isRead,type } = req.query;
     const skip = (page - 1) * limit;
 
     const filter = { recipient: userId };
     if (isRead !== undefined) {
       filter.isRead = isRead === "true";
+    }
+    if (type) {
+      filter.type = type;
     }
 
     const notifications = await Notification.find(filter)

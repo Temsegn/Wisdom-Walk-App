@@ -161,9 +161,7 @@ const userSchema = new mongoose.Schema(
     passwordResetToken: String,
     passwordResetExpires: Date,
   },
-  {
-    timestamps: true,
-  },
+ c
 )
 
 // Index for better performance
