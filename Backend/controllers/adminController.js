@@ -50,12 +50,12 @@ const getPendingVerifications = async (req, res) => {
     const pendingUsers = await User.find({
       isEmailVerified: true,
       verificationStatus: "pending",
-      isAdminVerified: false,
+      //isAdminVerified: false,
     })
       .select("firstName lastName email phoneNumber location livePhoto nationalId createdAt")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(Number.parseInt(limit))
+      .limit(Number.parseInt(limit))  
 
     const total = await User.countDocuments({
       isEmailVerified: true,
@@ -535,7 +535,7 @@ const sendNotificationToUsers = async (req, res) => {
     const { title, message, userIds, groupType, priority = "normal" } = req.body
     const adminId = req.user._id
 
-    let recipients = []
+    let recipients = [] 
 
     if (userIds && userIds.length > 0) {
       // Send to specific users
@@ -543,7 +543,7 @@ const sendNotificationToUsers = async (req, res) => {
     } else if (groupType) {
       // Send to all users in a specific group
       const groupUsers = await User.find({
-        "joinedGroups.groupType": groupType,
+        "joinedGroups.groupType": groupType, 
         isEmailVerified: true,
         isAdminVerified: true,
         status: "active",
