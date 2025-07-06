@@ -4,313 +4,412 @@ import '../../models/message_model.dart';
 
 class MessageBubble extends StatelessWidget {
   final Message message;
-  final VoidCallback onReply;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final Function(String) onReact;
-  final VoidCallback onPin;
-  final VoidCallback onForward;
+  final bool isCurrentUser;
+  final VoidCallback? onReply;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final Function(String)? onReact;
+  final VoidCallback? onPin;
+  final VoidCallback? onForward;
 
   const MessageBubble({
     Key? key,
     required this.message,
-    required this.onReply,
-    required this.onEdit,
-    required this.onDelete,
-    required this.onReact,
-    required this.onPin,
-    required this.onForward,
+    required this.isCurrentUser,
+    this.onReply,
+    this.onEdit,
+    this.onDelete,
+    this.onReact,
+    this.onPin,
+    this.onForward,
   }) : super(key: key);
-  
- 
+
   @override
   Widget build(BuildContext context) {
-    final isMe = CurrentUser.isCurrentUser(message.sender.id);
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
     
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!isMe) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundImage: message.sender.profilePicture != null
-                  ? NetworkImage(message.sender.profilePicture!)
-                  : null,
-              child: message.sender.profilePicture == null
-                  ? Text(
-                      message.sender.fullName.substring(0, 1).toUpperCase(),
-                      style: const TextStyle(fontSize: 12),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 8),
-          ],
+          if (!isCurrentUser) _buildUserAvatar(message.sender),
           Flexible(
-            child: GestureDetector(
-              onLongPress: () => _showMessageOptions(context, isMe),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isMe ? Colors.blue : Colors.grey[300],
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (message.replyTo != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              message.replyTo!.sender.fullName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
-                              message.replyTo!.content,
-                              style: const TextStyle(fontSize: 12),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    if (message.forwardedFrom != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.forward, size: 16),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'Forwarded',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    if (message.isPinned) ...[
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.push_pin,
-                            size: 16,
-                            color: isMe ? Colors.white70 : Colors.grey[600],
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Pinned',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isMe ? Colors.white70 : Colors.grey[600],
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    if (message.attachments.isNotEmpty) ...[
-                      ...message.attachments.map((attachment) {
-                        if (attachment.fileType == 'image') {
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                attachment.type,
-                                width: 200,
-                                height: 150,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 200,
-                                    height: 150,
-                                    color: Colors.grey[300],
-                                    child: const Icon(Icons.error),
-                                  );
-                                },
-                              ),
-                            ),
-                          );
-                        }
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.attach_file, size: 16),
-                              const SizedBox(width: 4),
-                              Text(
-                                attachment.fileName,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ],
-                    Text(
-                      message.content,
-                      style: TextStyle(
-                        color: isMe ? Colors.white : Colors.black87,
-                        fontSize: 16,
+            child: Column(
+              crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                if (!isCurrentUser) _buildSenderName(message.sender),
+                GestureDetector(
+                  onLongPress: () => _showMessageOptions(context),
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.75,
+                    ),
+                    padding: const EdgeInsets.all(12.0),
+                    decoration: BoxDecoration(
+                      color: isCurrentUser
+                          ? (isDarkMode ? Colors.blue[800] : Colors.blue)
+                          : (isDarkMode ? Colors.grey[800] : Colors.grey[200]),
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(18.0),
+                        topRight: const Radius.circular(18.0),
+                        bottomLeft: Radius.circular(isCurrentUser ? 18.0 : 4.0),
+                        bottomRight: Radius.circular(isCurrentUser ? 4.0 : 18.0),
                       ),
                     ),
-                    if (message.reactions.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 4,
-                        children: message.reactions.map((reaction) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${reaction.emoji} 1',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _formatTime(message.createdAt),
-                          style: TextStyle(
-                            color: isMe ? Colors.white70 : Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                        if (message.isEdited) ...[
-                          const SizedBox(width: 4),
-                          Text(
-                            '(edited)',
-                            style: TextStyle(
-                              color: isMe ? Colors.white70 : Colors.grey[600],
-                              fontSize: 10,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                        if (isMe) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.done_all,
-                            size: 16,
-                            color: message.readBy.length > 1 
-                                ? Colors.blue 
-                                : Colors.white70,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
+                    child: _buildMessageContent(),
+                  ),
                 ),
-              ),
+                _buildMessageStatus(),
+              ],
             ),
           ),
-          if (isMe) const SizedBox(width: 8),
+          if (isCurrentUser) const SizedBox(width: 8.0),
         ],
       ),
     );
   }
 
-  void _showMessageOptions(BuildContext context, bool isMe) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.reply),
-              title: const Text('Reply'),
-              onTap: () {
-                Navigator.pop(context);
-                onReply();
-              },
-            ),
-            if (isMe) ...[
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('Edit'),
-                onTap: () {
-                  Navigator.pop(context);
-                  onEdit();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete),
-                title: const Text('Delete'),
-                onTap: () {
-                  Navigator.pop(context);
-                  onDelete();
-                },
-              ),
-            ],
-            ListTile(
-              leading: const Icon(Icons.emoji_emotions),
-              title: const Text('React'),
-              onTap: () {
-                Navigator.pop(context);
-                _showReactionPicker(context);
-              },
-            ),
-            ListTile(
-              leading: Icon(message.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
-              title: Text(message.isPinned ? 'Unpin' : 'Pin'),
-              onTap: () {
-                Navigator.pop(context);
-                onPin();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.forward),
-              title: const Text('Forward'),
-              onTap: () {
-                Navigator.pop(context);
-                onForward();
-              },
-            ),
-          ],
+  Widget _buildUserAvatar(UserModel user) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: CircleAvatar(
+        radius: 16.0,
+        backgroundColor: Colors.grey[300],
+        backgroundImage: user.profilePicture != null
+            ? NetworkImage(user.profilePicture!)
+            : null,
+        child: user.profilePicture == null
+            ? Text(
+                user.initials ?? '?',
+                style: const TextStyle(
+                  fontSize: 12.0,
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildSenderName(UserModel sender) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8.0, bottom: 2.0),
+      child: Text(
+        sender.displayName,
+        style: TextStyle(
+          fontSize: 12.0,
+          color: Colors.grey[600],
+          fontWeight: FontWeight.w500,
         ),
       ),
+    );
+  }
+
+  Widget _buildMessageContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (message.replyTo != null) _buildReplyPreview(),
+        if (message.forwardedFrom != null) _buildForwardIndicator(),
+        if (message.isPinned) _buildPinnedIndicator(),
+        if (message.attachments.isNotEmpty) ..._buildAttachments(),
+        Text(
+          message.content,
+          style: const TextStyle(fontSize: 16.0),
+        ),
+        if (message.reactions.isNotEmpty) _buildReactions(),
+      ],
+    );
+  }
+
+  Widget _buildReplyPreview() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.all(8.0),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Replying to ${message.replyTo!.sender.displayName}',
+            style: const TextStyle(
+              fontSize: 12.0,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4.0),
+          Text(
+            message.replyTo!.content,
+            style: const TextStyle(fontSize: 12.0),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildForwardIndicator() {
+    return Row(
+      children: [
+        const Icon(Icons.forward, size: 16.0),
+        const SizedBox(width: 4.0),
+        Text(
+          'Forwarded from ${message.forwardedFrom!.sender.displayName}',
+          style: const TextStyle(
+            fontSize: 12.0,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPinnedIndicator() {
+    return Row(
+      children: [
+        const Icon(Icons.push_pin, size: 16.0),
+        const SizedBox(width: 4.0),
+        const Text(
+          'Pinned',
+          style: TextStyle(
+            fontSize: 12.0,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildAttachments() {
+    return message.attachments.map((attachment) {
+      if (attachment.fileType.startsWith('image')) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8.0),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8.0),
+            child: Image.network(
+              attachment.type,
+              width: 200.0,
+              height: 150.0,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  width: 200.0,
+                  height: 150.0,
+                  color: Colors.grey[300],
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: 200.0,
+                  height: 150.0,
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.broken_image),
+                );
+              },
+            ),
+          ),
+        );
+      } else {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8.0),
+          padding: const EdgeInsets.all(8.0),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.insert_drive_file, size: 16.0),
+              const SizedBox(width: 8.0),
+              Flexible(
+                child: Text(
+                  attachment.fileName,
+                  style: const TextStyle(fontSize: 12.0),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }).toList();
+  }
+
+  Widget _buildReactions() {
+    return Wrap(
+      spacing: 4.0,
+      runSpacing: 4.0,
+      children: message.reactions.map((reaction) {
+        return Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 6.0,
+            vertical: 2.0,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          child: Text(
+            reaction.emoji,
+            style: const TextStyle(fontSize: 12.0),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildMessageStatus() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4.0),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _formatTime(message.createdAt),
+            style: TextStyle(
+              fontSize: 10.0,
+              color: Colors.grey[500],
+            ),
+          ),
+          if (message.isEdited) ...[
+            const SizedBox(width: 4.0),
+            Text(
+              'edited',
+              style: TextStyle(
+                fontSize: 10.0,
+                color: Colors.grey[500],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+          if (isCurrentUser) ...[
+            const SizedBox(width: 4.0),
+            Icon(
+              Icons.done_all,
+              size: 12.0,
+              color: message.readBy.length > 1 ? Colors.blue : Colors.grey,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showMessageOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (onReply != null)
+                _buildOptionTile(
+                  context,
+                  icon: Icons.reply,
+                  label: 'Reply',
+                  onTap: () {
+                    Navigator.pop(context);
+                    onReply!();
+                  },
+                ),
+              if (isCurrentUser && onEdit != null)
+                _buildOptionTile(
+                  context,
+                  icon: Icons.edit,
+                  label: 'Edit',
+                  onTap: () {
+                    Navigator.pop(context);
+                    onEdit!();
+                  },
+                ),
+              if (isCurrentUser && onDelete != null)
+                _buildOptionTile(
+                  context,
+                  icon: Icons.delete,
+                  label: 'Delete',
+                  isDestructive: true,
+                  onTap: () {
+                    Navigator.pop(context);
+                    onDelete!();
+                  },
+                ),
+              if (onReact != null)
+                _buildOptionTile(
+                  context,
+                  icon: Icons.emoji_emotions,
+                  label: 'React',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showReactionPicker(context);
+                  },
+                ),
+              if (onPin != null)
+                _buildOptionTile(
+                  context,
+                  icon: message.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                  label: message.isPinned ? 'Unpin' : 'Pin',
+                  onTap: () {
+                    Navigator.pop(context);
+                    onPin!();
+                  },
+                ),
+              if (onForward != null)
+                _buildOptionTile(
+                  context,
+                  icon: Icons.forward,
+                  label: 'Forward',
+                  onTap: () {
+                    Navigator.pop(context);
+                    onForward!();
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOptionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    bool isDestructive = false,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: isDestructive ? Colors.red : theme.iconTheme.color,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: isDestructive ? Colors.red : theme.textTheme.bodyLarge?.color,
+        ),
+      ),
+      onTap: onTap,
     );
   }
 
@@ -319,31 +418,28 @@ class MessageBubble extends StatelessWidget {
     
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('React to message'),
-        content: Wrap(
-          spacing: 8,
-          children: reactions.map((emoji) {
-            return GestureDetector(
-              onTap: () {
-                Navigator.pop(context);
-                onReact(emoji);
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(8),
-                ),
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add Reaction'),
+          content: Wrap(
+            spacing: 12.0,
+            runSpacing: 12.0,
+            alignment: WrapAlignment.center,
+            children: reactions.map((emoji) {
+              return GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  onReact?.call(emoji);
+                },
                 child: Text(
                   emoji,
-                  style: const TextStyle(fontSize: 24),
+                  style: const TextStyle(fontSize: 28.0),
                 ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 
@@ -355,27 +451,7 @@ class MessageBubble extends StatelessWidget {
     if (messageDate == today) {
       return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
     } else {
-      return '${dateTime.day}/${dateTime.month} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year.toString().substring(2)}';
     }
   }
 }
-class CurrentUser {
-  static UserModel? _user;
-
-  static void setUser(UserModel user) {
-    _user = user;
-  }
-
-  static UserModel? get user => _user;
-
-  static void clear() {
-    _user = null;
-  }
-
-  static bool get isLoggedIn => _user != null;
-
-  static bool isCurrentUser(String id) {
-    return _user?.id == id;
-  }
-}
-

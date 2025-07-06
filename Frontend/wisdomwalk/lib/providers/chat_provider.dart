@@ -14,44 +14,42 @@ class ChatProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get hasMoreChats => _hasMoreChats;
+  
+Future<void> loadChats({bool refresh = false}) async {
+  if (_isLoading || (!refresh && !_hasMoreChats)) return;
 
-  Future<void> loadChats({bool refresh = false}) async {
-    if (_isLoading || (!refresh && !_hasMoreChats)) return;
-
-    _isLoading = true;
-    if (refresh) {
-      _currentPage = 1;
-      _hasMoreChats = true;
-      _error = null;
-    }
-    notifyListeners();
-
-    try {
-      final newChats = await ApiService().getUserChats(
-        page: _currentPage,
-        limit: 20,
-      );
-
-      if (refresh) {
-        _chats = newChats;
-      } else {
-        _chats.addAll(newChats);
-      }
-
-      if (newChats.isEmpty) {
-        _hasMoreChats = false;
-      } else {
-        _currentPage++;
-      }
-    } catch (e) {
-      _error = e.toString();
-      debugPrint('Error loading chats: $e');
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+  _isLoading = true;
+  if (refresh) {
+    _currentPage = 1;
+    _hasMoreChats = true;
+    _error = null;
   }
+  notifyListeners();
 
+  try {
+    final newChats = await ApiService().getUserChats(
+      page: _currentPage,
+      limit: 20,
+    );
+
+    if (refresh) {
+      _chats = newChats;
+    } else {
+      _chats.addAll(newChats);
+    }
+
+    _hasMoreChats = newChats.length >= 20; // Assuming limit is 20
+    if (_hasMoreChats) {
+      _currentPage++;
+    }
+  } catch (e) {
+    _error = e.toString().replaceAll('Exception: ', '');
+    debugPrint('Error loading chats: $_error');
+  } finally {
+    _isLoading = false;
+    notifyListeners();
+  }
+}
 
   Future<Chat?> createDirectChat(String participantId) async {
     try {
@@ -79,7 +77,7 @@ class ChatProvider with ChangeNotifier {
       
       // Check if this is a new chat by trying to get messages
       try {
-        final messages = await ApiService.getChatMessages(chat.id, limit: 1);
+        final messages = await ApiService().getChatMessages(chat.id, limit: 1);
         
         // If no messages exist, send a greeting message
         if (messages.isEmpty) {

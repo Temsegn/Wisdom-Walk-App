@@ -455,6 +455,7 @@ const unblockUser = async (req, res) => {
     });
   }
 };
+
 const updateProfilePhoto = async (req, res) => {
   try {
     // Check for required file

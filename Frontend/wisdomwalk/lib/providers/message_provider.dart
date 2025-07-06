@@ -32,54 +32,54 @@ class MessageProvider with ChangeNotifier {
 
   Message? get replyToMessage => _replyToMessage;
 
+ 
   void setReplyToMessage(Message? message) {
     _replyToMessage = message;
     notifyListeners();
   }
-
-  Future<void> loadMessages(String chatId, {bool refresh = false}) async {
-    if (refresh) {
-      _currentPages[chatId] = 1;
-      _chatMessages[chatId] = [];
-      _hasMoreMessages[chatId] = true;
-    }
-
-    if (_loadingStates[chatId] == true || _hasMoreMessages[chatId] == false) {
-      return;
-    }
-
-    _loadingStates[chatId] = true;
-    _errors[chatId] = null;
-    notifyListeners();
-
-    try {
-      final newMessages = await ApiService.getChatMessages(
-        chatId,
-        page: _currentPages[chatId] ?? 1,
-        limit: 50,
-      );
-
-      if (newMessages.isEmpty) {
-        _hasMoreMessages[chatId] = false;
-      } else {
-        if (refresh) {
-          _chatMessages[chatId] = newMessages;
-        } else {
-          _chatMessages[chatId] = [
-            ...(_chatMessages[chatId] ?? []),
-            ...newMessages,
-          ];
-        }
-        _currentPages[chatId] = (_currentPages[chatId] ?? 1) + 1;
-      }
-    } catch (e) {
-      _errors[chatId] = e.toString();
-    } finally {
-      _loadingStates[chatId] = false;
-      notifyListeners();
-    }
+Future<void> loadMessages(String chatId, {bool refresh = false}) async {
+  if (_loadingStates[chatId] == true || 
+      (!refresh && _hasMoreMessages[chatId] == false)) {
+    return;
   }
 
+  _loadingStates[chatId] = true;
+  if (refresh) {
+    _currentPages[chatId] = 1;
+    _chatMessages[chatId] = [];
+    _hasMoreMessages[chatId] = true;
+  }
+  notifyListeners();
+
+  try {
+    final newMessages = await ApiService().getChatMessages(
+      chatId,
+      page: _currentPages[chatId] ?? 1,
+      limit: 50,
+    );
+
+    if (newMessages.isEmpty) {
+      _hasMoreMessages[chatId] = false;
+    } else {
+      if (refresh) {
+        _chatMessages[chatId] = newMessages;
+      } else {
+        _chatMessages[chatId] = [
+          ...(_chatMessages[chatId] ?? []),
+          ...newMessages,
+        ];
+      }
+      _currentPages[chatId] = (_currentPages[chatId] ?? 1) + 1;
+    }
+    _errors[chatId] = null;
+  } catch (e) {
+    _errors[chatId] = e.toString();
+    debugPrint('Error loading messages for $chatId: $e');
+  } finally {
+    _loadingStates[chatId] = false;
+    notifyListeners();
+  }
+}
   Future<Message?> sendMessage({
     required String chatId,
     required String content,

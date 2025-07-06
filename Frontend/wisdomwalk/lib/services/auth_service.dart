@@ -124,8 +124,11 @@ class AuthService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body)['data'];
       final token = data['token'];
+      final userId = data['user']['_id']; // Extract user ID
       print('Received token: $token'); // Debug log
       await _localStorageService.saveAuthToken(token);
+      await _localStorageService.saveUserId(userId); // Add this line
+
       print('Token saved to SharedPreferences'); // Confirm storage
       // Verify token immediately after saving
       final storedToken = await _localStorageService.getAuthToken();

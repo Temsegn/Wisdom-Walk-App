@@ -115,7 +115,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
               'Failed to load chats',
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 8), 
             Text(
               error.replaceAll('Exception: ', ''),
               textAlign: TextAlign.center,
@@ -240,7 +240,7 @@ class ChatListItem extends StatelessWidget {
       trailing: _buildTrailingWidget(unreadCount, lastActivity, theme),
       onTap: onTap,
     );
-  }
+  } 
 
   Widget _buildAvatar(Chat chat, String chatName) {
     return CircleAvatar(

@@ -79,4 +79,8 @@ class SocketService {
   void disconnect() {
     _socket?.disconnect();
   }
+
+  void emitMessageDeleted(String id, String id2) {}
+
+  void emitMessageEdited(String id, void updatedMessage) {}
 }

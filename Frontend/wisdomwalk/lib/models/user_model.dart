@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class UserModel {
   final String id;
   final String fullName;
@@ -8,6 +10,7 @@ class UserModel {
   final String? country;
   final List<String> wisdomCircleInterests;
   final bool isVerified;
+  final bool isOnline; // Changed from getter to final field
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -21,57 +24,85 @@ class UserModel {
     this.country,
     this.wisdomCircleInterests = const [],
     this.isVerified = false,
+    this.isOnline = false, // Default to false
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
-    return UserModel(
-      id: json['id'],
-      fullName: json['fullName'],
-      email: json['email'],
-      avatarUrl: json['avatarUrl'],
-      city: json['city'],
-      subcity: json['subcity'],
-      country: json['country'],
-      wisdomCircleInterests: List<String>.from(
-        json['wisdomCircleInterests'] ?? [],
-      ),
-      isVerified: json['isVerified'] ?? false,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-    );
+    try {
+      return UserModel(
+        id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+        fullName: json['fullName']?.toString() ?? '',
+        email: json['email']?.toString() ?? '',
+        avatarUrl: json['avatarUrl']?.toString(),
+        city: json['city']?.toString(),
+        subcity: json['subcity']?.toString(),
+        country: json['country']?.toString(),
+        wisdomCircleInterests: List<String>.from(
+          json['wisdomCircleInterests']?.map((x) => x.toString()) ?? [],
+        ),
+        isVerified: json['isVerified'] == true,
+        isOnline: json['isOnline'] == true, // Parse from JSON
+        createdAt: json['createdAt'] != null 
+            ? DateTime.parse(json['createdAt'].toString())
+            : DateTime.now(),
+        updatedAt: json['updatedAt'] != null
+            ? DateTime.parse(json['updatedAt'].toString())
+            : DateTime.now(),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('Error parsing UserModel: $e');
+      debugPrint('Stack trace: $stackTrace');
+      debugPrint('Problematic JSON: $json');
+      return UserModel.empty();
+    }
   }
 
-  get name => null;
+  static UserModel empty() => UserModel(
+        id: '',
+        fullName: 'Unknown',
+        email: '',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
 
-  get profilePicture => null;
-
-  get avatar => null;
-
-  String? get displayName => null;
-
-  get isOnline => null;
-
-  String? get initials => null;
-
-  get lastActive => null;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'fullName': fullName,
-      'email': email,
-      'avatarUrl': avatarUrl,
-      'city': city,
-      'subcity': subcity,
-      'country': country,
-      'wisdomCircleInterests': wisdomCircleInterests,
-      'isVerified': isVerified,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-    };
+  // Getters
+  String? get name => fullName.isNotEmpty ? fullName : null;
+  String? get profilePicture => avatarUrl;
+  String? get avatar => avatarUrl;
+  String get displayName => fullName.isNotEmpty ? fullName : 'Unknown User';
+String? get initials {
+    if (fullName.isEmpty) return null;
+    
+    final parts = fullName.trim().split(' ');
+    if (parts.isEmpty) return null;
+    
+    // Get first character of first name
+    String initials = parts[0].isNotEmpty ? parts[0][0].toUpperCase() : '';
+    
+    // Get first character of last name if exists
+    if (parts.length > 1 && parts[1].isNotEmpty) {
+      initials += parts[1][0].toUpperCase();
+    }
+    
+    return initials.isNotEmpty ? initials : null;
   }
+  DateTime? get lastActive => updatedAt;
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'fullName': fullName,
+        'email': email,
+        'avatarUrl': avatarUrl,
+        'city': city,
+        'subcity': subcity,
+        'country': country,
+        'wisdomCircleInterests': wisdomCircleInterests,
+        'isVerified': isVerified,
+        'isOnline': isOnline,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
 
   UserModel copyWith({
     String? id,
@@ -83,6 +114,7 @@ class UserModel {
     String? country,
     List<String>? wisdomCircleInterests,
     bool? isVerified,
+    bool? isOnline,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -94,9 +126,9 @@ class UserModel {
       city: city ?? this.city,
       subcity: subcity ?? this.subcity,
       country: country ?? this.country,
-      wisdomCircleInterests:
-          wisdomCircleInterests ?? this.wisdomCircleInterests,
+      wisdomCircleInterests: wisdomCircleInterests ?? this.wisdomCircleInterests,
       isVerified: isVerified ?? this.isVerified,
+      isOnline: isOnline ?? this.isOnline,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

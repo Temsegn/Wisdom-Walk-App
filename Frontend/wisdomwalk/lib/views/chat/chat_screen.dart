@@ -199,7 +199,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       onDelete: () => _deleteMessage(message),
                       onReact: (emoji) => _addReaction(message, emoji),
                       onPin: () => _pinMessage(message),
-                      onForward: () => _forwardMessage(message),
+                      onForward: () => _forwardMessage(message), 
+                      isCurrentUser: message.sender.id ==
+                          _localStorageService.getCurrentUserId(), 
                     );
                   },
                 );

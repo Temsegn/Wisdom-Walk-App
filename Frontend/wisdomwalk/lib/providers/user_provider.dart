@@ -59,7 +59,7 @@ Future<void> fetchAllUsers( ) async {
     final lowerQuery = query.toLowerCase();
 
     _searchResults = _allUsers.where((user) {
-      return user.name.toLowerCase().contains(lowerQuery) ||
+      return user.name!.toLowerCase().contains(lowerQuery) ||
              user.email.toLowerCase().contains(lowerQuery);
     }).toList();
 

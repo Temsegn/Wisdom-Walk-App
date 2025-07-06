@@ -29,53 +29,55 @@ class ApiService {
       return null;
     }
   }
-
+  
   Future<List<Chat>> getUserChats({int page = 1, int limit = 20}) async {
-    try {
-      final token = await getAuthToken();
-      if (token == null || token.isEmpty) {
-        throw Exception('Authentication required. Please login again.');
-      }
+  try {
+    final token = await getAuthToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication required. Please login again.');
+    }
 
-      final url = Uri.parse('$baseUrl/chats?page=$page&limit=$limit');
-      debugPrint('Fetching chats from: $url');
+    final url = Uri.parse('$baseUrl/chats?page=$page&limit=$limit');
+    debugPrint('Fetching chats from: $url');
 
-      final response = await http
-          .get(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(timeoutDuration);
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(timeoutDuration);
 
-      debugPrint('Chats response status: ${response.statusCode}');
-      debugPrint('Chats response body: ${response.body}');
+    debugPrint('Chats response status: ${response.statusCode}');
+    debugPrint('Chats response body: ${response.body}');
 
-      final responseData = _parseResponse(response);
-
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      
       if (responseData['success'] == true) {
-        final chats =
-            (responseData['data'] as List)
-                .whereType<Map<String, dynamic>>()
-                .map((chatJson) => Chat.fromJson(chatJson))
-                .toList();
+        final chats = (responseData['data'] as List)
+            .map((chatJson) => Chat.fromJson(chatJson))
+            .toList();
         return chats;
       } else {
         throw Exception(responseData['message'] ?? 'Failed to load chats');
       }
-    } on TimeoutException {
-      throw Exception('Request timed out. Please check your connection.');
-    } on http.ClientException {
-      throw Exception('Network error. Please check your internet connection.');
-    } on FormatException {
-      throw Exception('Invalid server response format.');
-    } catch (e) {
-      debugPrint('Error in getUserChats: $e');
-      throw Exception('Failed to load chats: ${e.toString()}');
+    } else {
+      final errorData = json.decode(response.body);
+      throw Exception(errorData['message'] ?? 
+          'Failed to load chats. Status: ${response.statusCode}');
     }
+  } on TimeoutException {
+    throw Exception('Request timed out. Please check your connection.');
+  } on http.ClientException {
+    throw Exception('Network error. Please check your internet connection.');
+  } on FormatException catch (e) {
+    throw Exception('Invalid server response format: ${e.message}');
+  } catch (e) {
+    debugPrint('Error in getUserChats: $e');
+    throw Exception('Failed to load chats: ${e.toString()}');
   }
+}
 
   Map<String, dynamic> _parseResponse(http.Response response) {
     try {
@@ -108,38 +110,63 @@ class ApiService {
       throw Exception('Error creating chat: $e');
     }
   }
+  Future<List<Message>> getChatMessages(
+  String chatId, {
+  int page = 1,
+  int limit = 50,
+}) async {
+  try {
+    final token = await getAuthToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication required. Please login again.');
+    }
 
-  static Future<List<Message>> getChatMessages(
-    String chatId, {
-    int page = 1,
-    int limit = 50,
-  }) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/chat/$chatId/messages?page=$page&limit=$limit'),
-        headers: _headers,
-      );
+    final response = await http.get(
+      Uri.parse('$baseUrl/chats/$chatId/messages?page=$page&limit=$limit'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 30));
+    debugPrint('Raw API response: ${response.body}'); // Add this line
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          final messages =
-              (data['data'] as List)
-                  .map((messageJson) => Message.fromJson(messageJson))
-                  .toList();
-          return messages;
-        } else {
-          throw Exception(data['message'] ?? 'Failed to load messages');
-        }
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        final messages = (data['data'] as List?)
+            ?.map((json) {
+              try {
+                return Message.fromJson(json);
+              } catch (e) {
+                debugPrint('Failed to parse message: $e');
+                return null;
+              }
+            })
+            .whereType<Message>()
+            .toList() ?? [];
+        return messages;
       } else {
-        final data = json.decode(response.body);
         throw Exception(data['message'] ?? 'Failed to load messages');
       }
-    } catch (e) {
-      throw Exception('Error fetching messages: $e');
+    } else if (response.statusCode == 401) {
+       throw Exception('Session expired. Please login again.');
+    } else {
+      final errorData = json.decode(response.body);
+      throw Exception(
+        errorData['message'] ?? 
+        'Failed to load messages (Status: ${response.statusCode})'
+      );
     }
+  } on TimeoutException {
+    throw Exception('Request timed out. Please check your connection.');
+  } on http.ClientException {
+    throw Exception('Network error. Please check your internet connection.');
+  } catch (e) {
+    debugPrint('Error in getChatMessages: $e');
+    throw Exception('Failed to load messages: ${e.toString()}');
   }
-
+}
+  
   static Future<Message> sendMessage({
     required String chatId,
     required String content,

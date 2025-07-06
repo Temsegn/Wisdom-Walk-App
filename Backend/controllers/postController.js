@@ -594,19 +594,20 @@ const getPostComments = async (req, res) => {
 const getAllPosts = async (req, res) => {
   try {
     const { type, category } = req.query;
-
     const query = {
       isHidden: false,
       isPublished: true,
     };
 
-    // Sanitize 'type' query param (removes quotes if included)
-    if (type) {
-      query.type = type.replace(/"/g, '');
+    // Improved type handling
+    if (type && typeof type === 'string') {
+      const cleanType = type.replace(/"/g, '').trim();
+      if (cleanType) query.type = cleanType;
     }
     
-    if (category!=="all" && category) {
-      query.category = category;
+    // Improved category handling
+    if (category && typeof category === 'string' && category.toLowerCase() !== 'all') {
+      query.category = category.replace(/"/g, '').trim();
     }
 
     const posts = await Post.find(query)

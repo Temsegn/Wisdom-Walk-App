@@ -85,7 +85,7 @@ class PrayerProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> togglePraying({
+  Future<bool> togglePraying( {
     required String prayerId,
     required String userId,
     String? message,
@@ -213,7 +213,7 @@ class PrayerProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> toggleLike({
+  Future<bool> toggleLike( {
     required String prayerId,
     required String userId,
   }) async {
