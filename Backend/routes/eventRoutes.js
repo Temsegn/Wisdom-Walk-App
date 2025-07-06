@@ -7,8 +7,7 @@ const {
   updateEvent,
   deleteEvent
 } = require('../controllers/eventController');
-const { protect } = require('../middleware/authMiddleware'); // If you have authentication
-
+ 
 // router.use(protect); // Protect all routes if authenticated
 
 router.route('/')
