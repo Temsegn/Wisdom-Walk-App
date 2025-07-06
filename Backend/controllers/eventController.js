@@ -52,6 +52,7 @@ exports.getEvents = async (req, res) => {
 // @desc    Get single event
 // @route   GET /api/events/:id
 // @access  Public
+
 exports.getEvent = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);

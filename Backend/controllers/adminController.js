@@ -4,6 +4,7 @@ const Comment = require("../models/Comment")
 const Report = require("../models/Report")
 const Booking = require("../models/booking")
 const Notification = require("../models/Notification")
+const Event =require("../models/Event")
 const { sendUserNotificationEmail, sendAdminNotificationEmail,sendBannedEmailToUser,sendBlockedEmailToUser,sendUnblockedEmailToUser } = require("../utils/emailService")
 const { getPaginationMeta } = require("../utils/helpers")
 // Get all unread admin_message notifications
@@ -663,6 +664,7 @@ const getDashboardStats = async (req, res) => {
     const totalComments = await Comment.countDocuments()
     const hiddenPosts = await Post.countDocuments({ isHidden: true })
     const totalBooks = await Booking.countDocuments() // Assuming Booking is the model for bookings
+    const totalEvents= await Event.countDocuments();
     // Get report statistics
     const pendingReports = await Report.countDocuments({ status: "pending" })
     const resolvedReports = await Report.countDocuments({ status: "resolved" })
@@ -705,6 +707,9 @@ const getDashboardStats = async (req, res) => {
         },
         bookings: {
           total: totalBooks,
+        },
+        events:{
+          total:totalEvents,
         },
         groups: groupStats,
       },
