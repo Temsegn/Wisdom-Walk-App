@@ -39,7 +39,9 @@ const navigation = [
   { name: "Posts & Content", href: "/dashboard/posts", icon: FileText },
   { name: "Reports", href: "/dashboard/reports", icon: AlertTriangle },
   { name: "Bookings", href: "/dashboard/bookings", icon: Calendar },
+  { name: "Events", href: "/dashboard/events", icon: Calendar },
   { name: "Notifications", href: "/dashboard/notifications", icon: MessageSquare },
+  {name:"event",href:"/dashboard/events",icon:Calendar},
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]
 
@@ -60,6 +62,7 @@ export default function DashboardLayout({
     posts: 0,
     users: 0,
     bookings: 0,
+    events:0,
   })
 
   useEffect(() => {
@@ -116,6 +119,7 @@ export default function DashboardLayout({
       posts: stats.content.totalPosts || 0,
       users: stats.users.total || 0,
       bookings: stats.bookings.total || 0,
+      events:stats.events.total||0,
     })
   } catch (error) {
     console.error("Error fetching notification counts:", error)

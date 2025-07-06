@@ -20,6 +20,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const movementRoutes = require("./routes/movementRoute");
 const bookingRoutes = require("./routes/bookingRoute");
+const events = require('./routes/eventRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -65,7 +66,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/movements", movementRoutes);
 app.use("/api/bookings", bookingRoutes);
-
+app.use("api/events")
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({
