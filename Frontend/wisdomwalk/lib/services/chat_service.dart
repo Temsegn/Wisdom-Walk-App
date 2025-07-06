@@ -32,6 +32,8 @@ class ChatService {
     }
   }
 
+
+
   Future<Chat> createDirectChat(String participantId) async {
     final token = await _localStorageService.getAuthToken();
     final response = await http.post(

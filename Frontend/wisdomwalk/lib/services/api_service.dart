@@ -9,7 +9,7 @@ import '../../models/message_model.dart';
 
 class ApiService {
   static const String baseUrl = 'https://wisdom-walk-app.onrender.com/api';
-
+ 
   static const Duration timeoutDuration = Duration(seconds: 30);
   final LocalStorageService _localStorageService = LocalStorageService();
   static String? _authToken;
@@ -110,6 +110,7 @@ class ApiService {
       throw Exception('Error creating chat: $e');
     }
   }
+  
   Future<List<Message>> getChatMessages(
   String chatId, {
   int page = 1,
@@ -166,45 +167,63 @@ class ApiService {
     throw Exception('Failed to load messages: ${e.toString()}');
   }
 }
-  
-  static Future<Message> sendMessage({
-    required String chatId,
-    required String content,
-    String messageType = 'text',
-    String? replyToId,
-    List<Map<String, dynamic>>? attachments, // Changed from List<File>?
-    Map<String, String>? scripture,
-  }) async {
-    try {
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/chat/$chatId/messages'),
-            headers: _headers,
-            body: json.encode({
-              'content': content,
-              'messageType': messageType,
-              if (replyToId != null) 'replyToId': replyToId,
-              if (attachments != null) 'attachments': attachments,
-              if (scripture != null) 'scripture': scripture,
-            }),
-          )
-          .timeout(timeoutDuration);
+ 
+ Future<Message> sendMessage({
+  required String chatId,
+  required String content,
+  String messageType = 'text',
+  String? replyToId,
+  List<Map<String, dynamic>>? attachments,
+  Map<String, String>? scripture,
+}) async {
+  try {
+    final token = await getAuthToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication required. Please login again.');
+    }
 
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          return Message.fromJson(data['data']);
-        } else {
-          throw Exception(data['message'] ?? 'Failed to send message');
-        }
+    final response = await http.post(
+      Uri.parse('$baseUrl/chats/$chatId/messages'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'content': content,
+        'messageType': messageType,
+        if (replyToId != null) 'replyToId': replyToId,
+        if (attachments != null) 'attachments': attachments,
+        if (scripture != null) 'scripture': scripture,
+      }),
+    ).timeout(const Duration(seconds: 30));
+
+    debugPrint('Send message response: ${response.body}');
+
+    if (response.statusCode == 201) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return Message.fromJson(data['data']);
       } else {
-        final data = json.decode(response.body);
         throw Exception(data['message'] ?? 'Failed to send message');
       }
-    } catch (e) {
-      throw Exception('Error sending message: $e');
+    } else if (response.statusCode == 401) {
+      throw Exception('Session expired. Please login again.');
+    } else {
+      final errorData = json.decode(response.body);
+      throw Exception(
+        errorData['message'] ?? 
+        'Failed to send message (Status: ${response.statusCode})'
+      );
     }
+  } on TimeoutException {
+    throw Exception('Request timed out. Please check your connection.');
+  } on http.ClientException {
+    throw Exception('Network error. Please check your internet connection.');
+  } catch (e) {
+    debugPrint('Error in sendMessage: $e');
+    throw Exception('Failed to send message: ${e.toString()}');
   }
+}
 
   static Future<Message> editMessage(String messageId, String content) async {
     try {

@@ -116,7 +116,7 @@ String? get initials {
     bool? isVerified,
     bool? isOnline,
     DateTime? createdAt,
-    DateTime? updatedAt,
+    DateTime? updatedAt, required bool isBlocked,
   }) {
     return UserModel(
       id: id ?? this.id,

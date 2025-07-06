@@ -4,6 +4,7 @@ import '../models/chat_model.dart';
 import '../services/api_service.dart';
 import '../models/user_model.dart'; 
 class ChatProvider with ChangeNotifier {
+  final apiService=ApiService();
   List<Chat> _chats = [];
   bool _isLoading = false;
   String? _error;
@@ -81,7 +82,7 @@ Future<void> loadChats({bool refresh = false}) async {
         
         // If no messages exist, send a greeting message
         if (messages.isEmpty) {
-          await ApiService.sendMessage(
+          await apiService.sendMessage(
             chatId: chat.id,
             content: greeting,
             messageType: 'text',
@@ -89,7 +90,7 @@ Future<void> loadChats({bool refresh = false}) async {
         }
       } catch (e) {
         // If we can't check messages, still send greeting
-        await ApiService.sendMessage(
+        await apiService.sendMessage(
           chatId: chat.id,
           content: greeting,
           messageType: 'text',

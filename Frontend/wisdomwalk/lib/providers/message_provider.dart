@@ -7,6 +7,9 @@ import '../models/message_model.dart';
 import '../services/api_service.dart';
 
 class MessageProvider with ChangeNotifier {
+
+ final apiService=ApiService();
+
   Map<String, List<Message>> _chatMessages = {};
   Map<String, bool> _loadingStates = {};
   Map<String, String?> _errors = {};
@@ -80,42 +83,51 @@ Future<void> loadMessages(String chatId, {bool refresh = false}) async {
     notifyListeners();
   }
 }
-  Future<Message?> sendMessage({
-    required String chatId,
-    required String content,
-    String messageType = 'text',
-    List<File>? attachments,
-  }) async {
-    try {
-      List<Map<String, dynamic>>? uploadedAttachments;
-      if (attachments != null && attachments.isNotEmpty) {
-        uploadedAttachments = await _uploadFiles(attachments);
-      }
 
-      final message = await ApiService.sendMessage(
-        chatId: chatId,
-        content: content,
-        messageType: messageType,
-        replyToId: _replyToMessage?.id,
-        attachments: uploadedAttachments,
-      );
+Future<Message?> sendMessage({
+  required String chatId,
+  required String content,
+  String messageType = 'text',
+  List<File>? attachments,
+}) async {
+  try {
+    _loadingStates[chatId] = true;
+    notifyListeners();
 
-      if (_chatMessages[chatId] != null) {
-        _chatMessages[chatId]!.insert(0, message);
-      } else {
-        _chatMessages[chatId] = [message];
-      }
-
-      _replyToMessage = null;
-      notifyListeners();
-      return message;
-    } catch (e) {
-      _errors[chatId] = e.toString();
-      notifyListeners();
-      return null;
+    List<Map<String, dynamic>>? uploadedAttachments;
+    if (attachments != null && attachments.isNotEmpty) {
+      uploadedAttachments = await _uploadFiles(attachments);
     }
-  }
 
+    final message = await apiService.sendMessage(
+      chatId: chatId,
+      content: content,
+      messageType: messageType,
+      replyToId: _replyToMessage?.id,
+      attachments: uploadedAttachments,
+    );
+
+    if (_chatMessages[chatId] != null) {
+      _chatMessages[chatId]!.insert(0, message);
+    } else {
+      _chatMessages[chatId] = [message];
+    }
+
+    _replyToMessage = null;
+    _errors.remove(chatId);
+    notifyListeners();
+    return message;
+  } catch (e) {
+    _errors[chatId] = e.toString();
+    notifyListeners();
+    return null;
+  } finally {
+    _loadingStates[chatId] = false;
+    notifyListeners();
+  }
+}
+ 
+ 
   Future<List<Map<String, dynamic>>> _uploadFiles(List<File> files) async {
     final token = await LocalStorageService().getAuthToken();
     final uri = Uri.parse('https://wisdom-walk-app.onrender.com/api/upload');

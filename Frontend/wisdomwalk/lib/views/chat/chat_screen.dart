@@ -414,7 +414,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
 class EditMessageDialog extends StatefulWidget {
   final Message message;
-  final Function(String) onEdit;
+  final Function(String) onEdit; 
 
   const EditMessageDialog({
     Key? key,
