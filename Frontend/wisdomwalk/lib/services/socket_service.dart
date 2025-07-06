@@ -1,9 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:wisdomwalk/models/message_model.dart';
 import 'package:wisdomwalk/providers/message_provider.dart';
 import 'package:wisdomwalk/providers/chat_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/material.dart';
 
 class SocketService {
   IO.Socket? _socket;
@@ -12,6 +12,9 @@ class SocketService {
   SocketService(this.context);
 
   void connect(String token) {
+    if (_socket != null && _socket!.connected)
+      return; // Prevent multiple connections
+
     _socket = IO.io('https://wisdom-walk-app.onrender.com', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
@@ -22,65 +25,217 @@ class SocketService {
       debugPrint('Socket connected');
     });
 
+    _socket?.onConnectError((data) {
+      debugPrint('Socket connection error: $data');
+    });
+
+    _socket?.onDisconnect((_) {
+      debugPrint('Socket disconnected');
+    });
+
     _socket?.on('newMessage', (data) {
-      final message = Message.fromJson(data);
-      Provider.of<MessageProvider>(
-        context,
-        listen: false,
-      ).addNewMessage(message.chatId, message);
-      Provider.of<ChatProvider>(
-        context,
-        listen: false,
-      ).updateChatLastMessage(message.chatId, message);
+      try {
+        final message = Message.fromJson(data);
+        final messageProvider = Provider.of<MessageProvider>(
+          context,
+          listen: false,
+        );
+        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+
+        // Avoid adding duplicate messages
+        if (!messageProvider
+            .getChatMessages(message.chatId)
+            .any((m) => m.id == message.id)) {
+          messageProvider.addNewMessage(message.chatId, message);
+          chatProvider.updateChatLastMessage(message.chatId, message);
+        }
+      } catch (e) {
+        debugPrint('Error handling newMessage: $e');
+      }
     });
 
     _socket?.on('messageEdited', (data) {
-      final message = Message.fromJson(data);
-      Provider.of<MessageProvider>(
-        context,
-        listen: false,
-      ).editMessage(message.id, message.content);
+      try {
+        final message = Message.fromJson(data);
+        Provider.of<MessageProvider>(
+          context,
+          listen: false,
+        ).editMessage(message.id, message.content);
+      } catch (e) {
+        debugPrint('Error handling messageEdited: $e');
+      }
     });
 
     _socket?.on('messageDeleted', (data) {
-      Provider.of<MessageProvider>(
-        context,
-        listen: false,
-      ).deleteMessage(data['messageId']);
+      try {
+        Provider.of<MessageProvider>(
+          context,
+          listen: false,
+        ).deleteMessage(data['messageId']);
+      } catch (e) {
+        debugPrint('Error handling messageDeleted: $e');
+      }
     });
 
     _socket?.on('messageReaction', (data) {
-      Provider.of<MessageProvider>(
-        context,
-        listen: false,
-      ).addReaction(data['messageId'], data['reactions']);
+      try {
+        final messageId = data['messageId'];
+        final reaction = MessageReaction.fromJson(data['reaction']);
+        final messageProvider = Provider.of<MessageProvider>(
+          context,
+          listen: false,
+        );
+        final messages = messageProvider.getChatMessages(data['chatId']);
+        final messageIndex = messages.indexWhere((m) => m.id == messageId);
+        if (messageIndex != -1) {
+          final updatedReactions = List<MessageReaction>.from(
+            messages[messageIndex].reactions,
+          )..add(reaction);
+          // Update message with new reactions
+          // Note: Message model needs to be immutable, so create a new instance
+          final updatedMessage = Message(
+            id: messages[messageIndex].id,
+            chatId: messages[messageIndex].chatId,
+            sender: messages[messageIndex].sender,
+            content: messages[messageIndex].content,
+            encryptedContent: messages[messageIndex].encryptedContent,
+            messageType: messages[messageIndex].messageType,
+            attachments: messages[messageIndex].attachments,
+            scripture: messages[messageIndex].scripture,
+            forwardedFromId: messages[messageIndex].forwardedFromId,
+            isPinned: messages[messageIndex].isPinned,
+            isEdited: messages[messageIndex].isEdited,
+            editedAt: messages[messageIndex].editedAt,
+            isDeleted: messages[messageIndex].isDeleted,
+            deletedAt: messages[messageIndex].deletedAt,
+            readBy: messages[messageIndex].readBy,
+            reactions: updatedReactions,
+            replyToId: messages[messageIndex].replyToId,
+            replyTo: messages[messageIndex].replyTo,
+            forwardedFrom: messages[messageIndex].forwardedFrom,
+            createdAt: messages[messageIndex].createdAt,
+            updatedAt: DateTime.now(),
+          );
+          messages[messageIndex] = updatedMessage;
+          messageProvider.notifyListeners();
+        }
+      } catch (e) {
+        debugPrint('Error handling messageReaction: $e');
+      }
     });
 
     _socket?.on('messagePinned', (data) {
-      // Update pinned status
-      Provider.of<MessageProvider>(
-        context,
-        listen: false,
-      ).pinMessage(data['chatId'], data['messageId']);
+      try {
+        final messageId = data['messageId'];
+        final chatId = data['chatId'];
+        final messageProvider = Provider.of<MessageProvider>(
+          context,
+          listen: false,
+        );
+        final messages = messageProvider.getChatMessages(chatId);
+        final messageIndex = messages.indexWhere((m) => m.id == messageId);
+        if (messageIndex != -1) {
+          final updatedMessage = Message(
+            id: messages[messageIndex].id,
+            chatId: messages[messageIndex].chatId,
+            sender: messages[messageIndex].sender,
+            content: messages[messageIndex].content,
+            encryptedContent: messages[messageIndex].encryptedContent,
+            messageType: messages[messageIndex].messageType,
+            attachments: messages[messageIndex].attachments,
+            scripture: messages[messageIndex].scripture,
+            forwardedFromId: messages[messageIndex].forwardedFromId,
+            isPinned: true,
+            isEdited: messages[messageIndex].isEdited,
+            editedAt: messages[messageIndex].editedAt,
+            isDeleted: messages[messageIndex].isDeleted,
+            deletedAt: messages[messageIndex].deletedAt,
+            readBy: messages[messageIndex].readBy,
+            reactions: messages[messageIndex].reactions,
+            replyToId: messages[messageIndex].replyToId,
+            replyTo: messages[messageIndex].replyTo,
+            forwardedFrom: messages[messageIndex].forwardedFrom,
+            createdAt: messages[messageIndex].createdAt,
+            updatedAt: DateTime.now(),
+          );
+          messages[messageIndex] = updatedMessage;
+          messageProvider.notifyListeners();
+        }
+      } catch (e) {
+        debugPrint('Error handling messagePinned: $e');
+      }
     });
 
     _socket?.on('messageUnpinned', (data) {
-      // Update unpinned status
-      // Add logic to update message pin status
+      try {
+        final messageId = data['messageId'];
+        final chatId = data['chatId'];
+        final messageProvider = Provider.of<MessageProvider>(
+          context,
+          listen: false,
+        );
+        final messages = messageProvider.getChatMessages(chatId);
+        final messageIndex = messages.indexWhere((m) => m.id == messageId);
+        if (messageIndex != -1) {
+          final updatedMessage = Message(
+            id: messages[messageIndex].id,
+            chatId: messages[messageIndex].chatId,
+            sender: messages[messageIndex].sender,
+            content: messages[messageIndex].content,
+            encryptedContent: messages[messageIndex].encryptedContent,
+            messageType: messages[messageIndex].messageType,
+            attachments: messages[messageIndex].attachments,
+            scripture: messages[messageIndex].scripture,
+            forwardedFromId: messages[messageIndex].forwardedFromId,
+            isPinned: false,
+            isEdited: messages[messageIndex].isEdited,
+            editedAt: messages[messageIndex].editedAt,
+            isDeleted: messages[messageIndex].isDeleted,
+            deletedAt: messages[messageIndex].deletedAt,
+            readBy: messages[messageIndex].readBy,
+            reactions: messages[messageIndex].reactions,
+            replyToId: messages[messageIndex].replyToId,
+            replyTo: messages[messageIndex].replyTo,
+            forwardedFrom: messages[messageIndex].forwardedFrom,
+            createdAt: messages[messageIndex].createdAt,
+            updatedAt: DateTime.now(),
+          );
+          messages[messageIndex] = updatedMessage;
+          messageProvider.notifyListeners();
+        }
+      } catch (e) {
+        debugPrint('Error handling messageUnpinned: $e');
+      }
     });
 
     _socket?.connect();
   }
 
   void joinChat(String chatId) {
-    _socket?.emit('joinChat', chatId);
+    if (_socket?.connected == true) {
+      _socket?.emit('joinChat', chatId);
+      debugPrint('Joined chat: $chatId');
+    }
+  }
+
+  void emitMessageDeleted(String chatId, String messageId) {
+    if (_socket?.connected == true) {
+      _socket?.emit('messageDeleted', {
+        'chatId': chatId,
+        'messageId': messageId,
+      });
+    }
+  }
+
+  void emitMessageEdited(String chatId, Message updatedMessage) {
+    if (_socket?.connected == true) {
+      _socket?.emit('messageEdited', updatedMessage.toJson());
+    }
   }
 
   void disconnect() {
     _socket?.disconnect();
+    _socket = null;
+    debugPrint('Socket disconnected');
   }
-
-  void emitMessageDeleted(String id, String id2) {}
-
-  void emitMessageEdited(String id, void updatedMessage) {}
 }
