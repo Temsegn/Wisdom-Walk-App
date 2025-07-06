@@ -15,7 +15,6 @@ exports.createEvent = async (req, res) => {
       time,
       duration,
       meetingLink,
-      createdBy: req.user.id // Assuming you have authentication
     });
 
     res.status(201).json({

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
-const BASE_URL = 'https://wisdom-walk-app.onrender.com/api/admin/events'
+const BASE_URL = 'https://wisdom-walk-app.onrender.com/api/events'
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   try {

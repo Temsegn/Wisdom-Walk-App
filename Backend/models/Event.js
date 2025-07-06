@@ -34,11 +34,7 @@ const eventSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please add the meeting link']
   },
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // If you have user authentication
-    required: true
-  },
+  
   createdAt: {
     type: Date,
     default: Date.now
