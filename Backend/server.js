@@ -66,7 +66,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/movements", movementRoutes);
 app.use("/api/bookings", bookingRoutes);
-app.use("api/events",eventRoutes)
+app.use("/api/events",eventRoutes)
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({
