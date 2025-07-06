@@ -39,8 +39,7 @@ const navigation = [
   { name: "Posts & Content", href: "/dashboard/posts", icon: FileText },
   { name: "Reports", href: "/dashboard/reports", icon: AlertTriangle },
   { name: "Bookings", href: "/dashboard/bookings", icon: Calendar },
-  { name: "Events", href: "/dashboard/events", icon: Calendar },
-  { name: "Notifications", href: "/dashboard/notifications", icon: MessageSquare },
+   { name: "Notifications", href: "/dashboard/notifications", icon: MessageSquare },
   {name:"event",href:"/dashboard/events",icon:Calendar},
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]

@@ -234,7 +234,7 @@ async function fetchEvents() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle> 
               {viewMode === "create"
                 ? "Create Event"
                 : viewMode === "edit"
