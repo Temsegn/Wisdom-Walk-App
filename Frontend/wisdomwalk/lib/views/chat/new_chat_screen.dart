@@ -1,8 +1,8 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/user_model.dart';
+import '../../models/chat_model.dart';
 import '../../services/user_service.dart';
 import '../../providers/chat_provider.dart';
 import 'chat_screen.dart';
@@ -88,7 +88,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
     }
   }
 
-  Future<void> _startChat(UserModel user) async {
+  Future<void> _handleUserSelection(UserModel user) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -97,22 +97,38 @@ class _NewChatScreenState extends State<NewChatScreen> {
 
     try {
       final chatProvider = context.read<ChatProvider>();
-      final chat = await chatProvider.startChatWithUser(user);
+      
+      // First check if chat already exists
+      Chat? existingChat = await chatProvider.getExistingChat(user.id);
       
       if (!mounted) return;
       Navigator.pop(context);
-      
-      if (chat != null) {
+
+      if (existingChat != null) {
+        // Navigate to existing chat
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => ChatScreen(chat: chat),
+            builder: (context) => ChatScreen(chat: existingChat),
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to start chat')),
-        );
+        // Create new chat
+        final newChat = await chatProvider.startChatWithUser(user);
+        
+        if (!mounted) return;
+        if (newChat != null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(chat: newChat),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to create chat')),
+          );
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -162,6 +178,9 @@ class _NewChatScreenState extends State<NewChatScreen> {
       ),
     );
   }
+
+  // ... keep all the existing _buildContent, _buildSearchResults, 
+  // _buildRecentUsers, and _buildUserTile methods exactly the same ...
 
   Widget _buildContent() {
     if (_isLoading) {
@@ -265,7 +284,9 @@ class _NewChatScreenState extends State<NewChatScreen> {
         ],
       ),
       trailing: const Icon(Icons.chat_bubble_outline),
-      onTap: () => _startChat(user),
+      onTap: () => _handleUserSelection(user),
     );
   }
+
+
 }

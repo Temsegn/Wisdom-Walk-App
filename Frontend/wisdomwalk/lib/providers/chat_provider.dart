@@ -1,5 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:wisdomwalk/models/message_model.dart';
+import 'package:wisdomwalk/services/local_storage_service.dart';
 import '../models/chat_model.dart';
 import '../services/api_service.dart';
 import '../models/user_model.dart';
@@ -72,7 +77,48 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  Future<Chat?> createDirectChatWithGreeting(String participantId, {String greeting = "👋 Hi!"}) async {
+Future<Chat?> getExistingChat(String userId) async {
+  try {
+    // 1. Get authentication token from local storage
+    final token = await LocalStorageService().getAuthToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication token not found');
+    }
+
+    // 2. Prepare headers with authorization
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    // 3. Make the API request
+    final response = await http.get(
+      Uri.parse('https://wisdom-walk-app.onrender.com/api/chats/exists/$userId'),
+      headers: headers,
+    ).timeout(const Duration(seconds: 30));
+
+    // 4. Handle response
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true && data['exists'] == true) {
+        return Chat.fromJson(data['chat']);
+      }
+      return null;
+    } else if (response.statusCode == 401) {
+      // Token expired or invalid
+      await LocalStorageService().clearAuthToken();
+      throw Exception('Session expired. Please login again.');
+    } else {
+      throw Exception('Failed to check chat existence: ${response.statusCode}');
+    }
+  } on TimeoutException {
+    throw Exception('Request timed out');
+  } catch (e) {
+    debugPrint('Error checking existing chat: $e');
+    rethrow;
+  }
+}
+Future<Chat?> createDirectChatWithGreeting(String participantId, {String greeting = "👋 Hi!"}) async {
     try {
       // First create the chat
       final chat = await apiService.createDirectChat(participantId);

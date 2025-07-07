@@ -8,11 +8,7 @@ import '../../models/user_model.dart';
 class UserService {
   static const String baseUrl = 'https://wisdom-walk-app.onrender.com/api';
   static final LocalStorageService _localStorageService = LocalStorageService();
-  
-  static get responseData => null;
-
-
- static Future<List<UserModel>> searchUsers(String query) async {
+  static Future<List<UserModel>> searchUsers(String query) async {
   try {
     final token = await _localStorageService.getAuthToken();
     if (token == null || token.isEmpty) {
@@ -40,7 +36,7 @@ class UserService {
             .toList();
       }
     }
-    throw Exception(responseData['message'] ?? 'Failed to search users');
+    throw Exception('Failed to search users');
   } on TimeoutException {
     throw Exception('Request timed out');
   } catch (e) {
@@ -48,7 +44,6 @@ class UserService {
     throw Exception('Search failed: ${e.toString()}');
   }
 }
-
 static Future<UserModel> getCurrentUser() async {
     try {
       final token = await _localStorageService.getAuthToken();

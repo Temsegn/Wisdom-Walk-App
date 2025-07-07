@@ -183,17 +183,15 @@ const getUserPosts = async (req, res) => {
     })
   }
 }
- const searchUsers = async (req, res) => {
+const searchUsers = async (req, res) => {
   try {
     const { q: query } = req.query;
-    const page = Number.parseInt(req.query.page) || 1;
-    const limit = Number.parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
-
-    if (!query) {
-      return res.status(400).json({
-        success: false,
-        message: "Search query is required"
+    
+    if (!query || query.trim().length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        message: "Empty search query"
       });
     }
 
@@ -203,16 +201,7 @@ const getUserPosts = async (req, res) => {
         { lastName: { $regex: query, $options: "i" } },
         { email: { $regex: query, $options: "i" } },
         { "location.city": { $regex: query, $options: "i" } },
-        { "location.country": { $regex: query, $options: "i" } },
-        { 
-          $expr: {
-            $regexMatch: {
-              input: { $concat: ["$firstName", " ", "$lastName"] },
-              regex: query,
-              options: "i"
-            }
-          }
-        }
+        { "location.country": { $regex: query, $options: "i" } }
       ],
       isEmailVerified: true,
       isAdminVerified: true,
@@ -221,10 +210,7 @@ const getUserPosts = async (req, res) => {
 
     const users = await User.find(searchCriteria)
       .select("firstName lastName email profilePicture location isOnline lastActive")
-      .skip(skip)
-      .limit(limit);
-
-    const total = await User.countDocuments(searchCriteria);
+      .limit(50); // Limit results for performance
 
     res.json({
       success: true,
@@ -232,20 +218,13 @@ const getUserPosts = async (req, res) => {
         id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
-        fullName: `${user.firstName} ${user.lastName}`,
         email: user.email,
         avatarUrl: user.profilePicture,
         city: user.location?.city,
         country: user.location?.country,
         isOnline: user.isOnline,
         lastActive: user.lastActive
-      })),
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
+      }))
     });
   } catch (error) {
     console.error("Search error:", error);

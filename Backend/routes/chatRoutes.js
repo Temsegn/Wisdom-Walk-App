@@ -11,6 +11,36 @@ router.get("/", chatController.getUserChats);
 router.post("/direct", chatController.createDirectChat);
 router.get("/:chatId/messages", chatController.getChatMessages);
 router.post("/:chatId/messages", chatController.sendMessage);
+router.get('/exists/:userId', async (req, res) => {
+  try {
+    const currentUserId = req.user._id;
+    const otherUserId = req.params.userId;
+
+    const chat = await Chat.findOne({
+      isGroupChat: false,
+      participants: { $all: [currentUserId, otherUserId] }
+    }).populate('participants', 'firstName lastName profilePicture');
+
+    if (chat) {
+      return res.json({
+        success: true,
+        exists: true,
+        chat: formatChatResponse(chat)
+      });
+    }
+
+    res.json({
+      success: true,
+      exists: false
+    });
+  } catch (error) {
+    console.error("Error checking chat existence:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to check chat existence"
+    });
+  }
+});
 
 router.put(
   "/messages/:messageId",
