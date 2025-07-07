@@ -10,13 +10,7 @@ router.use(authenticateToken);
 router.get("/", chatController.getUserChats);
 router.post("/direct", chatController.createDirectChat);
 router.get("/:chatId/messages", chatController.getChatMessages);
-router.post(
-  "/:chatId/messages",
-  uploadMultiple,
-  handleUploadError,
-  validateMessage,
-  chatController.sendMessage
-);
+
 router.put(
   "/messages/:messageId",
   validateMessage,

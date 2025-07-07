@@ -167,7 +167,6 @@ class ApiService {
     throw Exception('Failed to load messages: ${e.toString()}');
   }
 }
- 
  Future<Message> sendMessage({
   required String chatId,
   required String content,
@@ -182,8 +181,12 @@ class ApiService {
       throw Exception('Authentication required. Please login again.');
     }
 
+    // Add debug print to verify the exact URL
+    final url = Uri.parse('$baseUrl/chats/$chatId/messages');
+    debugPrint('Sending message to: $url');
+
     final response = await http.post(
-      Uri.parse('$baseUrl/chats/$chatId/messages'),
+      url,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -197,8 +200,8 @@ class ApiService {
       }),
     ).timeout(const Duration(seconds: 30));
 
-    debugPrint('Send message response: ${response.body}');
-
+    debugPrint('Send message response: ${response.statusCode}');
+    debugPrint('Response body: ${response.body}');
     if (response.statusCode == 201) {
       final data = json.decode(response.body);
       if (data['success'] == true) {
