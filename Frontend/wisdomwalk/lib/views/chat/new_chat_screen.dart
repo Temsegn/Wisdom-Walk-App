@@ -506,7 +506,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
     final difference = now.difference(lastActive);
 
     if (difference.inMinutes < 1) {
-      return 'just now';
+      return 'just now'; 
     } else if (difference.inHours < 1) {
       return '${difference.inMinutes}m ago';
     } else if (difference.inDays < 1) {
