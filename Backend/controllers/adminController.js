@@ -691,7 +691,7 @@ const getDashboardStats = async (req, res) => {
     // Get user statistics
     const totalUsers = await User.countDocuments()
     const activeUsers = await User.countDocuments({ status: "active", isAdminVerified: true })
-    const pendingVerifications = await User.countDocuments({ verificationStatus: "pending", isEmailverified:true })
+    const pendingVerifications = await User.countDocuments({ verificationStatus: "pending", isEmailVerified:true })
     const blockedUsers = await User.countDocuments({ status: "blocked" })
 
     // Get content statistics
