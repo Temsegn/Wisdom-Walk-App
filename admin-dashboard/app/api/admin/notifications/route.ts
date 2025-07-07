@@ -1,31 +1,43 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-/**
- * GET /api/admin/notifications
- * Proxies to https://wisdom-walk-app.onrender.com/api/admin/notifications
- */
 export async function GET(request: NextRequest) {
-  try {
-    const queryString = request.nextUrl.search // includes leading "?" if present
-    const backendUrl = `https://wisdom-walk-app.onrender.com/api/admin/notifications`
+  const authHeader = request.headers.get("Authorization")
+  
+  if (!authHeader) {
+    return NextResponse.json(
+      { success: false, message: "Authorization header missing" },
+      { status: 401 }
+    )
+  }
 
-    const backendRes = await fetch(backendUrl, {
+  try {
+    const backendUrl = new URL("https://wisdom-walk-app.onrender.com/api/admin/notifications")
+    
+    // Forward query parameters
+    request.nextUrl.searchParams.forEach((value, key) => {
+      backendUrl.searchParams.append(key, value)
+    })
+
+    const response = await fetch(backendUrl.toString(), {
       headers: {
-        Authorization: request.headers.get("authorization") ?? "",
+        Authorization: authHeader,
+        "Content-Type": "application/json",
       },
       cache: "no-store",
     })
 
-    const data = await backendRes.json()
+    if (!response.ok) {
+      throw new Error(`Backend responded with ${response.status}`)
+    }
 
-    return NextResponse.json(data, {
-      status: backendRes.status,
-    })
+    const data = await response.json()
+    return NextResponse.json(data)
+
   } catch (error) {
-    console.error("Notifications proxy error:", error)
+    console.error("Notification fetch error:", error)
     return NextResponse.json(
-      { success: false, message: "Unable to fetch notifications." },
-      { status: 502 }
+      { success: false, message: "Failed to fetch notifications" },
+      { status: 500 }
     )
   }
 }

@@ -42,6 +42,41 @@ const getAllNotifications = async (req, res) => {
 
 
 
+
+// Mark a notification as read
+const markAsRead = async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+    const userId = req.user._id;
+
+    const notification = await Notification.findOneAndUpdate(
+      { _id: notificationId},
+      { isRead: true, readAt: new Date() },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Notification marked as read",
+      data: notification,
+    });
+  } catch (error) {
+    console.error("Mark notification as read error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to mark notification as read",
+      error: error.message,
+    });
+  }
+};
+
 // Get pending user verificationsfff 
 const getPendingVerifications = async (req, res) => {
   try {

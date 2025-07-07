@@ -10,6 +10,8 @@ router.use(authenticateToken);
 router.get("/verifications/pending",  adminController.getPendingVerifications);
 router.post("/users/:userId/verify",  adminController.verifyUser);
 router.get("/notifications", adminController.getAllNotifications); // Ensure this is protected
+router.put("/notifications/:notificationId/read", adminController.markAsRead);
+ 
 // User management
 router.get("/users", adminController.getAllUsers); // Now correctly protected
 router.post("/users/:userId/block",  adminController.toggleUserBlock);

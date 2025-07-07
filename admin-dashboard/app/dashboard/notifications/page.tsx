@@ -1,22 +1,22 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Bell } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Bell } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 
 interface Sender {
   _id: string
@@ -56,14 +56,17 @@ export default function NotificationPage() {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
         },
+        cache: "no-store",
       })
 
-      if (!response.ok) throw new Error("Failed to fetch notifications")
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
 
-      const data = await response.json()
-      setNotifications(data.data || [])
+      const { data } = await response.json()
+      setNotifications(data || [])
     } catch (error) {
-      console.error(error)
+      console.error("Fetch notifications error:", error)
       toast({
         title: "Error",
         description: "Failed to load notifications",
@@ -73,43 +76,42 @@ export default function NotificationPage() {
       setIsLoading(false)
     }
   }
-  
 const markAsRead = async (id: string) => {
-  const notification = notifications.find(n => n._id === id)
-  if (!notification || notification.isRead) return
-
   try {
-    const response = await fetch(`https://wisdom-walk-app.onrender.com/api/notifications/${id}/read`, {
+    const response = await fetch(`/api/admin/notifications/${id}/read`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
+        "Content-Type": "application/json",
       },
     })
 
-    if (!response.ok) throw new Error("Failed to mark as read")
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || "Failed to mark as read")
+    }
 
     setNotifications(prev =>
       prev.map(n =>
-        n._id === id
-          ? { ...n, isRead: true, readAt: new Date().toISOString() }
-          : n
+        n._id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n
       )
     )
   } catch (error) {
-    console.error(error)
+    console.error("Mark as read error:", error)
     toast({
       title: "Error",
-      description: "Could not mark notification as read.",
+      description: error instanceof Error ? error.message : "Could not mark notification as read",
       variant: "destructive",
     })
   }
 }
 
-const handleOpenNotification = async (notif: Notification) => {
-  setSelectedNotification(notif)
-  if (!notif.isRead) await markAsRead(notif._id)
-}
-
+  const handleNotificationClick = async (notification: Notification) => {
+    setSelectedNotification(notification)
+    if (!notification.isRead) {
+      await markAsRead(notification._id)
+    }
+  }
 
   const NotificationSkeleton = () => (
     <Card className="bg-white shadow-sm">
@@ -143,30 +145,29 @@ const handleOpenNotification = async (notif: Notification) => {
         ) : sortedNotifications.length === 0 ? (
           <p className="text-center py-12 text-muted-foreground">No notifications available.</p>
         ) : (
-          sortedNotifications.map(notif => (
+          sortedNotifications.map(notification => (
             <Card
-              key={notif._id}
-              onClick={() => handleOpenNotification(notif)}
+              key={notification._id}
+              onClick={() => handleNotificationClick(notification)}
               className={`transition-all duration-200 shadow-sm border cursor-pointer ${
-                !notif.isRead ? "bg-slate-50 hover:bg-slate-100" : "bg-white"
+                !notification.isRead ? "bg-slate-50 hover:bg-slate-100" : "bg-white"
               }`}
             >
               <CardContent className="p-5">
                 <div className="flex items-start gap-4">
                   <Bell className="h-5 w-5 text-purple-500 mt-1" />
-
                   <div className="flex-grow space-y-2">
                     <div className="flex justify-between items-start">
-                      <h2 className="text-lg font-semibold text-gray-900">{notif.title}</h2>
-                      {!notif.isRead && (
+                      <h2 className="text-lg font-semibold text-gray-900">{notification.title}</h2>
+                      {!notification.isRead && (
                         <Badge variant="destructive" className="text-xs rounded-full px-2">
                           unread
                         </Badge>
                       )}
                     </div>
-                    <p className="text-sm text-gray-700 line-clamp-2">{notif.message}</p>
+                    <p className="text-sm text-gray-700 line-clamp-2">{notification.message}</p>
                     <div className="text-xs text-muted-foreground pt-2">
-                      🕒 {new Date(notif.createdAt).toLocaleString()}
+                      🕒 {new Date(notification.createdAt).toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -176,61 +177,58 @@ const handleOpenNotification = async (notif: Notification) => {
         )}
       </div>
 
-      {/* Detail Dialog */}
-     <Dialog open={!!selectedNotification} onOpenChange={() => setSelectedNotification(null)}>
-  <DialogContent className="max-w-xl">
-    {selectedNotification && (
-      <>
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage
-                src={selectedNotification.sender.profilePicture || "/placeholder.svg"}
-                alt={`${selectedNotification.sender.firstName} ${selectedNotification.sender.lastName}`}
-              />
-              <AvatarFallback>
-                {selectedNotification.sender.firstName[0]}
-                {selectedNotification.sender.lastName[0]}
-              </AvatarFallback>
-            </Avatar>
+      <Dialog open={!!selectedNotification} onOpenChange={() => setSelectedNotification(null)}>
+        <DialogContent className="max-w-xl">
+          {selectedNotification && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage
+                      src={selectedNotification.sender.profilePicture || "/placeholder.svg"}
+                      alt={`${selectedNotification.sender.firstName} ${selectedNotification.sender.lastName}`}
+                    />
+                    <AvatarFallback>
+                      {selectedNotification.sender.firstName[0]}
+                      {selectedNotification.sender.lastName[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <DialogTitle className="text-lg">{selectedNotification.title}</DialogTitle>
+                    <DialogDescription className="text-sm text-muted-foreground">
+                      Sent by{" "}
+                      <span className="font-medium">
+                        {selectedNotification.sender.firstName} {selectedNotification.sender.lastName}
+                      </span>{" "}
+                      ({selectedNotification.sender.role})<br />
+                      📅 {new Date(selectedNotification.createdAt).toLocaleString()}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
 
-            <div>
-              <DialogTitle className="text-lg">{selectedNotification.title}</DialogTitle>
-              <DialogDescription className="text-sm text-muted-foreground">
-                Sent by{" "}
-                <span className="font-medium">
-                  {selectedNotification.sender.firstName} {selectedNotification.sender.lastName}
-                </span>{" "}
-                ({selectedNotification.sender.role})<br />
-                📅 {new Date(selectedNotification.createdAt).toLocaleString()}
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+              <div className="mt-4 text-sm text-gray-800 whitespace-pre-line leading-relaxed">
+                {selectedNotification.message}
+              </div>
 
-        <div className="mt-4 text-sm text-gray-800 whitespace-pre-line leading-relaxed">
-          {selectedNotification.message}
-        </div>
+              <div className="mt-6 text-xs text-muted-foreground space-y-1">
+                <p>🔖 Type: {selectedNotification.type.replace(/_/g, " ")}</p>
+                <p>
+                  {selectedNotification.isRead
+                    ? `✅ Read at: ${new Date(selectedNotification.readAt!).toLocaleString()}`
+                    : "❌ Not read yet"}
+                </p>
+              </div>
 
-        <div className="mt-6 text-xs text-muted-foreground space-y-1">
-          <p>🔖 Type: {selectedNotification.type.replace(/_/g, " ")}</p>
-          <p>
-            {selectedNotification.isRead
-              ? `✅ Read at: ${new Date(selectedNotification.readAt!).toLocaleString()}`
-              : "❌ Not read yet"}
-          </p>
-        </div>
-
-        <DialogFooter className="mt-6">
-          <DialogClose asChild>
-            <Button variant="ghost">Close</Button>
-          </DialogClose>
-        </DialogFooter>
-      </>
-    )}
-  </DialogContent>
-</Dialog>
-
+              <DialogFooter className="mt-6">
+                <DialogClose asChild>
+                  <Button variant="ghost">Close</Button>
+                </DialogClose>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

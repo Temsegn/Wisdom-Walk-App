@@ -19,8 +19,10 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+      const awaitedParams = await params;
+
     const body = await request.json()
-    const res = await fetch(`${BASE_URL}/${params.id}`, {
+    const res = await fetch(`${BASE_URL}/${awaitedParams.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -36,7 +38,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const res = await fetch(`${BASE_URL}/${params.id}`, {
+          const awaitedParams = await params;
+
+    const res = await fetch(`${BASE_URL}/${awaitedParams.id}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
     })
