@@ -5,8 +5,10 @@ import 'package:wisdomwalk/services/api_service.dart';
 import 'package:wisdomwalk/services/local_storage_service.dart';
 import 'package:wisdomwalk/views/chat/chat_screen.dart';
 import 'package:wisdomwalk/widgets/message_bubble.dart';
+ 
 
-class MessageSearchDelegate extends SearchDelegate {
+
+ class MessageSearchDelegate extends SearchDelegate {
   final String chatId;
   final MessageProvider messageProvider;
 
@@ -50,7 +52,7 @@ class MessageSearchDelegate extends SearchDelegate {
     }
 
     return FutureBuilder<List<Message>>(
-      future: ApiService.searchMessages(chatId, query),
+      future: messageProvider.apiService.searchMessages(chatId, query),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -119,6 +121,6 @@ class MessageSearchDelegate extends SearchDelegate {
   }
 
   void _forwardMessage(BuildContext context, Message message) {
-    // Implement forward message dialog (see below)
+    // Implement forward message dialog
   }
 }

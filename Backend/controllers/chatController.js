@@ -25,44 +25,53 @@ const getUserChats = async (req, res) => {
       participants: userId,
       isActive: true,
     });
-
-    const formattedChats = await Promise.all(
-      chats.map(async (chat) => {
-        const chatObj = chat.toObject();
-        const userSettings = chat.participantSettings.find(
-          (setting) => setting.user.toString() === userId.toString()
-        );
-        const lastReadMessage = userSettings?.lastReadMessage;
-
-        let unreadCount = 0;
-        if (lastReadMessage) {
-          unreadCount = await Message.countDocuments({
-            chat: chat._id,
-            _id: { $gt: lastReadMessage },
-            sender: { $ne: userId },
-          });
-        } else {
-          unreadCount = await Message.countDocuments({
-            chat: chat._id,
-            sender: { $ne: userId },
-          });
-        }
-
-        chatObj.unreadCount = unreadCount;
-
-        if (chat.type === "direct") {
-          const otherParticipant = chat.participants.find(
-            (p) => p._id.toString() !== userId.toString()
-          );
-          chatObj.chatName = `${otherParticipant.firstName} ${otherParticipant.lastName}`;
-          chatObj.chatImage = otherParticipant.profilePicture;
-          chatObj.isOnline = otherParticipant.isOnline;
-          chatObj.lastActive = otherParticipant.lastActive;
-        }
-
-        return chatObj;
-      })
+const formattedChats = await Promise.all(
+  chats.map(async (chat) => {
+    const chatObj = chat.toObject();
+    const userSettings = chat.participantSettings.find(
+      (setting) => setting.user.toString() === userId.toString()
     );
+    const lastReadMessage = userSettings?.lastReadMessage;
+
+    let unreadCount = 0;
+    if (lastReadMessage) {
+      unreadCount = await Message.countDocuments({
+        chat: chat._id,
+        _id: { $gt: lastReadMessage },
+        sender: { $ne: userId },
+      });
+    } else {
+      unreadCount = await Message.countDocuments({
+        chat: chat._id,
+        sender: { $ne: userId },
+      });
+    }
+
+    chatObj.unreadCount = unreadCount;
+
+    if (chat.type === "direct") {
+      const otherParticipant = chat.participants.find(
+        (p) => p._id.toString() !== userId.toString()
+      );
+      
+      // Add null checks
+      if (otherParticipant) {
+        chatObj.chatName = `${otherParticipant.firstName || ''} ${otherParticipant.lastName || ''}`.trim();
+        chatObj.chatImage = otherParticipant.profilePicture;
+        chatObj.isOnline = otherParticipant.isOnline;
+        chatObj.lastActive = otherParticipant.lastActive;
+      } else {
+        // Handle case where other participant is missing
+        chatObj.chatName = "Deleted User";
+        chatObj.chatImage = null;
+        chatObj.isOnline = false;
+        chatObj.lastActive = null;
+      }
+    }
+
+    return chatObj;
+  })
+);
 
     res.json({
       success: true,

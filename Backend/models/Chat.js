@@ -62,6 +62,16 @@ const chatSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    validate: {
+      validator: function() {
+        // For direct messages, must have exactly 2 participants
+        if (this.type === "direct") {
+          return this.participants.length === 2;
+        }
+        return true; // No validation for group chats
+      },
+      message: "Direct messages must have exactly 2 participants"
+    }
   }
 );
 

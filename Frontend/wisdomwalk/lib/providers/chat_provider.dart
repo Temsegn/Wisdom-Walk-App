@@ -2,9 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:wisdomwalk/models/message_model.dart';
 import '../models/chat_model.dart';
 import '../services/api_service.dart';
-import '../models/user_model.dart'; 
+import '../models/user_model.dart';
+
 class ChatProvider with ChangeNotifier {
-  final apiService=ApiService();
+  final ApiService apiService = ApiService();
   List<Chat> _chats = [];
   bool _isLoading = false;
   String? _error;
@@ -16,45 +17,45 @@ class ChatProvider with ChangeNotifier {
   String? get error => _error;
   bool get hasMoreChats => _hasMoreChats;
   
-Future<void> loadChats({bool refresh = false}) async {
-  if (_isLoading || (!refresh && !_hasMoreChats)) return;
+  Future<void> loadChats({bool refresh = false}) async {
+    if (_isLoading || (!refresh && !_hasMoreChats)) return;
 
-  _isLoading = true;
-  if (refresh) {
-    _currentPage = 1;
-    _hasMoreChats = true;
-    _error = null;
-  }
-  notifyListeners();
-
-  try {
-    final newChats = await ApiService().getUserChats(
-      page: _currentPage,
-      limit: 20,
-    );
-
+    _isLoading = true;
     if (refresh) {
-      _chats = newChats;
-    } else {
-      _chats.addAll(newChats);
+      _currentPage = 1;
+      _hasMoreChats = true;
+      _error = null;
     }
-
-    _hasMoreChats = newChats.length >= 20; // Assuming limit is 20
-    if (_hasMoreChats) {
-      _currentPage++;
-    }
-  } catch (e) {
-    _error = e.toString().replaceAll('Exception: ', '');
-    debugPrint('Error loading chats: $_error');
-  } finally {
-    _isLoading = false;
     notifyListeners();
+
+    try {
+      final newChats = await apiService.getUserChats(
+        page: _currentPage,
+        limit: 20,
+      );
+
+      if (refresh) {
+        _chats = newChats;
+      } else {
+        _chats.addAll(newChats);
+      }
+
+      _hasMoreChats = newChats.length >= 20; // Assuming limit is 20
+      if (_hasMoreChats) {
+        _currentPage++;
+      }
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      debugPrint('Error loading chats: $_error');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
-}
 
   Future<Chat?> createDirectChat(String participantId) async {
     try {
-      final chat = await ApiService.createDirectChat(participantId);
+      final chat = await apiService.createDirectChat(participantId);
       
       // Add to the beginning of the list if it's new
       final existingIndex = _chats.indexWhere((c) => c.id == chat.id);
@@ -74,11 +75,11 @@ Future<void> loadChats({bool refresh = false}) async {
   Future<Chat?> createDirectChatWithGreeting(String participantId, {String greeting = "👋 Hi!"}) async {
     try {
       // First create the chat
-      final chat = await ApiService.createDirectChat(participantId);
+      final chat = await apiService.createDirectChat(participantId);
       
       // Check if this is a new chat by trying to get messages
       try {
-        final messages = await ApiService().getChatMessages(chat.id, limit: 1);
+        final messages = await apiService.getChatMessages(chat.id, limit: 1);
         
         // If no messages exist, send a greeting message
         if (messages.isEmpty) {

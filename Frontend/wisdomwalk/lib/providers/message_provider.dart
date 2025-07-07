@@ -7,127 +7,106 @@ import '../models/message_model.dart';
 import '../services/api_service.dart';
 
 class MessageProvider with ChangeNotifier {
-
- final apiService=ApiService();
-
-  Map<String, List<Message>> _chatMessages = {};
-  Map<String, bool> _loadingStates = {};
-  Map<String, String?> _errors = {};
-  Map<String, int> _currentPages = {};
-  Map<String, bool> _hasMoreMessages = {};
+  final ApiService apiService = ApiService();
+  final Map<String, List<Message>> _chatMessages = {};
+  final Map<String, bool> _loadingStates = {};
+  final Map<String, String?> _errors = {};
+  final Map<String, int> _currentPages = {};
+  final Map<String, bool> _hasMoreMessages = {};
   Message? _replyToMessage;
 
   List<Message> getChatMessages(String chatId) {
     return _chatMessages[chatId] ?? [];
   }
 
-  bool isLoading(String chatId) {
-    return _loadingStates[chatId] ?? false;
-  }
-
-  String? getError(String chatId) {
-    return _errors[chatId];
-  }
-
-  bool hasMoreMessages(String chatId) {
-    return _hasMoreMessages[chatId] ?? true;
-  }
-
+  bool isLoading(String chatId) => _loadingStates[chatId] ?? false;
+  String? getError(String chatId) => _errors[chatId];
+  bool hasMoreMessages(String chatId) => _hasMoreMessages[chatId] ?? true;
   Message? get replyToMessage => _replyToMessage;
 
- 
   void setReplyToMessage(Message? message) {
     _replyToMessage = message;
     notifyListeners();
   }
-Future<void> loadMessages(String chatId, {bool refresh = false}) async {
-  if (_loadingStates[chatId] == true || 
-      (!refresh && _hasMoreMessages[chatId] == false)) {
-    return;
-  }
 
-  _loadingStates[chatId] = true;
-  if (refresh) {
-    _currentPages[chatId] = 1;
-    _chatMessages[chatId] = [];
-    _hasMoreMessages[chatId] = true;
-  }
-  notifyListeners();
-
-  try {
-    final newMessages = await ApiService().getChatMessages(
-      chatId,
-      page: _currentPages[chatId] ?? 1,
-      limit: 50,
-    );
-
-    if (newMessages.isEmpty) {
-      _hasMoreMessages[chatId] = false;
-    } else {
-      if (refresh) {
-        _chatMessages[chatId] = newMessages;
-      } else {
-        _chatMessages[chatId] = [
-          ...(_chatMessages[chatId] ?? []),
-          ...newMessages,
-        ];
-      }
-      _currentPages[chatId] = (_currentPages[chatId] ?? 1) + 1;
+  Future<void> loadMessages(String chatId, {bool refresh = false}) async {
+    if (_loadingStates[chatId] == true || 
+        (!refresh && (_hasMoreMessages[chatId] ?? true) == false)) {
+      return;
     }
-    _errors[chatId] = null;
-  } catch (e) {
-    _errors[chatId] = e.toString();
-    debugPrint('Error loading messages for $chatId: $e');
-  } finally {
-    _loadingStates[chatId] = false;
-    notifyListeners();
-  }
-}
 
-Future<Message?> sendMessage({
-  required String chatId,
-  required String content,
-  String messageType = 'text',
-  List<File>? attachments,
-}) async {
-  try {
     _loadingStates[chatId] = true;
-    notifyListeners();
-
-    List<Map<String, dynamic>>? uploadedAttachments;
-    if (attachments != null && attachments.isNotEmpty) {
-      uploadedAttachments = await _uploadFiles(attachments);
+    if (refresh) {
+      _currentPages[chatId] = 1;
+      _chatMessages.remove(chatId);
+      _hasMoreMessages[chatId] = true;
     }
+    notifyListeners();
 
-    final message = await apiService.sendMessage(
-      chatId: chatId,
-      content: content,
-      messageType: messageType,
-      replyToId: _replyToMessage?.id,
-      attachments: uploadedAttachments,
-    );
+    try {
+      final newMessages = await apiService.getChatMessages(
+        chatId,
+        page: _currentPages[chatId] ?? 1,
+        limit: 50,
+      );
 
-    if (_chatMessages[chatId] != null) {
-      _chatMessages[chatId]!.insert(0, message);
-    } else {
-      _chatMessages[chatId] = [message];
+      if (newMessages.isEmpty) {
+        _hasMoreMessages[chatId] = false;
+      } else {
+        final currentMessages = _chatMessages[chatId] ?? [];
+        _chatMessages[chatId] = refresh 
+            ? newMessages 
+            : [...currentMessages, ...newMessages];
+        _currentPages[chatId] = (_currentPages[chatId] ?? 1) + 1;
+      }
+      _errors.remove(chatId);
+    } catch (e) {
+      _errors[chatId] = e.toString();
+      debugPrint('Error loading messages for $chatId: $e');
+    } finally {
+      _loadingStates[chatId] = false;
+      notifyListeners();
     }
-
-    _replyToMessage = null;
-    _errors.remove(chatId);
-    notifyListeners();
-    return message;
-  } catch (e) {
-    _errors[chatId] = e.toString();
-    notifyListeners();
-    return null;
-  } finally {
-    _loadingStates[chatId] = false;
-    notifyListeners();
   }
-}
- 
- 
+
+  Future<Message?> sendMessage({
+    required String chatId,
+    required String content,
+    String messageType = 'text',
+    List<File>? attachments,
+  }) async {
+    try {
+      _loadingStates[chatId] = true;
+      notifyListeners();
+
+      List<Map<String, dynamic>>? uploadedAttachments;
+      if (attachments != null && attachments.isNotEmpty) {
+        uploadedAttachments = await _uploadFiles(attachments);
+      }
+
+      final message = await apiService.sendMessage(
+        chatId: chatId,
+        content: content,
+        messageType: messageType,
+        replyToId: _replyToMessage?.id,
+        attachments: uploadedAttachments,
+      );
+
+      _chatMessages[chatId] = [message, ..._chatMessages[chatId] ?? []];
+      _replyToMessage = null;
+      _errors.remove(chatId);
+      notifyListeners();
+      return message;
+    } catch (e) {
+      _errors[chatId] = e.toString();
+      notifyListeners();
+      return null;
+    } finally {
+      _loadingStates[chatId] = false;
+      notifyListeners();
+    }
+  }
+
   Future<List<Map<String, dynamic>>> _uploadFiles(List<File> files) async {
     final token = await LocalStorageService().getAuthToken();
     final uri = Uri.parse('https://wisdom-walk-app.onrender.com/api/upload');
@@ -150,107 +129,78 @@ Future<Message?> sendMessage({
 
   Future<void> editMessage(String messageId, String content) async {
     try {
-      final editedMessage = await ApiService.editMessage(messageId, content);
+      final editedMessage = await apiService.editMessage(messageId, content);
 
-      // Update message in all chat lists
-      for (String chatId in _chatMessages.keys) {
+      for (final chatId in _chatMessages.keys) {
         final messages = _chatMessages[chatId]!;
-        final messageIndex = messages.indexWhere((m) => m.id == messageId);
-        if (messageIndex != -1) {
-          messages[messageIndex] = editedMessage;
+        final index = messages.indexWhere((m) => m.id == messageId);
+        if (index != -1) {
+          _chatMessages[chatId]![index] = editedMessage;
+          notifyListeners();
           break;
         }
       }
-
-      notifyListeners();
     } catch (e) {
-      // Handle error
-      print('Error editing message: $e');
+      debugPrint('Error editing message: $e');
     }
   }
 
   Future<void> deleteMessage(String messageId) async {
     try {
-      await ApiService.deleteMessage(messageId);
+      await apiService.deleteMessage(messageId);
 
-      // Remove message from all chat lists
-      for (String chatId in _chatMessages.keys) {
-        final messages = _chatMessages[chatId]!;
-        messages.removeWhere((m) => m.id == messageId);
+      for (final chatId in _chatMessages.keys) {
+        _chatMessages[chatId]!.removeWhere((m) => m.id == messageId);
       }
-
       notifyListeners();
     } catch (e) {
-      // Handle error
-      print('Error deleting message: $e');
+      debugPrint('Error deleting message: $e');
     }
   }
 
   Future<void> addReaction(String messageId, String emoji) async {
     try {
-      await ApiService.addReaction(messageId, emoji);
-      // The reaction update will be handled by real-time updates
+      await apiService.addReaction(messageId, emoji);
     } catch (e) {
-      // Handle error
-      print('Error adding reaction: $e');
+      debugPrint('Error adding reaction: $e');
     }
   }
 
   Future<void> pinMessage(String chatId, String messageId) async {
     try {
-      await ApiService.pinMessage(chatId, messageId);
-
-      // Update message pin status
-      final messages = _chatMessages[chatId];
-      if (messages != null) {
-        final messageIndex = messages.indexWhere((m) => m.id == messageId);
-        if (messageIndex != -1) {
-          // Create updated message with pinned status
-          // This would require updating the Message model to be mutable
-          // or creating a new instance with updated properties
-        }
-      }
-
+      await apiService.pinMessage(chatId, messageId);
       notifyListeners();
     } catch (e) {
-      // Handle error
-      print('Error pinning message: $e');
+      debugPrint('Error pinning message: $e');
     }
   }
 
   Future<Message?> forwardMessage(String messageId, String targetChatId) async {
     try {
-      final forwardedMessage = await ApiService.forwardMessage(
+      final forwardedMessage = await apiService.forwardMessage(
         messageId,
         targetChatId,
       );
 
-      // Add forwarded message to target chat
-      if (_chatMessages[targetChatId] != null) {
-        _chatMessages[targetChatId]!.insert(0, forwardedMessage);
-      } else {
-        _chatMessages[targetChatId] = [forwardedMessage];
-      }
-
+      _chatMessages[targetChatId] = [
+        forwardedMessage,
+        ..._chatMessages[targetChatId] ?? []
+      ];
       notifyListeners();
       return forwardedMessage;
     } catch (e) {
-      print('Error forwarding message: $e');
+      debugPrint('Error forwarding message: $e');
       return null;
     }
   }
 
   void addNewMessage(String chatId, Message message) {
-    if (_chatMessages[chatId] != null) {
-      _chatMessages[chatId]!.insert(0, message);
-    } else {
-      _chatMessages[chatId] = [message];
-    }
+    _chatMessages[chatId] = [message, ..._chatMessages[chatId] ?? []];
     notifyListeners();
   }
 
   void clearError(String chatId) {
-    _errors[chatId] = null;
+    _errors.remove(chatId);
     notifyListeners();
   }
 }

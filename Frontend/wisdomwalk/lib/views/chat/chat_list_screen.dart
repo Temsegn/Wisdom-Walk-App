@@ -267,7 +267,7 @@ class ChatListItem extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(
+        Text( 
           _formatTime(lastActivity),
           style: theme.textTheme.bodySmall?.copyWith(
             color: unreadCount > 0 ? theme.primaryColor : Colors.grey,
