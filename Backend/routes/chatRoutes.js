@@ -10,12 +10,14 @@ router.use(authenticateToken);
 router.get("/", chatController.getUserChats);
 router.post("/direct", chatController.createDirectChat);
 router.get("/:chatId/messages", chatController.getChatMessages);
+router.post("/:chatId/messages", chatController.sendMessage);
 
 router.put(
   "/messages/:messageId",
   validateMessage,
   chatController.editMessage
 );
+
 router.delete("/messages/:messageId", chatController.deleteMessage);
 router.post("/messages/:messageId/reaction", chatController.addReaction);
 router.post("/block", chatController.blockUser);

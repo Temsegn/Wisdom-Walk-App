@@ -163,9 +163,27 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true, // Automatically manage createdAt and updatedAt fields
+    toJSON: {
+      virtuals: true,
+      transform: function(doc, ret) {
+        delete ret.password;
+        delete ret.__v;
+        return ret;
+      }
+    }
   }
 )
 
+userSchema.virtual('fullName').get(function() {
+  return `${this.firstName} ${this.lastName}`.trim();
+});
+
+// Add method to update names consistently
+userSchema.methods.updateNames = function(firstName, lastName) {
+  this.firstName = firstName.trim();
+  this.lastName = lastName.trim();
+  return this.save();
+};
 // Index for better performance
 userSchema.index({ email: 1 })
 userSchema.index({ verificationStatus: 1 })

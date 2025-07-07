@@ -181,7 +181,7 @@ class ApiService {
         throw Exception('Authentication required. Please login again.');
       }
 
-         final url = Uri.parse('$baseUrl/chats/$chatId/messages');
+         final url = Uri.parse('https://wisdom-walk-app.onrender.com/api/chats/$chatId/messages');
 
       debugPrint('Sending message to: $url');
 

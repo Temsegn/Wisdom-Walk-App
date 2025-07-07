@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 
 class UserModel {
   final String id;
-  final String fullName;
+  final String fullName; // Added as direct field
+  final String firstName;
+  final String lastName;
   final String email;
   final String? avatarUrl;
   final String? city;
@@ -10,13 +12,16 @@ class UserModel {
   final String? country;
   final List<String> wisdomCircleInterests;
   final bool isVerified;
-  final bool isOnline; // Changed from getter to final field
+  final bool isOnline;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isBlocked;
 
   UserModel({
     required this.id,
-    required this.fullName,
+    String? fullName, // Optional fullName parameter
+    this.firstName = '',
+    this.lastName = '',
     required this.email,
     this.avatarUrl,
     this.city,
@@ -24,16 +29,24 @@ class UserModel {
     this.country,
     this.wisdomCircleInterests = const [],
     this.isVerified = false,
-    this.isOnline = false, // Default to false
+    this.isOnline = false,
     required this.createdAt,
     required this.updatedAt,
-  });
+    this.isBlocked = false,
+  }) : fullName = fullName ?? [firstName, lastName].where((n) => n.isNotEmpty).join(' ');
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     try {
+      // Handle fullName from JSON or fallback to combining first/last names
+      final jsonFullName = json['fullName']?.toString()?.trim() ?? '';
+      final firstName = json['firstName']?.toString()?.trim() ?? '';
+      final lastName = json['lastName']?.toString()?.trim() ?? '';
+      
       return UserModel(
         id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
-        fullName: json['fullName']?.toString() ?? '',
+        fullName: jsonFullName.isNotEmpty ? jsonFullName : [firstName, lastName].where((n) => n.isNotEmpty).join(' '),
+        firstName: firstName,
+        lastName: lastName,
         email: json['email']?.toString() ?? '',
         avatarUrl: json['avatarUrl']?.toString(),
         city: json['city']?.toString(),
@@ -43,13 +56,14 @@ class UserModel {
           json['wisdomCircleInterests']?.map((x) => x.toString()) ?? [],
         ),
         isVerified: json['isVerified'] == true,
-        isOnline: json['isOnline'] == true, // Parse from JSON
+        isOnline: json['isOnline'] == true,
         createdAt: json['createdAt'] != null 
             ? DateTime.parse(json['createdAt'].toString())
             : DateTime.now(),
         updatedAt: json['updatedAt'] != null
             ? DateTime.parse(json['updatedAt'].toString())
             : DateTime.now(),
+        isBlocked: json['isBlocked'] == true,
       );
     } catch (e, stackTrace) {
       debugPrint('Error parsing UserModel: $e');
@@ -61,7 +75,6 @@ class UserModel {
 
   static UserModel empty() => UserModel(
         id: '',
-        fullName: 'Unknown',
         email: '',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -72,26 +85,22 @@ class UserModel {
   String? get profilePicture => avatarUrl;
   String? get avatar => avatarUrl;
   String get displayName => fullName.isNotEmpty ? fullName : 'Unknown User';
-String? get initials {
-    if (fullName.isEmpty) return null;
-    
-    final parts = fullName.trim().split(' ');
+  
+  String? get initials {
+    final parts = fullName.split(' ');
     if (parts.isEmpty) return null;
-    
-    // Get first character of first name
-    String initials = parts[0].isNotEmpty ? parts[0][0].toUpperCase() : '';
-    
-    // Get first character of last name if exists
-    if (parts.length > 1 && parts[1].isNotEmpty) {
-      initials += parts[1][0].toUpperCase();
-    }
-    
-    return initials.isNotEmpty ? initials : null;
+    final first = parts.first.isNotEmpty ? parts.first[0] : '';
+    final last = parts.length > 1 && parts.last.isNotEmpty ? parts.last[0] : '';
+    return '$first$last'.trim().isNotEmpty ? '$first$last' : null;
   }
+
   DateTime? get lastActive => updatedAt;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'fullName': fullName,
+        'firstName': firstName,
+        'lastName': lastName,
         'email': email,
         'avatarUrl': avatarUrl,
         'city': city,
@@ -102,11 +111,14 @@ String? get initials {
         'isOnline': isOnline,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
+        'isBlocked': isBlocked,
       };
 
   UserModel copyWith({
     String? id,
     String? fullName,
+    String? firstName,
+    String? lastName,
     String? email,
     String? avatarUrl,
     String? city,
@@ -116,11 +128,14 @@ String? get initials {
     bool? isVerified,
     bool? isOnline,
     DateTime? createdAt,
-    DateTime? updatedAt, required bool isBlocked,
+    DateTime? updatedAt,
+    bool? isBlocked,
   }) {
     return UserModel(
       id: id ?? this.id,
       fullName: fullName ?? this.fullName,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
       email: email ?? this.email,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       city: city ?? this.city,
@@ -131,6 +146,7 @@ String? get initials {
       isOnline: isOnline ?? this.isOnline,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      isBlocked: isBlocked ?? this.isBlocked,
     );
   }
 }

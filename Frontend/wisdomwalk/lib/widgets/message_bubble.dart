@@ -35,7 +35,8 @@ class MessageBubble extends StatelessWidget {
         mainAxisAlignment: isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (!isCurrentUser) _buildUserAvatar(message.sender),
+               if (!isCurrentUser) const SizedBox(width: 16.0), // Add left gap for received messages
+
           Flexible(
             child: Column(
               crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -49,6 +50,7 @@ class MessageBubble extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.all(12.0),
                     decoration: BoxDecoration(
+
                       color: isCurrentUser
                           ? (isDarkMode ? Colors.blue[800] : Colors.blue)
                           : (isDarkMode ? Colors.grey[800] : Colors.grey[200]),
@@ -68,9 +70,9 @@ class MessageBubble extends StatelessWidget {
           ),
           if (isCurrentUser) const SizedBox(width: 8.0),
         ],
-      ),
+      ), 
     );
-  }
+  } 
 
   Widget _buildUserAvatar(UserModel user) {
     return Padding(
@@ -83,7 +85,7 @@ class MessageBubble extends StatelessWidget {
             : null,
         child: user.profilePicture == null
             ? Text(
-                user.initials ?? '?',
+                user.initials ?? 'N',
                 style: const TextStyle(
                   fontSize: 12.0,
                   color: Colors.black,
