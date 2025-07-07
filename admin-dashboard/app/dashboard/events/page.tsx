@@ -46,6 +46,12 @@ type Event = {
   meetingLink: string
 }
 
+function isFutureEvent(eventDate: string): boolean {
+  const today = new Date()
+  const eventDateTime = new Date(eventDate)
+  return eventDateTime > today
+}
+
 export default function EventsPage() {
   const { toast } = useToast()
   const [events, setEvents] = useState<Event[]>([])
@@ -71,29 +77,28 @@ export default function EventsPage() {
   useEffect(() => {
     fetchEvents()
   }, [])
-async function fetchEvents() {
-  setLoading(true)
-  try {
-    const res = await fetch("/api/events")
-    const json = await res.json()
 
-    if (!json.success) {
-      throw new Error("Failed to fetch events")
+  async function fetchEvents() {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/events")
+      const json = await res.json()
+
+      if (!json.success) {
+        throw new Error("Failed to fetch events")
+      }
+
+      setEvents(json.data)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load events.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
     }
-
-    setEvents(json.data)  // Use json.data here
-
-  } catch (error) {
-    toast({
-      title: "Error",
-      description: "Failed to load events.",
-      variant: "destructive",
-    })
-  } finally {
-    setLoading(false)
   }
-}
-
 
   function openCreate() {
     setViewMode("create")
@@ -202,7 +207,14 @@ async function fetchEvents() {
                   <CalendarDays className="h-5 w-5 text-purple-500 mt-1" />
                   <div className="flex-grow space-y-2">
                     <div className="flex justify-between">
-                      <h2 className="text-lg font-semibold text-gray-900">{event.title}</h2>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-semibold text-gray-900">{event.title}</h2>
+                        {isFutureEvent(event.date) && (
+                          <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                            Upcoming
+                          </span>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => openView(event)}>
                           <Eye className="h-4 w-4" />

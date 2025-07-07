@@ -89,7 +89,7 @@ const getPendingVerifications = async (req, res) => {
       //isAdminVerified: false,
     })
       .select("firstName lastName email phoneNumber location livePhoto nationalId createdAt")
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1 }) 
       .skip(skip)
       .limit(Number.parseInt(limit))  
 
