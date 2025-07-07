@@ -183,61 +183,94 @@ const getUserPosts = async (req, res) => {
     })
   }
 }
-
-// Search users
+// Search users endpoint
 const searchUsers = async (req, res) => {
   try {
-    const { query, location, group } = req.query
-    const page = Number.parseInt(req.query.page) || 1
-    const limit = Number.parseInt(req.query.limit) || 10
-    const skip = (page - 1) * limit
+    const { query, location, group } = req.query;
+    const page = Number.parseInt(req.query.page) || 1;
+    const limit = Number.parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
 
     const searchCriteria = {
       isEmailVerified: true,
       isAdminVerified: true,
       status: "active",
-    }
+    };
 
     if (query) {
       searchCriteria.$or = [
         { firstName: { $regex: query, $options: "i" } },
         { lastName: { $regex: query, $options: "i" } },
+        { email: { $regex: query, $options: "i" } },
         { bio: { $regex: query, $options: "i" } },
-      ]
+        { 
+          $expr: {
+            $regexMatch: {
+              input: { $concat: ["$firstName", " ", "$lastName"] },
+              regex: query,
+              options: "i"
+            }
+          }
+        }
+      ];
     }
 
     if (location) {
       searchCriteria.$or = [
+        ...(searchCriteria.$or || []),
         { "location.city": { $regex: location, $options: "i" } },
         { "location.country": { $regex: location, $options: "i" } },
-      ]
+      ];
     }
 
     if (group) {
-      searchCriteria["joinedGroups.groupType"] = group
+      searchCriteria["joinedGroups.groupType"] = group;
     }
 
     const users = await User.find(searchCriteria)
-      .select("firstName lastName profilePicture bio location joinedGroups")
+      .select("firstName lastName email profilePicture bio location joinedGroups isOnline lastActive")
       .skip(skip)
-      .limit(limit)
+      .limit(limit);
 
-    const total = await User.countDocuments(searchCriteria)
+    const total = await User.countDocuments(searchCriteria);
 
     res.json({
       success: true,
       data: users.map(formatUserResponse),
-      pagination: getPaginationMeta(page, limit, total),
-    })
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
-    console.error("Search users error:", error)
+    console.error("Search users error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to search users",
       error: error.message,
-    })
+    });
   }
-}
+};
+
+// Format user response
+const formatUserResponse = (user) => ({
+  id: user._id,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  email: user.email,
+  avatarUrl: user.profilePicture,
+  bio: user.bio,
+  city: user.location?.city,
+  country: user.location?.country,
+  isOnline: user.isOnline,
+  lastActive: user.lastActive,
+  groups: user.joinedGroups?.map(g => ({
+    id: g._id,
+    type: g.groupType
+  }))
+});
 
 // Get user by ID
 const getUserById = async (req, res) => {

@@ -1,145 +1,168 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:wisdomwalk/services/local_storage_service.dart';
 import '../../models/user_model.dart';
 
 class UserService {
-  static const String baseUrl ='https://wisdom-walk-app.onrender.com/api';
-  static String? _authToken;
-  final LocalStorageService _localStorageService = LocalStorageService();
+  static const String baseUrl = 'https://wisdom-walk-app.onrender.com/api';
+  static final LocalStorageService _localStorageService = LocalStorageService();
 
-  static void setAuthToken(String token) {
-    _authToken = token;
-  }
-
-  static Map<String, String> get _headers {
-    final headers = {
-      'Content-Type': 'application/json',
-    };
-    if (_authToken != null) {
-      headers['Authorization'] = 'Bearer $_authToken';
-    }
-    return headers;
-  }
-Future<List<UserModel>> searchUsers(String query) async {
-  try {
-    // Get the authentication token
+  // Enhanced search that includes name, email, and location
+  static Future<List<UserModel>> searchUsers({
+    required String query,
+    String? location,
+    String? group,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
       final token = await _localStorageService.getAuthToken();
-    
-    // Debug prints
-    print('Searching users with query: $query');
-    print('Using token: ${token != null ? '${token.substring(0, 5)}...' : 'NULL'}');
+      if (token == null || token.isEmpty) {
+        throw Exception('Authentication required - No token available');
+      }
 
-    if (token == null || token.isEmpty) {
-      throw Exception('Authentication required - No token available');
-    }
+      final params = {
+        'query': query,
+        if (location != null) 'location': location,
+        if (group != null) 'group': group,
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
 
-    final url = Uri.parse('$baseUrl/users/search?q=${Uri.encodeComponent(query)}');
-    print('Request URL: $url');
+      final url = Uri.parse('$baseUrl/users/search').replace(queryParameters: params);
+      debugPrint('Search Users Request: $url');
 
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    ).timeout(const Duration(seconds: 30));
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 30));
 
-    print('Response status: ${response.statusCode}');
-    print('Response body: ${response.body}');
+      debugPrint('Search Users Response: ${response.statusCode}');
+      _validateResponse(response);
 
-    final responseData = json.decode(response.body);
-    
-    if (response.statusCode == 200 && responseData['success'] == true) {
-      final users = (responseData['data'] as List)
+      final responseData = json.decode(response.body);
+      return (responseData['data'] as List)
           .map((userJson) => UserModel.fromJson(userJson))
           .toList();
-      print('Found ${users.length} users');
-      return users;
-    } else {
-      throw Exception(responseData['message'] ?? 'Failed to search users');
+    } on TimeoutException {
+      throw Exception('Request timed out');
+    } on FormatException {
+      throw Exception('Invalid server response format');
+    } catch (e) {
+      debugPrint('Search error: $e');
+      throw Exception('Failed to search users: ${e.toString()}');
     }
-  } on FormatException {
-    throw Exception('Invalid server response format');
-  } 
-   catch (e) {
-    print('Search error: $e');
-    throw Exception('Failed to search users: ${e.toString()}');
   }
-}
+
   static Future<UserModel> getCurrentUser() async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/users/profile'),
-        headers: _headers,
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          final user = UserModel.fromJson(data['data']);
-          CurrentUser.setUser(user);
-          return user;
-        } else {
-          throw Exception(data['message'] ?? 'Failed to get user info');
-        }
-      } else {
-        final data = json.decode(response.body);
-        throw Exception(data['message'] ?? 'Failed to get user info');
+      final token = await _localStorageService.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw Exception('Authentication required - No token available');
       }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/me'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      debugPrint('Get Current User Response: ${response.statusCode}');
+      _validateResponse(response);
+
+      final responseData = json.decode(response.body);
+      final user = UserModel.fromJson(responseData['data']);
+      CurrentUser.setUser(user);
+      return user;
+    } on TimeoutException {
+      throw Exception('Request timed out');
+    } on FormatException {
+      throw Exception('Invalid server response format');
     } catch (e) {
-      throw Exception('Error getting user info: $e');
+      debugPrint('Get current user error: $e');
+      throw Exception('Failed to get current user: ${e.toString()}');
     }
   }
 
   static Future<UserModel> getUserById(String userId) async {
     try {
+      final token = await _localStorageService.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw Exception('Authentication required - No token available');
+      }
+
       final response = await http.get(
         Uri.parse('$baseUrl/users/$userId'),
-        headers: _headers,
-      );
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 15));
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          return UserModel.fromJson(data['data']);
-        } else {
-          throw Exception(data['message'] ?? 'Failed to get user');
-        }
-      } else {
-        final data = json.decode(response.body);
-        throw Exception(data['message'] ?? 'Failed to get user');
-      }
+      debugPrint('Get User by ID Response: ${response.statusCode}');
+      _validateResponse(response);
+
+      final responseData = json.decode(response.body);
+      return UserModel.fromJson(responseData['data']);
+    } on TimeoutException {
+      throw Exception('Request timed out');
+    } on FormatException {
+      throw Exception('Invalid server response format');
     } catch (e) {
-      throw Exception('Error getting user: $e');
+      debugPrint('Get user by ID error: $e');
+      throw Exception('Failed to get user: ${e.toString()}');
     }
   }
 
   static Future<List<UserModel>> getRecentUsers() async {
     try {
+      final token = await _localStorageService.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw Exception('Authentication required - No token available');
+      }
+
       final response = await http.get(
         Uri.parse('$baseUrl/users/recent'),
-        headers: _headers,
-      );
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 15));
 
+      debugPrint('Get Recent Users Response: ${response.statusCode}');
+      
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          final users = (data['data'] as List)
-              .map((userJson) => UserModel.fromJson(userJson))
-              .toList();
-          return users;
-        } else {
-          throw Exception(data['message'] ?? 'Failed to get recent users');
-        }
-      } else {
-        return []; // Return empty list if endpoint doesn't exist
+        final responseData = json.decode(response.body);
+        return (responseData['data'] as List)
+            .map((userJson) => UserModel.fromJson(userJson))
+            .toList();
       }
+      return [];
+    } on TimeoutException {
+      throw Exception('Request timed out');
+    } on FormatException {
+      throw Exception('Invalid server response format');
     } catch (e) {
-      return []; // Return empty list on error
+      debugPrint('Get recent users error: $e');
+      return [];
+    }
+  }
+
+  static void _validateResponse(http.Response response) {
+    if (response.statusCode != 200) {
+      final errorData = json.decode(response.body);
+      throw Exception(errorData['message'] ?? 'Request failed with status ${response.statusCode}');
     }
   }
 }
+
 class CurrentUser {
   static UserModel? _user;
 

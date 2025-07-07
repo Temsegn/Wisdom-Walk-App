@@ -14,12 +14,14 @@ class NewChatScreen extends StatefulWidget {
 
 class _NewChatScreenState extends State<NewChatScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
   List<UserModel> _searchResults = [];
   List<UserModel> _recentUsers = [];
   bool _isLoading = false;
   bool _isLoadingRecent = false;
   String? _error;
   bool _hasSearched = false;
+  String? _selectedGroup;
 
   @override
   void initState() {
@@ -30,29 +32,27 @@ class _NewChatScreenState extends State<NewChatScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
   Future<void> _loadRecentUsers() async {
-    setState(() {
-      _isLoadingRecent = true;
-    });
-
+    setState(() => _isLoadingRecent = true);
     try {
       final users = await UserService.getRecentUsers();
-      setState(() {
-        _recentUsers = users;
-        _isLoadingRecent = false;
-      });
+      setState(() => _recentUsers = users);
     } catch (e) {
-      setState(() {
-        _isLoadingRecent = false;
-      });
+      debugPrint('Error loading recent users: $e');
+    } finally {
+      setState(() => _isLoadingRecent = false);
     }
   }
 
-  Future<void> _searchUsers(String query) async {
-    if (query.trim().isEmpty) {
+  Future<void> _searchUsers() async {
+    final query = _searchController.text.trim();
+    final location = _locationController.text.trim();
+
+    if (query.isEmpty && location.isEmpty) {
       setState(() {
         _searchResults = [];
         _error = null;
@@ -68,39 +68,38 @@ class _NewChatScreenState extends State<NewChatScreen> {
     });
 
     try {
-      final userService = UserService();
-      final users = await userService.searchUsers(query.trim());
-      setState(() {
-        _searchResults = users;
-        _isLoading = false;
-      });
+      final users = await UserService.searchUsers(
+        query: query,
+        location: location,
+        group: _selectedGroup,
+      );
+      setState(() => _searchResults = users);
     } catch (e) {
       setState(() {
-        _error = e.toString();
-        _isLoading = false;
+        _error = 'Failed to search users';
         _searchResults = [];
       });
+      debugPrint('Search error: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _startChat(UserModel user) async {
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
-      final chat = await context.read<ChatProvider>().startChatWithUser(user);
+      final chatProvider = context.read<ChatProvider>();
+      final chat = await chatProvider.startChatWithUser(user);
       
-      // Close loading dialog
+      if (!mounted) return;
       Navigator.pop(context);
       
       if (chat != null) {
-        // Navigate to chat screen and remove this screen from stack
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -113,11 +112,10 @@ class _NewChatScreenState extends State<NewChatScreen> {
         );
       }
     } catch (e) {
-      // Close loading dialog
+      if (!mounted) return;
       Navigator.pop(context);
-      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text('Error: ${e.toString()}')),
       );
     }
   }
@@ -127,60 +125,52 @@ class _NewChatScreenState extends State<NewChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('New Chat'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: _searchUsers,
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Search Bar
-          Container(
+          // Search Filters
+          Padding(
             padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  spreadRadius: 1,
-                  blurRadius: 3,
-                  offset: const Offset(0, 1),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    labelText: 'Search by name or email',
+                    prefixIcon: Icon(Icons.person),
+                  ),
+                  onSubmitted: (_) => _searchUsers(),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _locationController,
+                  decoration: const InputDecoration(
+                    labelText: 'Search by location',
+                    prefixIcon: Icon(Icons.location_on),
+                  ),
+                  onSubmitted: (_) => _searchUsers(),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: _selectedGroup,
+                  hint: const Text('Filter by group'),
+                  items: const [
+                    DropdownMenuItem(value: 'travel', child: Text('Travel')),
+                    DropdownMenuItem(value: 'business', child: Text('Business')),
+                    DropdownMenuItem(value: 'friends', child: Text('Friends')),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _selectedGroup = value);
+                    _searchUsers();
+                  },
                 ),
               ],
-            ),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search by name or username...',
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.grey),
-                        onPressed: () {
-                          _searchController.clear();
-                          _searchUsers('');
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.grey[100],
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-              ),
-              onChanged: (value) {
-                // Debounce search to avoid too many API calls
-                Future.delayed(const Duration(milliseconds: 800), () {
-                  if (_searchController.text == value) {
-                    _searchUsers(value);
-                  }
-                });
-              },
-              onSubmitted: _searchUsers,
             ),
           ),
           
@@ -195,16 +185,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
 
   Widget _buildContent() {
     if (_isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Searching users...'),
-          ],
-        ),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
@@ -212,20 +193,12 @@ class _NewChatScreenState extends State<NewChatScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red,
-            ),
+            const Icon(Icons.error, color: Colors.red, size: 48),
             const SizedBox(height: 16),
-            Text(
-              'Error: $_error',
-              style: const TextStyle(color: Colors.red),
-              textAlign: TextAlign.center,
-            ),
+            Text(_error!),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => _searchUsers(_searchController.text),
+              onPressed: _searchUsers,
               child: const Text('Retry'),
             ),
           ],
@@ -233,44 +206,13 @@ class _NewChatScreenState extends State<NewChatScreen> {
       );
     }
 
-    if (_hasSearched) {
-      return _buildSearchResults();
-    } else {
-      return _buildRecentUsers();
-    }
+    return _hasSearched ? _buildSearchResults() : _buildRecentUsers();
   }
 
   Widget _buildSearchResults() {
     if (_searchResults.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.person_search,
-              size: 64,
-              color: Colors.grey,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No users found for "${_searchController.text}"',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Try searching with a different name or username',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+      return const Center(
+        child: Text('No users found matching your search'),
       );
     }
 
@@ -288,233 +230,49 @@ class _NewChatScreenState extends State<NewChatScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_recentUsers.isNotEmpty) ...[
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text(
-                'Recent Users',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _recentUsers.length,
-              itemBuilder: (context, index) {
-                final user = _recentUsers[index];
-                return _buildUserTile(user);
-              },
-            ),
+    if (_recentUsers.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search, size: 48, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('Search for users to start chatting'),
           ],
-          
-          // Instructions
-          Container(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.search,
-                  size: 48,
-                  color: Colors.grey,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Search for users',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Type a name or username in the search box above to find users and start chatting',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _recentUsers.length,
+      itemBuilder: (context, index) {
+        final user = _recentUsers[index];
+        return _buildUserTile(user);
+      },
     );
   }
 
   Widget _buildUserTile(UserModel user) {
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Stack(
-        children: [
-          CircleAvatar(
-            radius: 25,
-            backgroundImage: user.profilePicture != null
-                ? NetworkImage(user.profilePicture!)
-                : null,
-            child: user.profilePicture == null
-                ? Text(
-                    user.initials ?? '',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  )
-                : null,
-          ),
-          if (user.isOnline)
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                width: 14,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-              ),
-            ),
-        ],
+      leading: CircleAvatar(
+        backgroundImage: user.avatarUrl != null 
+            ? NetworkImage(user.avatarUrl!) 
+            : null,
+        child: user.avatarUrl == null 
+            ? Text(user.initials ?? '?') 
+            : null,
       ),
-      title: Text(
-        user.fullName,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 16,
-        ),
-      ),
+      title: Text(user.fullName),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (user.fullName != null) ...[
-            Text(
-              '@${user.fullName}',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
-            ),
-          ],
-            if (user.isOnline) ...[
-            const SizedBox(height: 2),
-            const Text(
-              'Online',
-              style: TextStyle(
-                color: Colors.green,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ] else if (user.lastActive != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              'Last seen  ', 
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 12,
-              ),
-            ),
-          ],
+          Text(user.email),
+          if (user.city != null || user.country != null)
+            Text('${user.city ?? ''} ${user.country ?? ''}'),
         ],
       ),
-      trailing: const Icon(
-        Icons.chat_bubble_outline,
-        color: Colors.blue,
-      ),
-      onTap: () => _showStartChatDialog(user),
+      trailing: const Icon(Icons.chat_bubble_outline),
+      onTap: () => _startChat(user),
     );
-  }
-
-  void _showStartChatDialog(UserModel user) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundImage: user.profilePicture != null
-                  ? NetworkImage(user.profilePicture!)
-                  : null,
-              child: user.profilePicture == null
-                  ? Text(
-                      user.initials ?? '',
-                      style: const TextStyle(fontSize: 14),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    user.fullName,
-                    style: const TextStyle(fontSize: 18),
-                  ),
-                  if (user.fullName != null)
-                    Text(
-                      '@${user.fullName}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.normal,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
-          'Start a conversation with this user?\n\nA greeting message will be sent to begin the chat.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _startChat(user);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Start Chat'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatLastSeen(DateTime lastActive) {
-    final now = DateTime.now();
-    final difference = now.difference(lastActive);
-
-    if (difference.inMinutes < 1) {
-      return 'just now'; 
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inDays < 1) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return '${lastActive.day}/${lastActive.month}/${lastActive.year}';
-    }
   }
 }
