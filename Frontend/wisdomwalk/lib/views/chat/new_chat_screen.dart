@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/user_model.dart';
@@ -14,14 +16,13 @@ class NewChatScreen extends StatefulWidget {
 
 class _NewChatScreenState extends State<NewChatScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
   List<UserModel> _searchResults = [];
   List<UserModel> _recentUsers = [];
   bool _isLoading = false;
   bool _isLoadingRecent = false;
   String? _error;
   bool _hasSearched = false;
-  String? _selectedGroup;
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -32,7 +33,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
   @override
   void dispose() {
     _searchController.dispose();
-    _locationController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -48,11 +49,17 @@ class _NewChatScreenState extends State<NewChatScreen> {
     }
   }
 
+  void _onSearchChanged() {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _searchUsers();
+    });
+  }
+
   Future<void> _searchUsers() async {
     final query = _searchController.text.trim();
-    final location = _locationController.text.trim();
 
-    if (query.isEmpty && location.isEmpty) {
+    if (query.isEmpty) {
       setState(() {
         _searchResults = [];
         _error = null;
@@ -68,11 +75,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
     });
 
     try {
-      final users = await UserService.searchUsers(
-        query: query,
-        location: location,
-        group: _selectedGroup,
-      );
+      final users = await UserService.searchUsers(query);
       setState(() => _searchResults = users);
     } catch (e) {
       setState(() {
@@ -125,52 +128,29 @@ class _NewChatScreenState extends State<NewChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('New Chat'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: _searchUsers,
-          ),
-        ],
       ),
       body: Column(
         children: [
-          // Search Filters
+          // Search Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    labelText: 'Search by name or email',
-                    prefixIcon: Icon(Icons.person),
-                  ),
-                  onSubmitted: (_) => _searchUsers(),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _locationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Search by location',
-                    prefixIcon: Icon(Icons.location_on),
-                  ),
-                  onSubmitted: (_) => _searchUsers(),
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  value: _selectedGroup,
-                  hint: const Text('Filter by group'),
-                  items: const [
-                    DropdownMenuItem(value: 'travel', child: Text('Travel')),
-                    DropdownMenuItem(value: 'business', child: Text('Business')),
-                    DropdownMenuItem(value: 'friends', child: Text('Friends')),
-                  ],
-                  onChanged: (value) {
-                    setState(() => _selectedGroup = value);
-                    _searchUsers();
-                  },
-                ),
-              ],
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by name, email, or location...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _searchUsers();
+                        },
+                      )
+                    : null,
+              ),
+              onChanged: (_) => _onSearchChanged(),
+              onSubmitted: (_) => _searchUsers(),
             ),
           ),
           
@@ -212,7 +192,20 @@ class _NewChatScreenState extends State<NewChatScreen> {
   Widget _buildSearchResults() {
     if (_searchResults.isEmpty) {
       return const Center(
-        child: Text('No users found matching your search'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.person_search, size: 48, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('No users found'),
+            SizedBox(height: 8),
+            Text(
+              'Try searching with a different name, email, or location',
+              style: TextStyle(color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       );
     }
 

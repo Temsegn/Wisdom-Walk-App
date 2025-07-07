@@ -8,31 +8,15 @@ import '../../models/user_model.dart';
 class UserService {
   static const String baseUrl = 'https://wisdom-walk-app.onrender.com/api';
   static final LocalStorageService _localStorageService = LocalStorageService();
-
-  // Enhanced search that includes name, email, and location
-  static Future<List<UserModel>> searchUsers({
-    required String query,
-    String? location,
-    String? group,
-    int page = 1,
-    int limit = 20,
-  }) async {
+static Future<List<UserModel>> searchUsers(String query) async {
     try {
       final token = await _localStorageService.getAuthToken();
       if (token == null || token.isEmpty) {
-        throw Exception('Authentication required - No token available');
+        throw Exception('Authentication required');
       }
 
-      final params = {
-        'query': query,
-        if (location != null) 'location': location,
-        if (group != null) 'group': group,
-        'page': page.toString(),
-        'limit': limit.toString(),
-      };
-
-      final url = Uri.parse('$baseUrl/users/search').replace(queryParameters: params);
-      debugPrint('Search Users Request: $url');
+      final url = Uri.parse('$baseUrl/users/search?query=${Uri.encodeComponent(query)}');
+      debugPrint('Search Request: $url');
 
       final response = await http.get(
         url,
@@ -42,23 +26,24 @@ class UserService {
         },
       ).timeout(const Duration(seconds: 30));
 
-      debugPrint('Search Users Response: ${response.statusCode}');
-      _validateResponse(response);
-
-      final responseData = json.decode(response.body);
-      return (responseData['data'] as List)
-          .map((userJson) => UserModel.fromJson(userJson))
-          .toList();
+      debugPrint('Search Response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (responseData['success'] == true) {
+          return (responseData['data'] as List)
+              .map((userJson) => UserModel.fromJson(userJson))
+              .toList();
+        }
+      }
+      throw Exception('Failed to search users');
     } on TimeoutException {
       throw Exception('Request timed out');
-    } on FormatException {
-      throw Exception('Invalid server response format');
     } catch (e) {
       debugPrint('Search error: $e');
-      throw Exception('Failed to search users: ${e.toString()}');
+      throw Exception('Search failed: ${e.toString()}');
     }
   }
-
   static Future<UserModel> getCurrentUser() async {
     try {
       final token = await _localStorageService.getAuthToken();
