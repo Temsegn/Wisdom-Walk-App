@@ -283,6 +283,19 @@ export default function PostsPage() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+                   <Select 
+                    value={filters.type} 
+                    onValueChange={(value) => handleFilterChange("type", value)}
+                  >
+                    <SelectTrigger className="w-full sm:w-32 rounded-md border-green-400 bg-green-50/50 text-green-700 focus:ring-green-500 focus:border-green-500 text-sm hover:bg-green-100 transition-colors">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-md border-green-400 bg-white">
+                      <SelectItem value="all">All types</SelectItem>
+                      <SelectItem value="share">Share</SelectItem>
+                      <SelectItem value="prayer">Prayer</SelectItem>
+                     </SelectContent>
+                  </Select>
                   <Select 
                     value={filters.category} 
                     onValueChange={(value) => handleFilterChange("category", value)}
@@ -297,19 +310,7 @@ export default function PostsPage() {
                       <SelectItem value="struggle">Struggle</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select 
-                    value={filters.type} 
-                    onValueChange={(value) => handleFilterChange("type", value)}
-                  >
-                    <SelectTrigger className="w-full sm:w-32 rounded-md border-green-400 bg-green-50/50 text-green-700 focus:ring-green-500 focus:border-green-500 text-sm hover:bg-green-100 transition-colors">
-                      <SelectValue placeholder="Type" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-md border-green-400 bg-white">
-                      <SelectItem value="all">All types</SelectItem>
-                      <SelectItem value="share">Share</SelectItem>
-                      <SelectItem value="prayer">Prayer</SelectItem>
-                     </SelectContent>
-                  </Select>
+                 
                   <Select 
                     value={filters.time} 
                     onValueChange={(value) => handleFilterChange("time", value)}
