@@ -11,7 +11,7 @@ const { getPaginationMeta } = require("../utils/helpers")
 const getAllNotifications = async (req, res) => {
   try {
     const filter = {
-      isRead: false,
+      
       type: "admin_message",
     };
 
