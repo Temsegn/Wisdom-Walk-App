@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, Phone, Mail, MapPin, Clock, User, Check, X, Loader2 } from "lucide-react"
+import { Calendar, Phone, Mail, MapPin, Clock, User, Check, X, Loader2, AlertTriangle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface Booking {
@@ -22,6 +22,7 @@ interface Booking {
   email: string
   virtualSession: boolean
   createdAt: string
+  sessionDate?: string // Added optional session date field
 }
 
 export default function BookingsPage() {
@@ -80,6 +81,14 @@ export default function BookingsPage() {
         {issueTitle}
       </Badge>
     )
+  }
+
+  const isBookingExpired = (bookingDate: string) => {
+    if (!bookingDate) return false // If no session date, consider it not expired
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Reset time to compare dates only
+    const bookingDay = new Date(bookingDate)
+    return bookingDay < today
   }
 
   const getStatusBadge = () => {
@@ -173,14 +182,14 @@ export default function BookingsPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Month</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Expired Sessions</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {bookings.filter((b) => new Date(b.createdAt).getMonth() === new Date().getMonth()).length}
+              {bookings.filter(b => isBookingExpired(b.sessionDate || b.createdAt)).length}
             </div>
-            <p className="text-xs text-muted-foreground">Recent bookings</p>
+            <p className="text-xs text-muted-foreground">Past due sessions</p>
           </CardContent>
         </Card>
         <Card>
@@ -207,66 +216,77 @@ export default function BookingsPage() {
         </Card>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {bookings.map((booking) => (
-            <Card key={booking._id} className="overflow-hidden">
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg">{booking.issueTitle}</CardTitle>
-                    <CardDescription className="flex items-center gap-2">
-                      <Clock className="h-3 w-3" />
-                      {new Date(booking.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </CardDescription>
+          {bookings.map((booking) => {
+            const isExpired = isBookingExpired(booking.sessionDate || booking.createdAt)
+            return (
+              <Card key={booking._id} className="overflow-hidden relative">
+                {isExpired && (
+                  <div className="absolute top-2 right-2">
+                    <Badge variant="destructive" className="flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      Expired
+                    </Badge>
                   </div>
-                  {getIssueBadge(booking.issueTitle)}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* User Info */}
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={booking.user?.profilePicture || "/placeholder.svg"} />
-                    <AvatarFallback>
-                      {booking.user ? `${booking.user.firstName[0]}${booking.user.lastName[0]}` : "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-medium">
-                      {booking.user ? `${booking.user.firstName} ${booking.user.lastName}` : "Unknown User"}
+                )}
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg">{booking.issueTitle}</CardTitle>
+                      <CardDescription className="flex items-center gap-2">
+                        <Clock className="h-3 w-3" />
+                        {new Date(booking.sessionDate || booking.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </CardDescription>
                     </div>
-                    <div className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      {booking.email}
+                    {getIssueBadge(booking.issueTitle)}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* User Info */}
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={booking.user?.profilePicture || "/placeholder.svg"} />
+                      <AvatarFallback>
+                        {booking.user ? `${booking.user.firstName[0]}${booking.user.lastName[0]}` : "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-medium">
+                        {booking.user ? `${booking.user.firstName} ${booking.user.lastName}` : "Unknown User"}
+                      </div>
+                      <div className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {booking.email}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Contact Info */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>{booking.phoneNumber}</span>
+                  {/* Contact Info */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span>{booking.phoneNumber}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <span>{booking.virtualSession ? "Virtual Session" : "In-Person Session"}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>{booking.virtualSession ? "Virtual Session" : "In-Person Session"}</span>
-                  </div>
-                </div>
 
-                {/* Issue Description */}
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm">Description:</h4>
-                  <p className="text-sm text-gray-700 line-clamp-3">{booking.issueDescription}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  {/* Issue Description */}
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Description:</h4>
+                    <p className="text-sm text-gray-700 line-clamp-3">{booking.issueDescription}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
     </div>
