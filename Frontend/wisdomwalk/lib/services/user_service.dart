@@ -8,43 +8,48 @@ import '../../models/user_model.dart';
 class UserService {
   static const String baseUrl = 'https://wisdom-walk-app.onrender.com/api';
   static final LocalStorageService _localStorageService = LocalStorageService();
-static Future<List<UserModel>> searchUsers(String query) async {
-    try {
-      final token = await _localStorageService.getAuthToken();
-      if (token == null || token.isEmpty) {
-        throw Exception('Authentication required');
-      }
+  
+  static get responseData => null;
 
-      final url = Uri.parse('$baseUrl/users/search?query=${Uri.encodeComponent(query)}');
-      debugPrint('Search Request: $url');
 
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 30));
-
-      debugPrint('Search Response: ${response.statusCode}');
-      
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        if (responseData['success'] == true) {
-          return (responseData['data'] as List)
-              .map((userJson) => UserModel.fromJson(userJson))
-              .toList();
-        }
-      }
-      throw Exception('Failed to search users');
-    } on TimeoutException {
-      throw Exception('Request timed out');
-    } catch (e) {
-      debugPrint('Search error: $e');
-      throw Exception('Search failed: ${e.toString()}');
+ static Future<List<UserModel>> searchUsers(String query) async {
+  try {
+    final token = await _localStorageService.getAuthToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication required');
     }
+
+    final url = Uri.parse('$baseUrl/users/search?q=${Uri.encodeComponent(query)}');
+    debugPrint('Search Request: $url');
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 30));
+
+    debugPrint('Search Response: ${response.statusCode}');
+    
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      if (responseData['success'] == true) {
+        return (responseData['data'] as List)
+            .map((userJson) => UserModel.fromJson(userJson))
+            .toList();
+      }
+    }
+    throw Exception(responseData['message'] ?? 'Failed to search users');
+  } on TimeoutException {
+    throw Exception('Request timed out');
+  } catch (e) {
+    debugPrint('Search error: $e');
+    throw Exception('Search failed: ${e.toString()}');
   }
-  static Future<UserModel> getCurrentUser() async {
+}
+
+static Future<UserModel> getCurrentUser() async {
     try {
       final token = await _localStorageService.getAuthToken();
       if (token == null || token.isEmpty) {

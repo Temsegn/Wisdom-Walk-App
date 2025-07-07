@@ -183,11 +183,9 @@ const getUserPosts = async (req, res) => {
     })
   }
 }
- 
-// Search users endpoint
-const searchUsers = async (req, res) => {
+ const searchUsers = async (req, res) => {
   try {
-    const { query } = req.query;
+    const { q: query } = req.query;
     const page = Number.parseInt(req.query.page) || 1;
     const limit = Number.parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
@@ -202,9 +200,19 @@ const searchUsers = async (req, res) => {
     const searchCriteria = {
       $or: [
         { firstName: { $regex: query, $options: "i" } },
+        { lastName: { $regex: query, $options: "i" } },
         { email: { $regex: query, $options: "i" } },
         { "location.city": { $regex: query, $options: "i" } },
-        { "location.country": { $regex: query, $options: "i" } }
+        { "location.country": { $regex: query, $options: "i" } },
+        { 
+          $expr: {
+            $regexMatch: {
+              input: { $concat: ["$firstName", " ", "$lastName"] },
+              regex: query,
+              options: "i"
+            }
+          }
+        }
       ],
       isEmailVerified: true,
       isAdminVerified: true,
@@ -224,6 +232,7 @@ const searchUsers = async (req, res) => {
         id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
+        fullName: `${user.firstName} ${user.lastName}`,
         email: user.email,
         avatarUrl: user.profilePicture,
         city: user.location?.city,
