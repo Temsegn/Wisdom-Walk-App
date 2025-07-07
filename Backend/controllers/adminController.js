@@ -770,5 +770,7 @@ module.exports = {
   sendNotificationToUsers,
   nominateGroupAdmin,
   getDashboardStats,
-  getAllNotifications
+  getAllNotifications,
+  markAsRead
+
 }
