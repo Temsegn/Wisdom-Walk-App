@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Calendar, Phone, Mail, MapPin, Clock, User } from "lucide-react"
+import { Calendar, Phone, Mail, MapPin, Clock, User, Check, X, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface Booking {
@@ -27,6 +27,7 @@ interface Booking {
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchStatus, setFetchStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const { toast } = useToast()
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function BookingsPage() {
   }, [])
 
   const fetchBookings = async () => {
+    setFetchStatus('loading')
     try {
       const token = localStorage.getItem("adminToken")
       const response = await fetch("/api/bookings", {
@@ -44,11 +46,18 @@ export default function BookingsPage() {
 
       if (response.ok) {
         const data = await response.json()
-        console.log(data)
-        setBookings(data)
+        // Sort bookings by createdAt date (newest first)
+        const sortedBookings = data.sort((a: Booking, b: Booking) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        setBookings(sortedBookings)
+        setFetchStatus('success')
+      } else {
+        setFetchStatus('error')
       }
     } catch (error) {
       console.error("Error fetching bookings:", error)
+      setFetchStatus('error')
       toast({
         title: "Error",
         description: "Failed to fetch bookings",
@@ -73,10 +82,47 @@ export default function BookingsPage() {
     )
   }
 
+  const getStatusBadge = () => {
+    const statusMap = {
+      loading: {
+        text: "Loading",
+        icon: <Loader2 className="h-3 w-3 animate-spin" />,
+        color: "bg-yellow-100 text-yellow-800",
+      },
+      success: {
+        text: "Data loaded",
+        icon: <Check className="h-3 w-3" />,
+        color: "bg-green-100 text-green-800",
+      },
+      error: {
+        text: "Error loading",
+        icon: <X className="h-3 w-3" />,
+        color: "bg-red-100 text-red-800",
+      },
+      idle: {
+        text: "Idle",
+        icon: null,
+        color: "bg-gray-100 text-gray-800",
+      },
+    }
+
+    const status = statusMap[fetchStatus]
+
+    return (
+      <Badge variant="outline" className={`${status.color} flex items-center gap-1`}>
+        {status.icon}
+        {status.text}
+      </Badge>
+    )
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-8 bg-gray-200 rounded w-48 animate-pulse"></div>
+        <div className="flex justify-between items-center">
+          <div className="h-8 bg-gray-200 rounded w-48 animate-pulse"></div>
+          <div className="h-6 bg-gray-200 rounded w-24 animate-pulse"></div>
+        </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
             <Card key={i}>
@@ -96,9 +142,12 @@ export default function BookingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Session Bookings</h1>
-        <p className="text-muted-foreground">Manage counseling session requests from community members.</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Session Bookings</h1>
+          <p className="text-muted-foreground">Manage counseling session requests from community members.</p>
+        </div>
+        {getStatusBadge()}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -166,7 +215,13 @@ export default function BookingsPage() {
                     <CardTitle className="text-lg">{booking.issueTitle}</CardTitle>
                     <CardDescription className="flex items-center gap-2">
                       <Clock className="h-3 w-3" />
-                      {new Date(booking.createdAt).toLocaleDateString()}
+                      {new Date(booking.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </CardDescription>
                   </div>
                   {getIssueBadge(booking.issueTitle)}
