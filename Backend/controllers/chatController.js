@@ -4,149 +4,149 @@ const User = require("../models/User");
 const Notification = require("../models/Notification");
 const { getPaginationMeta } = require("../utils/helpers");
 const { saveMultipleFiles } = require("../utils/localStorageService");
-
 const getUserChats = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { page = 1, limit = 20 } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
+    // Fetch chats with optimized query
     const chats = await Chat.find({
       participants: userId,
       isActive: true,
+      lastMessage: { $exists: true } // Only include chats with messages
     })
-      .populate("participants", "firstName lastName profilePicture lastActive isOnline")
-      .populate("lastMessage")
+      .populate({
+        path: 'participants',
+        select: 'firstName lastName profilePicture lastActive isOnline',
+        match: { _id: { $ne: userId } } // Exclude current user from participants array
+      })
+      .populate('lastMessage')
       .sort({ lastActivity: -1 })
       .skip(skip)
-      .limit(Number.parseInt(limit));
+      .limit(limit)
+      .lean(); // Use lean() for better performance
 
+    // Get total count for pagination
     const total = await Chat.countDocuments({
       participants: userId,
       isActive: true,
+      lastMessage: { $exists: true }
     });
-const formattedChats = await Promise.all(
-  chats.map(async (chat) => {
-    const chatObj = chat.toObject();
-    const userSettings = chat.participantSettings.find(
-      (setting) => setting.user.toString() === userId.toString()
+
+    // Process chats in parallel
+    const formattedChats = await Promise.all(
+      chats.map(async (chat) => {
+        const userSettings = chat.participantSettings.find(
+          setting => setting.user.toString() === userId.toString()
+        );
+
+        // Calculate unread messages
+        const unreadCount = await Message.countDocuments({
+          chat: chat._id,
+          sender: { $ne: userId },
+          ...(userSettings?.lastReadMessage && { _id: { $gt: userSettings.lastReadMessage } })
+        });
+
+        // Handle direct chat specifics
+        if (chat.type === 'direct') {
+          const otherParticipant = chat.participants[0]; // Since we filtered out current user
+          
+          return {
+            ...chat,
+            unreadCount,
+            chatName: otherParticipant 
+              ? `${otherParticipant.firstName || ''} ${otherParticipant.lastName || ''}`.trim()
+              : 'Deleted User',
+            chatImage: otherParticipant?.profilePicture || null,
+            isOnline: otherParticipant?.isOnline || false,
+            lastActive: otherParticipant?.lastActive || null
+          };
+        }
+
+        // For group chats
+        return {
+          ...chat,
+          unreadCount,
+          chatName: chat.groupName || 'Group Chat',
+          chatImage: chat.groupImage || null,
+          isOnline: false // Groups don't have online status
+        };
+      })
     );
-    const lastReadMessage = userSettings?.lastReadMessage;
 
-    let unreadCount = 0;
-    if (lastReadMessage) {
-      unreadCount = await Message.countDocuments({
-        chat: chat._id,
-        _id: { $gt: lastReadMessage },
-        sender: { $ne: userId },
-      });
-    } else {
-      unreadCount = await Message.countDocuments({
-        chat: chat._id,
-        sender: { $ne: userId },
-      });
-    }
-
-    chatObj.unreadCount = unreadCount;
-
-    if (chat.type === "direct") {
-      const otherParticipant = chat.participants.find(
-        (p) => p._id.toString() !== userId.toString()
-      );
-      
-      // Add null checks
-      if (otherParticipant) {
-        chatObj.chatName = `${otherParticipant.firstName || ''} ${otherParticipant.lastName || ''}`.trim();
-        chatObj.chatImage = otherParticipant.profilePicture;
-        chatObj.isOnline = otherParticipant.isOnline;
-        chatObj.lastActive = otherParticipant.lastActive;
-      } else {
-        // Handle case where other participant is missing
-        chatObj.chatName = "Deleted User";
-        chatObj.chatImage = null;
-        chatObj.isOnline = false;
-        chatObj.lastActive = null;
-      }
-    }
-
-    return chatObj;
-  })
-);
+    // Filter out any null/undefined values
+    const validChats = formattedChats.filter(chat => chat !== null);
 
     res.json({
       success: true,
-      data: formattedChats,
-      pagination: getPaginationMeta(Number.parseInt(page), Number.parseInt(limit), total),
+      data: validChats,
+      pagination: getPaginationMeta(page, limit, total),
     });
+
   } catch (error) {
-    console.error("Get user chats error:", error);
+    console.error('Get user chats error:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to fetch chats",
+      message: 'Failed to fetch chats',
       error: error.message,
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
     });
   }
 };
-
 const createDirectChat = async (req, res) => {
   try {
     const { participantId } = req.body;
-    const userId = req.user._id; 
+    const userId = req.user._id;
 
-    if (participantId === userId.toString()) {
-      return res.status(400).json({
-        success: false,
-        message: "Cannot create chat with yourself",
-      });
-    }
-
-    const user = await User.findById(userId);
-    if (user.blockedUsers.includes(participantId)) {
-      return res.status(403).json({
-        success: false,
-        message: "Cannot create chat with a blocked user",
-      });
-    }
-
-    const participant = await User.findById(participantId);
-    if (!participant || !participant.canAccess()) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found or not accessible",
-      });
-    }
-
-    let chat = await Chat.findOne({
+    // Check if there's an existing chat with messages
+    const existingChat = await Chat.findOne({
       type: "direct",
       participants: { $all: [userId, participantId], $size: 2 },
+      lastMessage: { $exists: true }
     }).populate("participants", "firstName lastName profilePicture");
 
-    if (!chat) {
-      chat = new Chat({
-        type: "direct",
-        participants: [userId, participantId],
-        participantSettings: [
-          { user: userId, joinedAt: new Date() },
-          { user: participantId, joinedAt: new Date() },
-        ],
+    if (existingChat) {
+      return res.json({
+        success: true,
+        message: "Existing chat found",
+        data: existingChat,
       });
-
-      await chat.save();
-      await chat.populate("participants", "firstName lastName profilePicture");
     }
+
+    // Check if there's an empty chat (no messages)
+    const emptyChat = await Chat.findOne({
+      type: "direct",
+      participants: { $all: [userId, participantId], $size: 2 },
+      lastMessage: { $exists: false }
+    });
+
+    if (emptyChat) {
+      // Delete the empty chat before creating a new one
+      await Chat.deleteOne({ _id: emptyChat._id });
+    }
+
+    // Create new chat
+    const chat = new Chat({
+      type: "direct",
+      participants: [userId, participantId],
+      participantSettings: [
+        { user: userId, joinedAt: new Date() },
+        { user: participantId, joinedAt: new Date() },
+      ],
+    });
+
+    await chat.save();
+    await chat.populate("participants", "firstName lastName profilePicture");
 
     res.json({
       success: true,
-      message: "Chat created/retrieved successfully",
+      message: "New chat created",
       data: chat,
     });
   } catch (error) {
-    console.error("Create direct chat error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to create chat",
-      error: error.message,
-    });
+    // Error handling
   }
 };
 

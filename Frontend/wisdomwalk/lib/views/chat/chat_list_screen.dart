@@ -10,7 +10,7 @@ class ChatListScreen extends StatefulWidget {
 
   @override
   State<ChatListScreen> createState() => _ChatListScreenState();
-}
+} 
 
 class _ChatListScreenState extends State<ChatListScreen> {
   final ScrollController _scrollController = ScrollController();
@@ -304,7 +304,7 @@ class ChatListItem extends StatelessWidget {
     } else if (difference.inDays > 30) {
       return '${(difference.inDays / 30).floor()}mo';
     } else if (difference.inDays > 0) {
-      return '${difference.inDays}d';
+      return '${difference.inDays}d';  
     } else if (difference.inHours > 0) {
       return '${difference.inHours}h';
     } else if (difference.inMinutes > 0) {
