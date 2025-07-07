@@ -12,7 +12,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
+  DropdownMenuSeparator, 
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -25,10 +25,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { MoreHorizontal, Search, Trash2, Eye, Heart, MessageCircle, Users, Filter, X, ArrowLeft } from "lucide-react"
+import { MoreHorizontal, Search, Trash2, Eye, Heart, MessageCircle, Users, ArrowLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface Post {
   _id: string
@@ -61,12 +60,10 @@ export default function PostsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showDetailView, setShowDetailView] = useState(false)
   const [filters, setFilters] = useState({
-    type: "",
-    category: "",
-    time: "",
-    reportedOnly: false
+    type: "all",
+    category: "all",
+    time: "all"
   })
-  const [activeTab, setActiveTab] = useState("all")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -158,18 +155,8 @@ export default function PostsPage() {
     setShowDetailView(false)
   }
 
-  const handleFilterChange = (key: string, value: string | boolean) => {
+  const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }))
-  }
-
-  const clearFilters = () => {
-    setFilters({
-      type: "",
-      category: "",
-      time: "",
-      reportedOnly: false
-    })
-    setSearchTerm("")
   }
 
   const isWithinTimeRange = (createdAt: string, range: string) => {
@@ -181,6 +168,12 @@ export default function PostsPage() {
     } else if (range === "week") {
       const weekAgo = new Date(now.setDate(now.getDate() - 7))
       return postDate >= weekAgo
+    } else if (range === "month") {
+      const monthAgo = new Date(now.setMonth(now.getMonth() - 1))
+      return postDate >= monthAgo
+    } else if (range === "year") {
+      const yearAgo = new Date(now.setFullYear(now.getFullYear() - 1))
+      return postDate >= yearAgo
     }
     return true
   }
@@ -193,31 +186,31 @@ export default function PostsPage() {
         (post.author.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           post.author.lastName.toLowerCase().includes(searchTerm.toLowerCase())))
     
-    const matchesType = filters.type ? post.type === filters.type : true
-    const matchesCategory = filters.category ? post.category === filters.category : true
-    const matchesReported = filters.reportedOnly ? post.isReported : true
-    const matchesTime = filters.time ? isWithinTimeRange(post.createdAt, filters.time) : true
-    const matchesTab = 
-      activeTab === "all" ? true :
-      activeTab === "prayers" ? post.type === "prayer" :
-      activeTab === "shares" ? post.type === "share" :
-      activeTab === "reported" ? post.isReported : true
+    const matchesType = filters.type !== "all" ? post.type === filters.type : true
+    const matchesCategory = filters.category !== "all" ? post.category === filters.category : true
+    const matchesTime = filters.time !== "all" ? isWithinTimeRange(post.createdAt, filters.time) : true
     
-    return matchesSearch && matchesType && matchesCategory && matchesReported && matchesTime && matchesTab
+    return matchesSearch && matchesType && matchesCategory && matchesTime
   })
 
   const getPostTypeBadge = (type: string) => {
     switch (type) {
-      case "prayer":
+      case "confession":
         return (
-          <Badge className="bg-gradient-to-r from-purple-500 to-purple-700 text-white font-medium">
-            Prayer
+          <Badge className="bg-gradient-to-r from-yellow-500 to-yellow-700 text-white font-medium">
+            Confession
           </Badge>
         )
-      case "share":
+      case "testimony":
         return (
-          <Badge className="bg-gradient-to-r from-blue-500 to-blue-700 text-white font-medium">
-            Share
+          <Badge className="bg-gradient-to-r from-green-500 to-green-700 text-white font-medium">
+            Testimony
+          </Badge>
+        )
+      case "struggle":
+        return (
+          <Badge className="bg-gradient-to-r from-red-500 to-red-700 text-white font-medium">
+            Struggle
           </Badge>
         )
       default:
@@ -227,6 +220,8 @@ export default function PostsPage() {
 
   const getCategoryBadge = (category: string) => {
     switch (category) {
+      case "share":
+        return <Badge className="border-blue-500 text-blue-600 font-medium">Share</Badge>
       case "testimony":
         return <Badge className="border-green-500 text-green-600 font-medium">Testimony</Badge>
       case "confession":
@@ -238,18 +233,12 @@ export default function PostsPage() {
     }
   }
 
-  // Calculate stats for rectangular cards
-  const totalPosts = posts.length
-  const reportedPosts = posts.filter(post => post.isReported).length
-  const prayerPosts = posts.filter(post => post.type === "prayer").length
-  const sharePosts = posts.filter(post => post.type === "share").length
-
   if (loading) {
     return (
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <div className="h-8 bg-gradient-to-r from-gray-200 to-gray-300 rounded-lg w-48 animate-pulse"></div>
         <Card className="shadow-lg rounded-xl">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="space-y-3 border-b pb-4">
@@ -276,169 +265,80 @@ export default function PostsPage() {
         <>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900 bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
                 Community Posts
               </h1>
-              <p className="text-gray-600 mt-1">Manage and moderate all community content</p>
+              <p className="text-gray-600 mt-1 text-sm sm:text-base">Manage and moderate all community content</p>
             </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="shadow-md hover:shadow-lg transition-shadow rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-indigo-700">Total Posts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-indigo-900">{totalPosts}</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-md hover:shadow-lg transition-shadow rounded-xl bg-gradient-to-br from-red-50 to-pink-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-red-700">Reported Posts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-900">{reportedPosts}</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-md hover:shadow-lg transition-shadow rounded-xl bg-gradient-to-br from-purple-50 to-violet-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-purple-700">Prayer Posts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-900">{prayerPosts}</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-md hover:shadow-lg transition-shadow rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-blue-700">Share Posts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-900">{sharePosts}</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 bg-gray-100 p-2 rounded-lg">
-              <TabsTrigger value="all" className="rounded-md data-[state=active]:bg-indigo-600 data-[state=active]:text-white">All Posts</TabsTrigger>
-              <TabsTrigger value="prayers" className="rounded-md data-[state=active]:bg-purple-600 data-[state=active]:text-white">Prayers</TabsTrigger>
-              <TabsTrigger value="shares" className="rounded-md data-[state=active]:bg-blue-600 data-[state=active]:text-white">Shares</TabsTrigger>
-              <TabsTrigger value="reported" className="rounded-md data-[state=active]:bg-red-600 data-[state=active]:text-white">Reported</TabsTrigger>
-            </TabsList>
-          </Tabs>
-
           <Card className="shadow-lg rounded-xl border-0 bg-white">
             <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                 <div>
-                  <CardTitle className="text-xl font-semibold text-gray-900">Community Content</CardTitle>
-                  <CardDescription className="text-gray-600">
+                  <CardTitle className="text-lg sm:text-xl font-semibold text-gray-900">Community Content</CardTitle>
+                  <CardDescription className="text-gray-600 text-sm sm:text-base">
                     {filteredPosts.length} {filteredPosts.length === 1 ? 'post' : 'posts'} found
                   </CardDescription>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
-                  <div className="relative flex-1 sm:max-w-sm w-full">
+                  <Select 
+                    value={filters.category} 
+                    onValueChange={(value) => handleFilterChange("category", value)}
+                  >
+                    <SelectTrigger className="w-full sm:w-32 rounded-md border-blue-400 bg-blue-50/50 text-blue-700 focus:ring-blue-500 focus:border-blue-500 text-sm hover:bg-blue-100 transition-colors">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-md border-blue-400 bg-white">
+                      <SelectItem value="all">All categories</SelectItem>
+                       <SelectItem value="testimony">Testimony</SelectItem>
+                      <SelectItem value="confession">Confession</SelectItem>
+                      <SelectItem value="struggle">Struggle</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select 
+                    value={filters.type} 
+                    onValueChange={(value) => handleFilterChange("type", value)}
+                  >
+                    <SelectTrigger className="w-full sm:w-32 rounded-md border-green-400 bg-green-50/50 text-green-700 focus:ring-green-500 focus:border-green-500 text-sm hover:bg-green-100 transition-colors">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-md border-green-400 bg-white">
+                      <SelectItem value="all">All types</SelectItem>
+                      <SelectItem value="share">Share</SelectItem>
+                      <SelectItem value="prayer">Prayer</SelectItem>
+                     </SelectContent>
+                  </Select>
+                  <Select 
+                    value={filters.time} 
+                    onValueChange={(value) => handleFilterChange("time", value)}
+                  >
+                    <SelectTrigger className="w-full sm:w-32 rounded-md border-purple-400 bg-purple-50/50 text-purple-700 focus:ring-purple-500 focus:border-purple-500 text-sm hover:bg-purple-100 transition-colors">
+                      <SelectValue placeholder="Time" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-md border-purple-400 bg-white">
+                      <SelectItem value="all">All time</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="week">This Week</SelectItem>
+                      <SelectItem value="month">This Month</SelectItem>
+                      <SelectItem value="year">This Year</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="relative flex-1 w-full sm:max-w-xs">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                     <Input
                       placeholder="Search posts..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 rounded-lg border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="pl-10 rounded-lg border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm hover:bg-gray-50 transition-colors"
                     />
                   </div>
-                  
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="rounded-lg border-gray-300 hover:bg-gray-50">
-                        <Filter className="h-4 w-4 mr-2" />
-                        Filters
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-64 sm:w-72 rounded-lg shadow-lg">
-                      <DropdownMenuLabel className="font-semibold text-gray-900">Filter Posts</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      
-                      <div className="px-3 py-2 space-y-3">
-                        <div>
-                          <p className="text-xs font-medium text-gray-600 mb-1">Post Type</p>
-                          <Select 
-                            value={filters.type} 
-                            onValueChange={(value) => handleFilterChange("type", value)}
-                          >
-                            <SelectTrigger className="w-full rounded-md border-gray-300">
-                              <SelectValue placeholder="All types" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-md">
-                              <SelectItem value="">All types</SelectItem>
-                              <SelectItem value="prayer">Prayer</SelectItem>
-                              <SelectItem value="share">Share</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs font-medium text-gray-600 mb-1">Category</p>
-                          <Select 
-                            value={filters.category} 
-                            onValueChange={(value) => handleFilterChange("category", value)}
-                          >
-                            <SelectTrigger className="w-full rounded-md border-gray-300">
-                              <SelectValue placeholder="All categories" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-md">
-                              <SelectItem value="">All categories</SelectItem>
-                              <SelectItem value="testimony">Testimony</SelectItem>
-                              <SelectItem value="confession">Confession</SelectItem>
-                              <SelectItem value="struggle">Struggle</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div>
-                          <p className="text-xs font-medium text-gray-600 mb-1">Time Range</p>
-                          <Select 
-                            value={filters.time} 
-                            onValueChange={(value) => handleFilterChange("time", value)}
-                          >
-                            <SelectTrigger className="w-full rounded-md border-gray-300">
-                              <SelectValue placeholder="All time" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-md">
-                              <SelectItem value="">All time</SelectItem>
-                              <SelectItem value="today">Today</SelectItem>
-                              <SelectItem value="week">This Week</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2 pt-1">
-                          <input
-                            type="checkbox"
-                            id="reportedOnly"
-                            checked={filters.reportedOnly}
-                            onChange={(e) => handleFilterChange("reportedOnly", e.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          <label htmlFor="reportedOnly" className="text-sm font-medium text-gray-700">
-                            Reported only
-                          </label>
-                        </div>
-                      </div>
-                      
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={clearFilters} className="text-red-600 hover:bg-red-50">
-                        <X className="mr-2 h-4 w-4" />
-                        Clear filters
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
               </div>
             </CardHeader>
             
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               {filteredPosts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 space-y-4">
                   <Search className="h-12 w-12 text-gray-400" />
@@ -446,13 +346,6 @@ export default function PostsPage() {
                   <p className="text-sm text-gray-600">
                     Try adjusting your search or filter criteria
                   </p>
-                  <Button 
-                    variant="outline" 
-                    onClick={clearFilters}
-                    className="rounded-lg border-gray-300 hover:bg-gray-50"
-                  >
-                    Clear filters
-                  </Button>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -467,10 +360,10 @@ export default function PostsPage() {
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
-                            <div className="font-semibold text-gray-900">
+                            <div className="font-semibold text-gray-900 text-sm sm:text-base">
                               {post.isAnonymous ? "Anonymous Sister" : `${post.author.firstName} ${post.author.lastName}`}
                             </div>
-                            <div className="text-sm text-gray-600">
+                            <div className="text-xs sm:text-sm text-gray-600">
                               {new Date(post.createdAt).toLocaleDateString('en-US', {
                                 year: 'numeric',
                                 month: 'short',
@@ -520,12 +413,12 @@ export default function PostsPage() {
 
                       <div className="space-y-2">
                         {post.title && (
-                          <h3 className="font-semibold text-lg text-gray-900">{post.title}</h3>
+                          <h3 className="font-semibold text-base sm:text-lg text-gray-900">{post.title}</h3>
                         )}
-                        <p className="text-gray-700 whitespace-pre-line line-clamp-3 sm:line-clamp-none">{post.content}</p>
+                        <p className="text-gray-700 whitespace-pre-line line-clamp-3 sm:line-clamp-none text-sm sm:text-base">{post.content}</p>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 pt-2">
+                      <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600 pt-2">
                         <div className="flex items-center space-x-1">
                           <Heart className="h-4 w-4 text-red-500" />
                           <span>{post.likes.length} likes</span>
@@ -562,7 +455,7 @@ export default function PostsPage() {
                 >
                   <ArrowLeft className="h-5 w-5 text-indigo-600" />
                 </Button>
-                <CardTitle className="text-xl font-semibold text-gray-900">Post Details</CardTitle>
+                <CardTitle className="text-lg sm:text-xl font-semibold text-gray-900">Post Details</CardTitle>
               </div>
             </div>
           </CardHeader>
@@ -578,10 +471,10 @@ export default function PostsPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <div className="font-semibold text-lg text-gray-900">
+                      <div className="font-semibold text-base sm:text-lg text-gray-900">
                         {selectedPost.isAnonymous ? "Anonymous Sister" : `${selectedPost.author.firstName} ${selectedPost.author.lastName}`}
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-xs sm:text-sm text-gray-600">
                         {new Date(selectedPost.createdAt).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'long',
@@ -608,43 +501,43 @@ export default function PostsPage() {
 
                 <div className="space-y-4">
                   {selectedPost.title && (
-                    <h3 className="font-semibold text-xl text-gray-900">{selectedPost.title}</h3>
+                    <h3 className="font-semibold text-base sm:text-xl text-gray-900">{selectedPost.title}</h3>
                   )}
-                  <p className="text-gray-700 whitespace-pre-line">{selectedPost.content}</p>
+                  <p className="text-gray-700 whitespace-pre-line text-sm sm:text-base">{selectedPost.content}</p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Post ID</p>
-                    <p className="text-sm text-gray-600">{selectedPost._id}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">Post ID</p>
+                    <p className="text-xs sm:text-sm text-gray-600">{selectedPost._id}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Author ID</p>
-                    <p className="text-sm text-gray-600">{selectedPost.author._id}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">Author ID</p>
+                    <p className="text-xs sm:text-sm text-gray-600">{selectedPost.author._id}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Likes</p>
-                    <p className="text-sm text-gray-600">{selectedPost.likes.length}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">Likes</p>
+                    <p className="text-xs sm:text-sm text-gray-600">{selectedPost.likes.length}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Comments</p>
-                    <p className="text-sm text-gray-600">{selectedPost.commentsCount}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">Comments</p>
+                    <p className="text-xs sm:text-sm text-gray-600">{selectedPost.commentsCount}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Prayers</p>
-                    <p className="text-sm text-gray-600">{selectedPost.prayers.length}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">Prayers</p>
+                    <p className="text-xs sm:text-sm text-gray-600">{selectedPost.prayers.length}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Virtual Hugs</p>
-                    <p className="text-sm text-gray-600">{selectedPost.virtualHugs.length}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">Virtual Hugs</p>
+                    <p className="text-xs sm:text-sm text-gray-600">{selectedPost.virtualHugs.length}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Report Count</p>
-                    <p className="text-sm text-gray-600">{selectedPost.reportCount}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">Report Count</p>
+                    <p className="text-xs sm:text-sm text-gray-600">{selectedPost.reportCount}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Visibility</p>
-                    <p className="text-sm text-gray-600">{selectedPost.isHidden ? "Hidden" : "Visible"}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">Visibility</p>
+                    <p className="text-xs sm:text-sm text-gray-600">{selectedPost.isHidden ? "Hidden" : "Visible"}</p>
                   </div>
                 </div>
 
@@ -654,7 +547,7 @@ export default function PostsPage() {
                     onClick={() => {
                       setShowDeleteDialog(true)
                     }}
-                    className="rounded-lg bg-red-600 hover:bg-red-700"
+                    className="rounded-lg bg-red-600 hover:bg-red-700 text-sm"
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete Post
@@ -667,19 +560,19 @@ export default function PostsPage() {
       )}
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="rounded-lg">
+        <AlertDialogContent className="rounded-lg max-w-[90vw] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-gray-900">Delete Post</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-600">
+            <AlertDialogDescription className="text-gray-600 text-sm">
               Are you sure you want to delete this post? This action cannot be undone and will also remove all
               associated comments and interactions.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-lg">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-lg text-sm">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => selectedPost && handleDeletePost(selectedPost._id)}
-              className="rounded-lg bg-red-600 hover:bg-red-700"
+              className="rounded-lg bg-red-600 hover:bg-red-700 text-sm"
             >
               Delete Post
             </AlertDialogAction>

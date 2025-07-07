@@ -138,132 +138,132 @@ class _EventListPageState extends State<EventListPage> {
       );
     }
   }
-
-  void _showEventDetails(Event event) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-        ),
-        padding: EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(5),
-                )),
-                
-            SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: event.platformColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Image.asset(
-                    event.platformIcon,
-                    width: 24,
-                    height: 24,
-                  ),
-                ),
-                SizedBox(width: 10),
-                Text(
-                  event.platform,
-                  style: TextStyle(
-                    color: event.platformColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Spacer(),
-                Text(
-                  DateFormat('MMM d, y').format(event.createdAt),
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
-            SizedBox(height: 20),
-            Text(
-              event.title,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 15),
-            Divider(),
-            SizedBox(height: 15),
-            Text(
-              event.description,
-              style: TextStyle(fontSize: 16, height: 1.5),
-            ),
-            SizedBox(height: 25),
-            Row(
-              children: [
-                Icon(Icons.calendar_today, color: Colors.grey, size: 20),
-                SizedBox(width: 10),
-                Text(
-                  event.formattedDate,
-                  style: TextStyle(fontSize: 16),
-                ),
-              ],
-            ),
-            SizedBox(height: 15),
-            Row(
-              children: [
-                Icon(Icons.access_time, color: Colors.grey, size: 20),
-                SizedBox(width: 10),
-                Text(
-                  '${event.formattedTime} • ${event.duration} mins',
-                  style: TextStyle(fontSize: 16),
-                ),
-              ],
-            ),
-            SizedBox(height: 15),
-            Row(
-              children: [
-                Icon(Icons.link, color: Colors.grey, size: 20),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    event.meetingLink,
-                    style: TextStyle(fontSize: 16),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => _launchMeeting(event.meetingLink),
-                child: Text('Join Meeting'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: event.platformColor,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-        )],
-        ),
+void _showEventDetails(Event event) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      height: MediaQuery.of(context).size.height * 0.8,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
-    );
-  }
+      padding: EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(5),
+              ),
+            ),
+          ),
+          SizedBox(height: 20),
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: event.platformColor.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Image.asset(
+                  event.platformIcon,
+                  width: 24,
+                  height: 24,
+                ),
+              ),
+              SizedBox(width: 10),
+              Text(
+                event.platform,
+                style: TextStyle(
+                  color: event.platformColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Spacer(),
+              Text(
+                DateFormat('MMM d, y').format(event.createdAt),
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
+          Text(
+            event.title,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 15),
+          Divider(),
+          SizedBox(height: 15),
+          Text(
+            event.description,
+            style: TextStyle(fontSize: 16, height: 1.5),
+          ),
+          SizedBox(height: 25),
+          Row(
+            children: [
+              Icon(Icons.calendar_today, color: Colors.grey, size: 20),
+              SizedBox(width: 10),
+              Text(
+                event.formattedDate,
+                style: TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          SizedBox(height: 15),
+          Row(
+            children: [
+              Icon(Icons.access_time, color: Colors.grey, size: 20),
+              SizedBox(width: 10),
+              Text(
+                '${event.formattedTime} • ${event.duration} mins',
+                style: TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          SizedBox(height: 15),
+          Row(
+            children: [
+              Icon(Icons.link, color: Colors.grey, size: 20),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  event.meetingLink,
+                  style: TextStyle(fontSize: 16),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          Spacer(),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => _launchMeeting(event.meetingLink),
+              child: Text('Join Meeting'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: event.platformColor,
+                padding: EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
