@@ -20,6 +20,7 @@ router.post("/leave-group", userController.leaveGroup);
 router.get("/posts/my", userController.getMyPosts);
 router.get("/search", userController.searchUsers);
 router.get("/:userId", userController.getUserById);
+router.get("/recents", userController.getRecentUsers);
 
 router.get("/:userId/posts", userController.getUserPosts);
 router.put("/profile/photo", uploadProfilePicture, handleUploadError, userController.updateProfilePhoto);

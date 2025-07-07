@@ -256,6 +256,42 @@ const getUserPosts = async (req, res) => {
   }
 };
 
+// In your userController.js
+const getRecentUsers = async (req, res) => {
+  try {
+    const limit = Number.parseInt(req.query.limit) || 10;
+    
+    // Get recent users based on last activity or creation date
+    const users = await User.find({ 
+      isEmailVerified: true,
+      isAdminVerified: true,
+      status: "active"
+    })
+    .sort({ lastActive: -1, createdAt: -1 }) // Sort by most recent
+    .limit(limit)
+    .select("firstName lastName email profilePicture isOnline lastActive");
+
+    res.json({
+      success: true,
+      data: users.map(user => ({
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        avatarUrl: user.profilePicture,
+        isOnline: user.isOnline,
+        lastActive: user.lastActive
+      }))
+    });
+  } catch (error) {
+    console.error("Get recent users error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get recent users"
+    });
+  }
+};
+
 // Get user by ID
 const getUserById = async (req, res) => {
   try {
@@ -555,5 +591,6 @@ module.exports = {
   getMyPosts,
   updateOnlineStatus,
   blockUser,
-  unblockUser
+  unblockUser,
+  getRecentUsers
 }
