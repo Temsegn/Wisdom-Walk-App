@@ -114,7 +114,7 @@ static Future<UserModel> getCurrentUser() async {
       }
 
       final response = await http.get(
-        Uri.parse('$baseUrl/users/recent'),
+        Uri.parse('$baseUrl/users/users/recents'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

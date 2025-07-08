@@ -4,7 +4,7 @@ const chatController = require("../controllers/chatController");
 const { authenticateToken } = require("../middleware/auth");
 const { validateMessage } = require("../middleware/validation");
 const { uploadMultiple, handleUploadError } = require("../middleware/upload");
-const Chat=require("../models/Chat")
+const Chat=require("../models/Chat") 
 router.use(authenticateToken);
 
 router.get("/", chatController.getUserChats);
@@ -16,16 +16,50 @@ router.get('/exists/:userId', async (req, res) => {
     const currentUserId = req.user._id;
     const otherUserId = req.params.userId;
 
+    // Validate the user ID format
+    if (!mongoose.Types.ObjectId.isValid(otherUserId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID format"
+      });
+    }
+
     const chat = await Chat.findOne({
-      type: "direct",  // Changed from isGroupChat: false to match create endpoint
+      type: "direct",
       participants: { $all: [currentUserId, otherUserId] }
-    }).populate('participants', 'firstName lastName profilePicture');
+    })
+    .populate('participants', 'firstName lastName profilePicture isOnline')
+    .populate('lastMessage');
 
     if (chat) {
+      // Manual formatting of the chat response
+      const formattedChat = {
+        id: chat._id,
+        type: chat.type,
+        participants: chat.participants.map(participant => ({
+          id: participant._id,
+          firstName: participant.firstName,
+          lastName: participant.lastName,
+          profilePicture: participant.profilePicture,
+          isOnline: participant.isOnline
+        })),
+        lastMessage: chat.lastMessage ? {
+          id: chat.lastMessage._id,
+          content: chat.lastMessage.content,
+          sender: chat.lastMessage.sender,
+          createdAt: chat.lastMessage.createdAt,
+          messageType: chat.lastMessage.messageType
+        } : null,
+        lastActivity: chat.lastActivity,
+        unreadCount: chat.unreadCount || 0,
+        createdAt: chat.createdAt,
+        updatedAt: chat.updatedAt
+      };
+
       return res.json({
         success: true,
         exists: true,
-        chat: formatChatResponse(chat)
+        chat: formattedChat
       });
     }
 
@@ -37,7 +71,8 @@ router.get('/exists/:userId', async (req, res) => {
     console.error("Error checking chat existence:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to check chat existence"
+      message: "Failed to check chat existence",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

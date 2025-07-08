@@ -37,17 +37,18 @@ class _NewChatScreenState extends State<NewChatScreen> {
     super.dispose();
   }
 
-  Future<void> _loadRecentUsers() async {
-    setState(() => _isLoadingRecent = true);
-    try {
-      final users = await UserService.getRecentUsers();
-      setState(() => _recentUsers = users);
-    } catch (e) {
-      debugPrint('Error loading recent users: $e');
-    } finally {
-      setState(() => _isLoadingRecent = false);
-    }
+ Future<void> _loadRecentUsers() async {
+  setState(() => _isLoadingRecent = true);
+  try {
+    // Make sure this endpoint doesn't expect an ID parameter
+    final users = await UserService.getRecentUsers();
+    setState(() => _recentUsers = users);
+  } catch (e) {
+    debugPrint('Error loading recent users: $e');
+  } finally {
+    setState(() => _isLoadingRecent = false);
   }
+}
 
   void _onSearchChanged() {
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
