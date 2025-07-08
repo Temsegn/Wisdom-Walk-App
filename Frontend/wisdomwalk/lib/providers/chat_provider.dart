@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -203,29 +204,48 @@ Future<Chat?> createDirectChatWithGreeting(String participantId, {String greetin
       return null;
     }
   }
-
-  Future<Chat> startChatWithUser(UserModel user) async {
-    try {
-      final response = await http.post(
-        Uri.parse('${ApiService.baseUrl}/api/chats/direct'),
-        headers: await _getAuthHeaders(),
-        body: json.encode({'participantId': user.id}),
-      ).timeout(const Duration(seconds: 3));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          final chat = Chat.fromJson(data['data']);
-          _addOrUpdateChat(chat);
-          return chat;
-        }
-      }
-      throw Exception('Failed to create chat');
-    } catch (e) {
-      debugPrint('Create chat error: $e');
-      rethrow;
+ 
+ Future<Chat> startChatWithUser(UserModel user) async {
+  try {
+    // 1. Validate input
+    if (user.id.isEmpty) {
+      throw Exception('Invalid user ID');
     }
+
+    // 2. Get auth token safely
+    final token = await LocalStorageService().getAuthToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    // 3. Make request with better timeout
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}/api/chats/direct'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'participantId': user.id,
+        'participantName': user.fullName, // Additional data
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    // 4. Parse response carefully
+    final data = json.decode(response.body);
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Chat.fromJson(data['data']);
+    } else {
+      throw Exception(data['message'] ?? 'Failed to create chat');
+    }
+  } on TimeoutException {
+    throw Exception('Server timeout. Try again later.');
+  } on SocketException {
+    throw Exception('No internet connection');
+  } catch (e) {
+    debugPrint('Chat creation error: $e');
+    rethrow;
   }
+}
 
   void _addOrUpdateChat(Chat chat) {
     final index = _chats.indexWhere((c) => c.id == chat.id);

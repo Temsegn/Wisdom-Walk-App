@@ -96,59 +96,71 @@ const getUserChats = async (req, res) => {
     });
   }
 };
-
 const createDirectChat = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { participantId } = req.body;
     const userId = req.user._id;
 
-    // Check if there's an existing chat with messages
+    // 1. Validate input
+    if (!participantId || !mongoose.Types.ObjectId.isValid(participantId)) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Invalid participant ID" });
+    }
+
+    // 2. Verify users exist
+    const [user, participant] = await Promise.all([
+      User.findById(userId).session(session),
+      User.findById(participantId).session(session)
+    ]);
+
+    if (!user || !participant) {
+      await session.abortTransaction();
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // 3. Check for existing chats (transaction-safe)
     const existingChat = await Chat.findOne({
       type: "direct",
-      participants: { $all: [userId, participantId], $size: 2 },
-      lastMessage: { $exists: true }
-    }).populate("participants", "firstName lastName profilePicture");
+      participants: { $all: [userId, participantId], $size: 2 }
+    }).session(session);
 
     if (existingChat) {
-      return res.json({
-        success: true,
-        message: "Existing chat found",
-        data: existingChat,
+      await session.commitTransaction();
+      return res.json({ 
+        success: true, 
+        data: await existingChat.populate('participants') 
       });
     }
 
-    // Check if there's an empty chat (no messages)
-    const emptyChat = await Chat.findOne({
-      type: "direct",
-      participants: { $all: [userId, participantId], $size: 2 },
-      lastMessage: { $exists: false }
-    });
-
-    if (emptyChat) {
-      // Delete the empty chat before creating a new one
-      await Chat.deleteOne({ _id: emptyChat._id });
-    }
-
-    // Create new chat
+    // 4. Create new chat
     const chat = new Chat({
       type: "direct",
       participants: [userId, participantId],
       participantSettings: [
-        { user: userId, joinedAt: new Date() },
-        { user: participantId, joinedAt: new Date() },
-      ],
+        { user: userId, notification: 'all' },
+        { user: participantId, notification: 'all' }
+      ]
     });
 
-    await chat.save();
-    await chat.populate("participants", "firstName lastName profilePicture");
+    await chat.save({ session });
+    await session.commitTransaction();
 
-    res.json({
-      success: true,
-      message: "New chat created",
-      data: chat,
+    res.status(201).json({ 
+      success: true, 
+      data: await chat.populate('participants') 
     });
   } catch (error) {
-    // Error handling
+    await session.abortTransaction();
+    console.error("Chat creation error:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "Chat creation failed" 
+    });
+  } finally {
+    session.endSession();
   }
 };
  const getChatMessages = async (req, res) => {

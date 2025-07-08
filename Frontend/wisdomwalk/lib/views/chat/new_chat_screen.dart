@@ -86,62 +86,58 @@ class _NewChatScreenState extends State<NewChatScreen> {
       setState(() => _isLoading = false);
     }
   }
-
-  Future<void> _handleUserSelection(UserModel user) async {
-    final scaffold = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
+Future<void> _handleUserSelection(UserModel user) async {
+  if (!mounted) return;
+  
+  final scaffold = ScaffoldMessenger.of(context);
+  final navigator = Navigator.of(context);
+  
+  // Use a state variable to control loading instead of showDialog during build
+  setState(() => _isLoading = true);
+  
+  try {
+    final chatProvider = context.read<ChatProvider>();
     
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+    // Create immediate preview with known user data
+    final previewChat = Chat(
+      id: 'preview-${DateTime.now().millisecondsSinceEpoch}',
+      participants: [user],
+      type: ChatType.direct,
+      chatName: user.fullName,
+      chatImage: user.avatarUrl,
+      isOnline: user.isOnline,
+      lastActivity: DateTime.now(),
     );
 
-    try {
-      final chatProvider = context.read<ChatProvider>();
-      
-      // Create immediate preview with known user data
-      final previewChat = Chat(
-        id: 'preview-${DateTime.now().millisecondsSinceEpoch}',
-        participants: [user],
-        type: ChatType.direct,
-        chatName: user.fullName,
-        chatImage: user.avatarUrl,
-        isOnline: user.isOnline,
-        lastActivity: DateTime.now(),
-      );
-
-      // Navigate immediately
+    // Check for existing chat in background
+    final existingChat = await chatProvider.getExistingChat(user.id);
+    
+    if (existingChat != null && mounted) {
       navigator.pushReplacement(
-        MaterialPageRoute(builder: (context) => ChatScreen(chat: previewChat)),
+        MaterialPageRoute(builder: (context) => ChatScreen(chat: existingChat)),
       );
+      return;
+    }
 
-      // Check for existing chat in background
-      final existingChat = await chatProvider.getExistingChat(user.id);
-      if (existingChat != null && mounted) {
-        navigator.pushReplacement(
-          MaterialPageRoute(builder: (context) => ChatScreen(chat: existingChat)),
-        );
-        return;
-      }
-
-      // Create new chat if needed
-      final newChat = await chatProvider.startChatWithUser(user);
-      if (newChat != null && mounted) {
-        navigator.pushReplacement(
-          MaterialPageRoute(builder: (context) => ChatScreen(chat: newChat)),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        navigator.pop();
-        scaffold.showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-      }
+    // Create new chat if needed
+    final newChat = await chatProvider.startChatWithUser(user);
+    if (newChat != null && mounted) {
+      navigator.pushReplacement(
+        MaterialPageRoute(builder: (context) => ChatScreen(chat: newChat)),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      scaffold.showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
-
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -271,14 +267,14 @@ class _NewChatScreenState extends State<NewChatScreen> {
 
   Widget _buildUserTile(UserModel user) {
     return ListTile(
-      leading: CircleAvatar(
-        backgroundImage: user.avatarUrl != null 
-            ? NetworkImage(user.avatarUrl!) 
-            : null,
-        child: user.avatarUrl == null 
-            ? Text(user.initials) 
-            : null,
-      ),
+     leading: CircleAvatar(
+      backgroundImage: user.avatarUrl != null && user.avatarUrl!.startsWith('http')
+          ? NetworkImage(user.avatarUrl!)
+          : null,
+      child: user.avatarUrl == null || !user.avatarUrl!.startsWith('http')
+          ? Text(user.initials)
+          : null,
+    ),
       title: Text(user.fullName),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
