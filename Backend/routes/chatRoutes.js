@@ -13,7 +13,7 @@ router.get("/", chatController.getUserChats);
 router.post("/direct", chatController.createDirectChat);
 router.get("/:chatId/messages", chatController.getChatMessages);
 router.post("/:chatId/messages", chatController.sendMessage);
- router.get('/exists/:userId', protect, async (req, res) => {
+ router.get('/exists/:userId', async (req, res) => {
   try {
     const currentUserId = req.user._id;
     const otherUserId = req.params.userId;
