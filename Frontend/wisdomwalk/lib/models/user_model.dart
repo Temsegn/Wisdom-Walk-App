@@ -85,14 +85,18 @@ class UserModel {
   String? get profilePicture => avatarUrl;
   String? get avatar => avatarUrl;
   String get displayName => fullName.isNotEmpty ? fullName : 'Unknown User';
+  String get initials {
+  final parts = fullName.split(' ').where((part) => part.isNotEmpty).toList();
   
-  String? get initials {
-    final parts = fullName.split(' ');
-    if (parts.isEmpty) return null;
-    final first = parts.first.isNotEmpty ? parts.first[0] : '';
-    final last = parts.length > 1 && parts.last.isNotEmpty ? parts.last[0] : '';
-    return '$first$last'.trim().isNotEmpty ? '$first$last' : null;
+  if (parts.isEmpty) {
+    return '?'; // Fallback when no name is available
   }
+
+  final firstInitial = parts.first[0].toUpperCase();
+  final lastInitial = parts.length > 1 ? parts.last[0].toUpperCase() : '';
+
+  return firstInitial + lastInitial;
+}
 
   DateTime? get lastActive => updatedAt;
 

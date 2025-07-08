@@ -260,7 +260,7 @@ void _markChatAsRead() {
                       'Replying to ${messageProvider.replyToMessage!.sender.fullName}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontSize: 12, 
                       ),
                     ),
                     Text(

@@ -254,3 +254,16 @@ class ParticipantSetting {
   @override
   int get hashCode => userId.hashCode;
 }
+
+
+
+extension ChatTypeExtension on ChatType {
+  String get name {
+    switch (this) {
+      case ChatType.direct:
+        return 'direct';
+      case ChatType.group:
+        return 'group';
+    }
+  }
+}

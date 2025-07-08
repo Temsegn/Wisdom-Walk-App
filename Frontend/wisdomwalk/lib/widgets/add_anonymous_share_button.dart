@@ -235,7 +235,7 @@ class _AddPrayerModalState extends State<AddPrayerModal> {
         userId: currentUser.id,
         content: _contentController.text.trim(),
         isAnonymous: _isAnonymous,
-        userName: _isAnonymous ? null : currentUser.name,
+        userName: _isAnonymous ? null : currentUser.fullName,
         userAvatar: _isAnonymous ? null : currentUser.profilePicture,
       );
 

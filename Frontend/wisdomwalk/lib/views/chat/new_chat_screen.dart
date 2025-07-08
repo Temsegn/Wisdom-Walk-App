@@ -37,29 +37,27 @@ class _NewChatScreenState extends State<NewChatScreen> {
     super.dispose();
   }
 
- Future<void> _loadRecentUsers() async {
-  setState(() => _isLoadingRecent = true);
-  try {
-    // Make sure this endpoint doesn't expect an ID parameter
-    final users = await UserService.getRecentUsers();
-    setState(() => _recentUsers = users);
-  } catch (e) {
-    debugPrint('Error loading recent users: $e');
-  } finally {
-    setState(() => _isLoadingRecent = false);
+  Future<void> _loadRecentUsers() async {
+    setState(() => _isLoadingRecent = true);
+    try {
+      final users = await UserService.getRecentUsers();
+      setState(() => _recentUsers = users);
+    } catch (e) {
+      debugPrint('Error loading recent users: $e');
+      setState(() => _error = 'Failed to load recent users');
+    } finally {
+      setState(() => _isLoadingRecent = false);
+    }
   }
-}
 
   void _onSearchChanged() {
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-      _searchUsers();
-    });
+    _debounceTimer = Timer(const Duration(milliseconds: 500), _searchUsers);
   }
 
   Future<void> _searchUsers() async {
     final query = _searchController.text.trim();
-
+    
     if (query.isEmpty) {
       setState(() {
         _searchResults = [];
@@ -79,17 +77,20 @@ class _NewChatScreenState extends State<NewChatScreen> {
       final users = await UserService.searchUsers(query);
       setState(() => _searchResults = users);
     } catch (e) {
+      debugPrint('Search error: $e');
       setState(() {
         _error = 'Failed to search users';
         _searchResults = [];
       });
-      debugPrint('Search error: $e');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _handleUserSelection(UserModel user) async {
+    final scaffold = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -99,44 +100,45 @@ class _NewChatScreenState extends State<NewChatScreen> {
     try {
       final chatProvider = context.read<ChatProvider>();
       
-      // First check if chat already exists
-      Chat? existingChat = await chatProvider.getExistingChat(user.id);
-      
-      if (!mounted) return;
-      Navigator.pop(context);
+      // Create immediate preview with known user data
+      final previewChat = Chat(
+        id: 'preview-${DateTime.now().millisecondsSinceEpoch}',
+        participants: [user],
+        type: ChatType.direct,
+        chatName: user.fullName,
+        chatImage: user.avatarUrl,
+        isOnline: user.isOnline,
+        lastActivity: DateTime.now(),
+      );
 
-      if (existingChat != null) {
-        // Navigate to existing chat
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatScreen(chat: existingChat),
-          ),
+      // Navigate immediately
+      navigator.pushReplacement(
+        MaterialPageRoute(builder: (context) => ChatScreen(chat: previewChat)),
+      );
+
+      // Check for existing chat in background
+      final existingChat = await chatProvider.getExistingChat(user.id);
+      if (existingChat != null && mounted) {
+        navigator.pushReplacement(
+          MaterialPageRoute(builder: (context) => ChatScreen(chat: existingChat)),
         );
-      } else {
-        // Create new chat
-        final newChat = await chatProvider.startChatWithUser(user);
-        
-        if (!mounted) return;
-        if (newChat != null) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChatScreen(chat: newChat),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to create chat')),
-          );
-        }
+        return;
+      }
+
+      // Create new chat if needed
+      final newChat = await chatProvider.startChatWithUser(user);
+      if (newChat != null && mounted) {
+        navigator.pushReplacement(
+          MaterialPageRoute(builder: (context) => ChatScreen(chat: newChat)),
+        );
       }
     } catch (e) {
-      if (!mounted) return;
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      if (mounted) {
+        navigator.pop();
+        scaffold.showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -145,10 +147,16 @@ class _NewChatScreenState extends State<NewChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('New Chat'),
+        actions: [
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.only(right: 16.0),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+        ],
       ),
       body: Column(
         children: [
-          // Search Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
@@ -165,13 +173,13 @@ class _NewChatScreenState extends State<NewChatScreen> {
                         },
                       )
                     : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
               onChanged: (_) => _onSearchChanged(),
-              onSubmitted: (_) => _searchUsers(),
             ),
           ),
-          
-          // Results
           Expanded(
             child: _buildContent(),
           ),
@@ -179,9 +187,6 @@ class _NewChatScreenState extends State<NewChatScreen> {
       ),
     );
   }
-
-  // ... keep all the existing _buildContent, _buildSearchResults, 
-  // _buildRecentUsers, and _buildUserTile methods exactly the same ...
 
   Widget _buildContent() {
     if (_isLoading) {
@@ -198,7 +203,9 @@ class _NewChatScreenState extends State<NewChatScreen> {
             Text(_error!),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _searchUsers,
+              onPressed: _error == 'Failed to load recent users' 
+                  ? _loadRecentUsers 
+                  : _searchUsers,
               child: const Text('Retry'),
             ),
           ],
@@ -231,10 +238,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
 
     return ListView.builder(
       itemCount: _searchResults.length,
-      itemBuilder: (context, index) {
-        final user = _searchResults[index];
-        return _buildUserTile(user);
-      },
+      itemBuilder: (context, index) => _buildUserTile(_searchResults[index]),
     );
   }
 
@@ -256,12 +260,12 @@ class _NewChatScreenState extends State<NewChatScreen> {
       );
     }
 
-    return ListView.builder(
-      itemCount: _recentUsers.length,
-      itemBuilder: (context, index) {
-        final user = _recentUsers[index];
-        return _buildUserTile(user);
-      },
+    return RefreshIndicator(
+      onRefresh: _loadRecentUsers,
+      child: ListView.builder(
+        itemCount: _recentUsers.length,
+        itemBuilder: (context, index) => _buildUserTile(_recentUsers[index]),
+      ),
     );
   }
 
@@ -272,7 +276,7 @@ class _NewChatScreenState extends State<NewChatScreen> {
             ? NetworkImage(user.avatarUrl!) 
             : null,
         child: user.avatarUrl == null 
-            ? Text(user.initials ?? '?') 
+            ? Text(user.initials) 
             : null,
       ),
       title: Text(user.fullName),
@@ -281,13 +285,14 @@ class _NewChatScreenState extends State<NewChatScreen> {
         children: [
           Text(user.email),
           if (user.city != null || user.country != null)
-            Text('${user.city ?? ''} ${user.country ?? ''}'),
+            Text(
+              '${user.city ?? ''}${user.city != null && user.country != null ? ', ' : ''}${user.country ?? ''}',
+              style: const TextStyle(fontSize: 12),
+            ),
         ],
       ),
       trailing: const Icon(Icons.chat_bubble_outline),
       onTap: () => _handleUserSelection(user),
     );
   }
-
-
 }
