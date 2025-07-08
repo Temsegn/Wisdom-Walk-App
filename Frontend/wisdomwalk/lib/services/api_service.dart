@@ -87,7 +87,7 @@ class ApiService {
       }
 
       final response = await http.post(
-        Uri.parse('$baseUrl/chat/direct'),
+        Uri.parse('$baseUrl/chats/direct'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

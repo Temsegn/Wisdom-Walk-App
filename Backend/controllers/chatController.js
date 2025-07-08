@@ -95,6 +95,7 @@ const getUserChats = async (req, res) => {
     });
   }
 };
+
 const createDirectChat = async (req, res) => {
   try {
     const { participantId } = req.body;

@@ -76,48 +76,8 @@ class ChatProvider with ChangeNotifier {
       return null;
     }
   }
+ 
 
-Future<Chat?> getExistingChat(String userId) async {
-  try {
-    // 1. Get authentication token from local storage
-    final token = await LocalStorageService().getAuthToken();
-    if (token == null || token.isEmpty) {
-      throw Exception('Authentication token not found');
-    }
-
-    // 2. Prepare headers with authorization
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-
-    // 3. Make the API request
-    final response = await http.get(
-      Uri.parse('https://wisdom-walk-app.onrender.com/api/chats/exists/$userId'),
-      headers: headers,
-    ).timeout(const Duration(seconds: 30));
-
-    // 4. Handle response
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['success'] == true && data['exists'] == true) {
-        return Chat.fromJson(data['chat']);
-      }
-      return null;
-    } else if (response.statusCode == 401) {
-      // Token expired or invalid
-      await LocalStorageService().clearAuthToken();
-      throw Exception('Session expired. Please login again.');
-    } else {
-      throw Exception('Failed to check chat existence: ${response.statusCode}');
-    }
-  } on TimeoutException {
-    throw Exception('Request timed out');
-  } catch (e) {
-    debugPrint('Error checking existing chat: $e');
-    rethrow;
-  }
-}
 Future<Chat?> createDirectChatWithGreeting(String participantId, {String greeting = "👋 Hi!"}) async {
     try {
       // First create the chat
@@ -158,23 +118,7 @@ Future<Chat?> createDirectChatWithGreeting(String participantId, {String greetin
       return null;
     }
   }
-
-  Future<Chat?> startChatWithUser(UserModel user) async {
-    // Show different greetings based on time of day
-    final hour = DateTime.now().hour;
-    String greeting;
-    
-    if (hour < 12) {
-      greeting = "🌅 Good morning!";
-    } else if (hour < 17) {
-      greeting = "☀️ Good afternoon!";
-    } else {
-      greeting = "🌙 Good evening!";
-    }
-
-    return await createDirectChatWithGreeting(user.id, greeting: greeting);
-  }
-
+ 
   void updateChatLastMessage(String chatId, Message message) {
     final chatIndex = _chats.indexWhere((c) => c.id == chatId);
     if (chatIndex != -1) {
@@ -240,4 +184,94 @@ Future<Chat?> createDirectChatWithGreeting(String participantId, {String greetin
     _error = null;
     notifyListeners();
   }
+
+  Future<Chat?> getExistingChat(String userId) async {
+  try {
+    // 1. Get authentication token from local storage
+    final token = await LocalStorageService().getAuthToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication token not found');
+    }
+
+    // 2. Prepare headers with authorization
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    // 3. Make the API request
+    final response = await http.get(
+      Uri.parse('https://wisdom-walk-app.onrender.com/api/chats/exists/$userId'),
+      headers: headers,
+    ).timeout(const Duration(seconds: 30));
+
+    // 4. Handle response
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        if (data['exists'] == true) {
+          return Chat.fromJson(data['chat']);
+        }
+        return null; // Chat doesn't exist
+      }
+      throw Exception(data['message'] ?? 'Failed to check chat existence');
+    } else if (response.statusCode == 401) {
+      // Token expired or invalid
+      await LocalStorageService().clearAuthToken();
+      throw Exception('Session expired. Please login again.');
+    } else {
+      final errorData = json.decode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to check chat existence');
+    }
+  } on TimeoutException {
+    throw Exception('Request timed out');
+  } catch (e) {
+    debugPrint('Error checking existing chat: $e');
+    rethrow;
+  }
 }
+
+Future<Chat?> startChatWithUser(UserModel user) async {
+  try {
+    // First check if chat already exists
+    final existingChat = await getExistingChat(user.id);
+    if (existingChat != null) {
+      // Check if chat exists in local list
+      final localIndex = _chats.indexWhere((c) => c.id == existingChat.id);
+      if (localIndex == -1) {
+        _chats.insert(0, existingChat);
+        notifyListeners();
+      }
+      return existingChat;
+    }
+
+    // Show different greetings based on time of day
+    final hour = DateTime.now().hour;
+    String greeting;
+    
+    if (hour < 12) {
+      greeting = "🌅 Good morning!";
+    } else if (hour < 17) {
+      greeting = "☀️ Good afternoon!";
+    } else {
+      greeting = "🌙 Good evening!";
+    }
+
+    // Create new chat with greeting
+    final newChat = await createDirectChatWithGreeting(user.id, greeting: greeting);
+    
+    if (newChat != null) {
+      // Add to the beginning of the list
+      _chats.insert(0, newChat);
+      notifyListeners();
+    }
+    
+    return newChat;
+  } catch (e) {
+    _error = e.toString();
+    notifyListeners();
+    return null;
+  }
+}
+}
+

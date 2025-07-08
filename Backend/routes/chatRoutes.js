@@ -17,7 +17,7 @@ router.get('/exists/:userId', async (req, res) => {
     const otherUserId = req.params.userId;
 
     const chat = await Chat.findOne({
-      isGroupChat: false,
+      type: "direct",  // Changed from isGroupChat: false to match create endpoint
       participants: { $all: [currentUserId, otherUserId] }
     }).populate('participants', 'firstName lastName profilePicture');
 
@@ -43,7 +43,7 @@ router.get('/exists/:userId', async (req, res) => {
 });
 
 router.put(
-  "/messages/:messageId",
+  "/messages/:messageId", 
   validateMessage,
   chatController.editMessage
 );
