@@ -4965,7 +4965,8 @@ class _ShareAnonymouslyModalState extends State<ShareAnonymouslyModal>
         }
       } else if (context.mounted) {
         throw Exception(widget.shareProvider.error ?? 'Unknown error');
-      }
+      } 
+    // for the purpose of the test for remote repository 
     } catch (e) {
       setState(() => _isLoading = false);
       if (context.mounted) {
