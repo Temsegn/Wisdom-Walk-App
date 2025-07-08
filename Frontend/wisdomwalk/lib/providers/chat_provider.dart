@@ -188,7 +188,7 @@ Future<Chat?> createDirectChatWithGreeting(String participantId, {String greetin
  Future<Chat?> getExistingChat(String userId) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/api/chats/exists/$userId'),
+        Uri.parse('${ApiService.baseUrl}/chats/exists/$userId'),
         headers: await _getAuthHeaders(),
       ).timeout(const Duration(seconds: 3));
 
@@ -218,7 +218,7 @@ Future<Chat?> createDirectChatWithGreeting(String participantId, {String greetin
 
     // 3. Make request with better timeout
     final response = await http.post(
-      Uri.parse('${ApiService.baseUrl}/api/chats/direct'),
+      Uri.parse('${ApiService.baseUrl}/chats/direct'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

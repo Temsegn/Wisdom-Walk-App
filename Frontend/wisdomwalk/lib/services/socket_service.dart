@@ -8,234 +8,218 @@ import 'package:provider/provider.dart';
 class SocketService {
   IO.Socket? _socket;
   final BuildContext context;
+  bool _isConnected = false;
+  final List<String> _joinedChats = [];
 
   SocketService(this.context);
 
   void connect(String token) {
-    if (_socket != null && _socket!.connected)
-      return; // Prevent multiple connections
+    if (_socket != null && _isConnected) return;
 
-    _socket = IO.io('https://wisdom-walk-app.onrender.com', <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': false,
-      'extraHeaders': {'Authorization': 'Bearer $token'},
-    });
+    // Disconnect existing socket if any
+    _socket?.disconnect();
+    _socket = null;
 
+    _socket = IO.io(
+      'https://wisdom-walk-app.onrender.com',
+      IO.OptionBuilder()
+          .setTransports(['websocket'])
+          .disableAutoConnect()
+          .setExtraHeaders({'Authorization': 'Bearer $token'})
+          .build(),
+    );
+
+    _setupEventListeners();
+    _socket?.connect();
+  }
+
+  void _setupEventListeners() {
     _socket?.onConnect((_) {
+      _isConnected = true;
       debugPrint('Socket connected');
+      // Rejoin any chats that were joined before disconnection
+      for (final chatId in _joinedChats) {
+        joinChat(chatId);
+      }
     });
 
     _socket?.onConnectError((data) {
+      _isConnected = false;
       debugPrint('Socket connection error: $data');
     });
 
     _socket?.onDisconnect((_) {
+      _isConnected = false;
       debugPrint('Socket disconnected');
     });
 
-    _socket?.on('newMessage', (data) {
-      try {
-        final message = Message.fromJson(data);
-        final messageProvider = Provider.of<MessageProvider>(
-          context,
-          listen: false,
-        );
-        final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    _socket?.on('newMessage', (data) => _handleNewMessage(data));
+    _socket?.on('messageEdited', (data) => _handleMessageEdited(data));
+    _socket?.on('messageDeleted', (data) => _handleMessageDeleted(data));
+    _socket?.on('messageReaction', (data) => _handleMessageReaction(data));
+    _socket?.on('messagePinned', (data) => _handleMessagePinned(data));
+    _socket?.on('messageUnpinned', (data) => _handleMessageUnpinned(data));
+    _socket?.on('error', (data) => debugPrint('Socket error: $data'));
+  }
 
-        // Avoid adding duplicate messages
-        if (!messageProvider
-            .getChatMessages(message.chatId)
-            .any((m) => m.id == message.id)) {
-          messageProvider.addNewMessage(message.chatId, message);
-          chatProvider.updateChatLastMessage(message.chatId, message);
+  void _handleNewMessage(dynamic data) {
+    try {
+      final message = Message.fromJson(data);
+      final messageProvider = Provider.of<MessageProvider>(context, listen: false);
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+
+      // Check if message already exists
+      if (!messageProvider.getChatMessages(message.chatId).any((m) => m.id == message.id)) {
+        messageProvider.addNewMessage(message.chatId, message);
+        chatProvider.updateChatLastMessage(message.chatId, message);
+        
+        // Scroll to bottom if this is the current chat
+        if (message.chatId == ModalRoute.of(context)?.settings.arguments) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            // Trigger scroll to bottom in the chat screen
+          });
         }
-      } catch (e) {
-        debugPrint('Error handling newMessage: $e');
       }
-    });
+    } catch (e) {
+      debugPrint('Error handling newMessage: $e');
+    }
+  }
 
-    _socket?.on('messageEdited', (data) {
-      try {
-        final message = Message.fromJson(data);
-        Provider.of<MessageProvider>(
-          context,
-          listen: false,
-        ).editMessage(message.id, message.content);
-      } catch (e) {
-        debugPrint('Error handling messageEdited: $e');
-      }
-    });
+  void _handleMessageEdited(dynamic data) {
+    try {
+      final message = Message.fromJson(data);
+      Provider.of<MessageProvider>(context, listen: false)
+          .editMessage(message.id, message.content);
+    } catch (e) {
+      debugPrint('Error handling messageEdited: $e');
+    }
+  }
 
-    _socket?.on('messageDeleted', (data) {
-      try {
-        Provider.of<MessageProvider>(
-          context,
-          listen: false,
-        ).deleteMessage(data['messageId']);
-      } catch (e) {
-        debugPrint('Error handling messageDeleted: $e');
-      }
-    });
+  void _handleMessageDeleted(dynamic data) {
+    try {
+      Provider.of<MessageProvider>(context, listen: false)
+          .deleteMessage(data['messageId']);
+    } catch (e) {
+      debugPrint('Error handling messageDeleted: $e');
+    }
+  }
 
-    _socket?.on('messageReaction', (data) {
-      try {
-        final messageId = data['messageId'];
-        final reaction = MessageReaction.fromJson(data['reaction']);
-        final messageProvider = Provider.of<MessageProvider>(
-          context,
-          listen: false,
-        );
-        final messages = messageProvider.getChatMessages(data['chatId']);
-        final messageIndex = messages.indexWhere((m) => m.id == messageId);
-        if (messageIndex != -1) {
-          final updatedReactions = List<MessageReaction>.from(
-            messages[messageIndex].reactions,
-          )..add(reaction);
-          // Update message with new reactions
-          // Note: Message model needs to be immutable, so create a new instance
-          final updatedMessage = Message(
-            id: messages[messageIndex].id,
-            chatId: messages[messageIndex].chatId,
-            sender: messages[messageIndex].sender,
-            content: messages[messageIndex].content,
-            encryptedContent: messages[messageIndex].encryptedContent,
-            messageType: messages[messageIndex].messageType,
-            attachments: messages[messageIndex].attachments,
-            scripture: messages[messageIndex].scripture,
-            forwardedFromId: messages[messageIndex].forwardedFromId,
-            isPinned: messages[messageIndex].isPinned,
-            isEdited: messages[messageIndex].isEdited,
-            editedAt: messages[messageIndex].editedAt,
-            isDeleted: messages[messageIndex].isDeleted,
-            deletedAt: messages[messageIndex].deletedAt,
-            readBy: messages[messageIndex].readBy,
-            reactions: updatedReactions,
-            replyToId: messages[messageIndex].replyToId,
-            replyTo: messages[messageIndex].replyTo,
-            forwardedFrom: messages[messageIndex].forwardedFrom,
-            createdAt: messages[messageIndex].createdAt,
-            updatedAt: DateTime.now(),
-          );
-          messages[messageIndex] = updatedMessage;
-          messageProvider.notifyListeners();
-        }
-      } catch (e) {
-        debugPrint('Error handling messageReaction: $e');
-      }
-    });
+  void _handleMessageReaction(dynamic data) {
+    try {
+      final messageId = data['messageId'];
+      final chatId = data['chatId'];
+      final reaction = MessageReaction.fromJson(data['reaction']);
+      final messageProvider = Provider.of<MessageProvider>(context, listen: false);
+      
+      messageProvider.updateMessageReaction(chatId, messageId, reaction);
+    } catch (e) {
+      debugPrint('Error handling messageReaction: $e');
+    }
+  }
 
-    _socket?.on('messagePinned', (data) {
-      try {
-        final messageId = data['messageId'];
-        final chatId = data['chatId'];
-        final messageProvider = Provider.of<MessageProvider>(
-          context,
-          listen: false,
-        );
-        final messages = messageProvider.getChatMessages(chatId);
-        final messageIndex = messages.indexWhere((m) => m.id == messageId);
-        if (messageIndex != -1) {
-          final updatedMessage = Message(
-            id: messages[messageIndex].id,
-            chatId: messages[messageIndex].chatId,
-            sender: messages[messageIndex].sender,
-            content: messages[messageIndex].content,
-            encryptedContent: messages[messageIndex].encryptedContent,
-            messageType: messages[messageIndex].messageType,
-            attachments: messages[messageIndex].attachments,
-            scripture: messages[messageIndex].scripture,
-            forwardedFromId: messages[messageIndex].forwardedFromId,
-            isPinned: true,
-            isEdited: messages[messageIndex].isEdited,
-            editedAt: messages[messageIndex].editedAt,
-            isDeleted: messages[messageIndex].isDeleted,
-            deletedAt: messages[messageIndex].deletedAt,
-            readBy: messages[messageIndex].readBy,
-            reactions: messages[messageIndex].reactions,
-            replyToId: messages[messageIndex].replyToId,
-            replyTo: messages[messageIndex].replyTo,
-            forwardedFrom: messages[messageIndex].forwardedFrom,
-            createdAt: messages[messageIndex].createdAt,
-            updatedAt: DateTime.now(),
-          );
-          messages[messageIndex] = updatedMessage;
-          messageProvider.notifyListeners();
-        }
-      } catch (e) {
-        debugPrint('Error handling messagePinned: $e');
-      }
-    });
+  void _handleMessagePinned(dynamic data) {
+    try {
+      final messageId = data['messageId'];
+      final chatId = data['chatId'];
+      final messageProvider = Provider.of<MessageProvider>(context, listen: false);
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      
+      // Update message pinned status
+      messageProvider.updateMessagePinnedStatus(chatId, messageId, true);
+      
+      // Update chat last message if needed
+      final messages = messageProvider.getChatMessages(chatId);
+      final message = messages.firstWhere((m) => m.id == messageId);
+      chatProvider.updateChatLastMessage(chatId, message);
+    } catch (e) {
+      debugPrint('Error handling messagePinned: $e');
+    }
+  }
 
-    _socket?.on('messageUnpinned', (data) {
-      try {
-        final messageId = data['messageId'];
-        final chatId = data['chatId'];
-        final messageProvider = Provider.of<MessageProvider>(
-          context,
-          listen: false,
-        );
-        final messages = messageProvider.getChatMessages(chatId);
-        final messageIndex = messages.indexWhere((m) => m.id == messageId);
-        if (messageIndex != -1) {
-          final updatedMessage = Message(
-            id: messages[messageIndex].id,
-            chatId: messages[messageIndex].chatId,
-            sender: messages[messageIndex].sender,
-            content: messages[messageIndex].content,
-            encryptedContent: messages[messageIndex].encryptedContent,
-            messageType: messages[messageIndex].messageType,
-            attachments: messages[messageIndex].attachments,
-            scripture: messages[messageIndex].scripture,
-            forwardedFromId: messages[messageIndex].forwardedFromId,
-            isPinned: false,
-            isEdited: messages[messageIndex].isEdited,
-            editedAt: messages[messageIndex].editedAt,
-            isDeleted: messages[messageIndex].isDeleted,
-            deletedAt: messages[messageIndex].deletedAt,
-            readBy: messages[messageIndex].readBy,
-            reactions: messages[messageIndex].reactions,
-            replyToId: messages[messageIndex].replyToId,
-            replyTo: messages[messageIndex].replyTo,
-            forwardedFrom: messages[messageIndex].forwardedFrom,
-            createdAt: messages[messageIndex].createdAt,
-            updatedAt: DateTime.now(),
-          );
-          messages[messageIndex] = updatedMessage;
-          messageProvider.notifyListeners();
-        }
-      } catch (e) {
-        debugPrint('Error handling messageUnpinned: $e');
-      }
-    });
-
-    _socket?.connect();
+  void _handleMessageUnpinned(dynamic data) {
+    try {
+      final messageId = data['messageId'];
+      final chatId = data['chatId'];
+      final messageProvider = Provider.of<MessageProvider>(context, listen: false);
+      
+      messageProvider.updateMessagePinnedStatus(chatId, messageId, false);
+    } catch (e) {
+      debugPrint('Error handling messageUnpinned: $e');
+    }
   }
 
   void joinChat(String chatId) {
-    if (_socket?.connected == true) {
+    if (_isConnected && !_joinedChats.contains(chatId)) {
       _socket?.emit('joinChat', chatId);
+      _joinedChats.add(chatId);
       debugPrint('Joined chat: $chatId');
     }
   }
 
+  void leaveChat(String chatId) {
+    if (_isConnected && _joinedChats.contains(chatId)) {
+      _socket?.emit('leaveChat', chatId);
+      _joinedChats.remove(chatId);
+      debugPrint('Left chat: $chatId');
+    }
+  }
+
+  void emitMessageSent(Message message) {
+    if (_isConnected) {
+      _socket?.emit('sendMessage', message.toJson());
+    }
+  }
+
+  void emitMessageEdited(Message message) {
+    if (_isConnected) {
+      _socket?.emit('editMessage', message.toJson());
+    }
+  }
+
   void emitMessageDeleted(String chatId, String messageId) {
-    if (_socket?.connected == true) {
-      _socket?.emit('messageDeleted', {
+    if (_isConnected) {
+      _socket?.emit('deleteMessage', {
         'chatId': chatId,
         'messageId': messageId,
       });
     }
   }
 
-  void emitMessageEdited(String chatId, Message updatedMessage) {
-    if (_socket?.connected == true) {
-      _socket?.emit('messageEdited', updatedMessage.toJson());
+  void emitMessageReaction(String chatId, String messageId, String emoji) {
+    if (_isConnected) {
+      _socket?.emit('addReaction', {
+        'chatId': chatId,
+        'messageId': messageId,
+        'emoji': emoji,
+      });
+    }
+  }
+
+  void emitMessagePin(String chatId, String messageId) {
+    if (_isConnected) {
+      _socket?.emit('pinMessage', {
+        'chatId': chatId,
+        'messageId': messageId,
+      });
+    }
+  }
+
+  void emitMessageUnpin(String chatId, String messageId) {
+    if (_isConnected) {
+      _socket?.emit('unpinMessage', {
+        'chatId': chatId,
+        'messageId': messageId,
+      });
     }
   }
 
   void disconnect() {
     _socket?.disconnect();
     _socket = null;
+    _isConnected = false;
+    _joinedChats.clear();
     debugPrint('Socket disconnected');
   }
+
+  bool get isConnected => _isConnected;
 }

@@ -283,7 +283,43 @@ void _markChatAsRead() {
     );
   }
 
-  void _handleMenuAction(String action) {
+Widget _buildPinnedMessageIndicator() {
+  final pinnedMessageId = context.read<MessageProvider>().getPinnedMessageId(widget.chat.id);
+  if (pinnedMessageId == null) return const SizedBox.shrink();
+
+  final messages = context.read<MessageProvider>().getChatMessages(widget.chat.id);
+  Message? pinnedMessage;
+  
+  try {
+    pinnedMessage = messages.firstWhere((m) => m.id == pinnedMessageId);
+  } catch (e) {
+    return const SizedBox.shrink();
+  }
+
+  if (pinnedMessage.content.isEmpty) return const SizedBox.shrink();
+
+  return Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: Colors.amber[50],
+      border: const Border(left: BorderSide(color: Colors.amber, width: 4)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Pinned Message', 
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        Text(
+          pinnedMessage.content,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    ),
+  );
+}
+
+void _handleMenuAction(String action) {
     switch (action) {
       case 'search':
         break;

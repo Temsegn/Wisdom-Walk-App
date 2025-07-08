@@ -13,8 +13,8 @@ router.get("/", chatController.getUserChats);
 router.post("/direct", chatController.createDirectChat);
 router.get("/:chatId/messages", chatController.getChatMessages);
 router.post("/:chatId/messages", chatController.sendMessage);
-
- router.get('/exists/:userId', async (req, res) => {
+// Update your route handler to properly check for undefined sender
+router.get('/exists/:userId', async (req, res) => {
   try {
     const currentUserId = req.user._id;
     const otherUserId = req.params.userId;
@@ -36,7 +36,12 @@ router.post("/:chatId/messages", chatController.sendMessage);
     .lean();
 
     if (chat) {
-      const otherUser = chat.participants[0]; // Since we filtered current user
+      // Safely handle potentially undefined participants
+      const otherUser = chat.participants?.[0];
+      if (!otherUser) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+
       return res.json({
         success: true,
         exists: true,

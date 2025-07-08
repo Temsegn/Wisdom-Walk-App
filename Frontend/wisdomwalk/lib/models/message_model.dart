@@ -47,6 +47,53 @@ class Message {
     required this.createdAt,
     required this.updatedAt,
   });
+  Message copyWith({
+    String? id,
+    String? chatId,
+    UserModel? sender,
+    String? content,
+    String? encryptedContent,
+    MessageType? messageType,
+    List<MessageAttachment>? attachments,
+    Scripture? scripture,
+    String? forwardedFromId,
+    bool? isPinned,
+    bool? isEdited,
+    DateTime? editedAt,
+    bool? isDeleted,
+    DateTime? deletedAt,
+    List<MessageRead>? readBy,
+    List<MessageReaction>? reactions,
+    String? replyToId,
+    Message? replyTo,
+    Message? forwardedFrom,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Message(
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      sender: sender ?? this.sender,
+      content: content ?? this.content,
+      encryptedContent: encryptedContent ?? this.encryptedContent,
+      messageType: messageType ?? this.messageType,
+      attachments: attachments ?? this.attachments,
+      scripture: scripture ?? this.scripture,
+      forwardedFromId: forwardedFromId ?? this.forwardedFromId,
+      isPinned: isPinned ?? this.isPinned,
+      isEdited: isEdited ?? this.isEdited,
+      editedAt: editedAt ?? this.editedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      deletedAt: deletedAt ?? this.deletedAt,
+      readBy: readBy ?? this.readBy,
+      reactions: reactions ?? this.reactions,
+      replyToId: replyToId ?? this.replyToId,
+      replyTo: replyTo ?? this.replyTo,
+      forwardedFrom: forwardedFrom ?? this.forwardedFrom,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 
   factory Message.fromJson(Map<String, dynamic> json) {
     // Helper functions
