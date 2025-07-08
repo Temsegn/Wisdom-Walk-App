@@ -482,14 +482,20 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
       final success = await authProvider.updateProfile(
         firstName: _nameController.text.split(' ').first,
-        lastName: _nameController.text.split(' ').length > 1
-            ? _nameController.text.split(' ').sublist(1).join(' ')
-            : null,
+        lastName:
+            _nameController.text.split(' ').length > 1
+                ? _nameController.text.split(' ').sublist(1).join(' ')
+                : null,
         bio: _bioController.text,
         city: _locationController.text.split(',').first.trim(),
-        country: _locationController.text.split(',').length > 1
-            ? _locationController.text.split(',').sublist(1).join(',').trim()
-            : null,
+        country:
+            _locationController.text.split(',').length > 1
+                ? _locationController.text
+                    .split(',')
+                    .sublist(1)
+                    .join(',')
+                    .trim()
+                : null,
       );
 
       if (success) {
@@ -524,10 +530,30 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close dialog
-                  Navigator.pop(context); // Close settings
-                  Provider.of<AuthProvider>(context, listen: false).logout();
+                onPressed: () async {
+                  final authProvider = Provider.of<AuthProvider>(
+                    context,
+                    listen: false,
+                  );
+                  final success = await authProvider.logout(context: context);
+                  if (success && context.mounted) {
+                    Navigator.pop(context); // Close dialog
+                    Navigator.pop(context); // Close settings screen
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Signed out successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else if (context.mounted && authProvider.error != null) {
+                    Navigator.pop(context); // Close dialog
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(authProvider.error!),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
@@ -539,4 +565,4 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           ),
     );
   }
-}             
+}

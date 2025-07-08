@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:wisdomwalk/models/user_model.dart';
 import 'package:wisdomwalk/services/auth_service.dart';
 import 'package:wisdomwalk/services/local_storage_service.dart';
+import 'package:go_router/go_router.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -167,7 +168,7 @@ class AuthProvider extends ChangeNotifier {
         city: city,
         country: country,
         bio: bio,
-       );
+      );
       _currentUser = updatedUser;
       return true;
     } catch (e) {
@@ -238,16 +239,22 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> logout() async {
+  Future<bool> logout({BuildContext? context}) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
 
     try {
       await _authService.logout();
-      await _localStorageService.clearAuthToken();
       _currentUser = null;
+      if (context != null && context.mounted) {
+        context.push('/login'); // Navigate to login screen
+      }
+      return true;
     } catch (e) {
       _error = e.toString();
+      print('Logout error: $e');
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();

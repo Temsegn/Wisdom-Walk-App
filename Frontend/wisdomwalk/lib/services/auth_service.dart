@@ -277,7 +277,7 @@ class AuthService {
         'id': data['_id'],
         'fullName': '${data['firstName']} ${data['lastName']}'.trim(),
         'email': data['email'],
-        'bio' : data['bio'] ?? '',
+        'bio': data['bio'] ?? '',
         'avatarUrl': data['profilePicture'],
         'city': data['location']['city'],
         'country': data['location']['country'],
@@ -335,15 +335,26 @@ class AuthService {
   Future<void> logout() async {
     print('Logging out with baseUrl: $baseUrl'); // Debug log
     final token = await _localStorageService.getAuthToken();
-    if (token != null) {
-      await http.post(
-        Uri.parse('$baseUrl/logout'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+    try {
+      if (token != null) {
+        final response = await http.post(
+          Uri.parse('$baseUrl/logout'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+        print('Logout response: ${response.statusCode}, ${response.body}');
+        if (response.statusCode != 200) {
+          _handleError(response);
+        }
+      }
+    } catch (e) {
+      print('Logout error: $e');
+      // Continue with clearing local data even if server request fails
+    } finally {
+      await _localStorageService
+          .clearAuthData(); // Clear both token and user ID
     }
-    await _localStorageService.clearAuthToken();
   }
 }
