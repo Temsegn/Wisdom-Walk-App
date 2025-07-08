@@ -4,7 +4,7 @@ const chatController = require("../controllers/chatController");
 const { authenticateToken } = require("../middleware/auth");
 const { validateMessage } = require("../middleware/validation");
 const { uploadMultiple, handleUploadError } = require("../middleware/upload");
-
+const Chat=require("../models/Chat")
 router.use(authenticateToken);
 
 router.get("/", chatController.getUserChats);

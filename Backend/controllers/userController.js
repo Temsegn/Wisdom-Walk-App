@@ -234,39 +234,60 @@ const searchUsers = async (req, res) => {
     });
   }
 };
-
-// In your userController.js
 const getRecentUsers = async (req, res) => {
   try {
-    const limit = Number.parseInt(req.query.limit) || 10;
+    const currentUserId = req.user._id; // Get the authenticated user's ID
+    const limit = Math.min(Number.parseInt(req.query.limit) || 20, 50); // Limit to max 50 users
     
-    // Get recent users based on last activity or creation date
+    // Get recent users excluding the current user
     const users = await User.find({ 
+      _id: { $ne: currentUserId }, // Exclude current user
       isEmailVerified: true,
       isAdminVerified: true,
       status: "active"
     })
-    .sort({ lastActive: -1, createdAt: -1 }) // Sort by most recent
+    .sort({ 
+      isOnline: -1, // Online users first
+      lastActive: -1, // Then by most recently active
+      createdAt: -1 // Finally by account creation date
+    })
     .limit(limit)
-    .select("firstName lastName email profilePicture isOnline lastActive");
+    .select("firstName lastName email profilePicture isOnline lastActive city country")
+    .lean(); // Convert to plain JS objects for better performance
+
+    // Format response for Flutter app
+    const formattedUsers = users.map(user => ({
+      id: user._id,
+      fullName: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      avatarUrl: user.profilePicture || null,
+      isOnline: user.isOnline,
+      lastActive: user.lastActive,
+      location: user.city || user.country ? 
+        `${user.city ? user.city + ', ' : ''}${user.country || ''}`.trim() : 
+        null,
+      initials: `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase()
+    }));
 
     res.json({
       success: true,
-      data: users.map(user => ({
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        avatarUrl: user.profilePicture,
-        isOnline: user.isOnline,
-        lastActive: user.lastActive
-      }))
+      data: formattedUsers
     });
   } catch (error) {
     console.error("Get recent users error:", error);
+    
+    // More specific error messages
+    let errorMessage = "Failed to get recent users";
+    if (error.name === 'CastError') {
+      errorMessage = "Invalid request parameters";
+    } else if (error.name === 'MongoError') {
+      errorMessage = "Database error occurred";
+    }
+
     res.status(500).json({
       success: false,
-      message: "Failed to get recent users"
+      message: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
