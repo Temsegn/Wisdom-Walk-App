@@ -150,17 +150,35 @@ const createDirectChat = async (req, res) => {
     // Error handling
   }
 };
-
-const getChatMessages = async (req, res) => {
+ const getChatMessages = async (req, res) => {
   try {
-    const { chatId } = req.params; 
+    const { chatId } = req.params;
     const { page = 1, limit = 50 } = req.query;
     const userId = req.user._id;
     const skip = (page - 1) * limit;
 
+    // Handle preview chat IDs (skip database queries)
+    if (chatId.startsWith('preview-')) {
+      return res.json({
+        success: true,
+        data: [],
+        pagination: getPaginationMeta(Number.parseInt(page), Number.parseInt(limit), 0),
+        isPreview: true
+      });
+    }
+
+    // Validate chat ID format
+    if (!mongoose.Types.ObjectId.isValid(chatId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid chat ID format"
+      });
+    }
+
+    // Check chat access
     const chat = await Chat.findOne({
       _id: chatId,
-      participants: userId, 
+      participants: userId,
     });
 
     if (!chat) {
@@ -170,6 +188,7 @@ const getChatMessages = async (req, res) => {
       });
     }
 
+    // Get messages
     const messages = await Message.find({
       chat: chatId,
       isDeleted: false,
@@ -186,30 +205,33 @@ const getChatMessages = async (req, res) => {
       isDeleted: false,
     });
 
-    await Message.updateMany(
-      {
-        chat: chatId,
-        sender: { $ne: userId },
-        "readBy.user": { $ne: userId },
-      },
-      {
-        $push: {
-          readBy: {
-            user: userId,
-            readAt: new Date(),
+    // Mark messages as read (only for real chats)
+    if (!chatId.startsWith('preview-')) {
+      await Message.updateMany(
+        {
+          chat: chatId,
+          sender: { $ne: userId },
+          "readBy.user": { $ne: userId },
+        },
+        {
+          $push: {
+            readBy: {
+              user: userId,
+              readAt: new Date(),
+            },
           },
-        },
-      }
-    );
+        }
+      );
 
-    await Chat.updateOne(
-      { _id: chatId, "participantSettings.user": userId },
-      {
-        $set: {
-          "participantSettings.$.lastReadMessage": messages[0]?._id,
-        },
-      }
-    );
+      await Chat.updateOne(
+        { _id: chatId, "participantSettings.user": userId },
+        {
+          $set: {
+            "participantSettings.$.lastReadMessage": messages[0]?._id,
+          },
+        }
+      );
+    }
 
     res.json({
       success: true,
@@ -221,7 +243,7 @@ const getChatMessages = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch messages",
-      error: error.message,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
