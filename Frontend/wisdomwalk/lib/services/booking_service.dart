@@ -24,7 +24,7 @@ class BookingService {
       }
 
       final response = await http.post(
-        Uri.parse('$_baseUrl/book'),
+        Uri.parse('$_baseUrl'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
