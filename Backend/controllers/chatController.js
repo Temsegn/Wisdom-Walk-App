@@ -4,6 +4,7 @@ const User = require("../models/User");
 const Notification = require("../models/Notification");
 const { getPaginationMeta } = require("../utils/helpers");
 const { saveMultipleFiles } = require("../utils/localStorageService");
+const mongoose = require('mongoose');
 const getUserChats = async (req, res) => {
   try {
     const userId = req.user._id;
