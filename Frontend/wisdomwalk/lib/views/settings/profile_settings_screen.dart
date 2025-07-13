@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:wisdomwalk/models/user_model.dart';
 import 'package:wisdomwalk/providers/auth_provider.dart';
 import 'package:wisdomwalk/themes/app_theme.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
   const ProfileSettingsScreen({Key? key}) : super(key: key);
@@ -15,6 +19,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
   final _locationController = TextEditingController();
+  String? _profileImagePath;
 
   // Prayer Preferences
   bool _publicPrayerRequests = true;
@@ -53,6 +58,22 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    _loadProfileImage();
+  }
+
+  Future<void> _loadProfileImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _profileImagePath = prefs.getString('profile_image_path');
+    });
+  }
+
+  Future<void> _saveProfileImage(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('profile_image_path', path);
+    setState(() {
+      _profileImagePath = path;
+    });
   }
 
   void _loadUserData() {
@@ -78,6 +99,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.currentUser;
+
     return Scaffold(
       backgroundColor: Colors.black.withOpacity(0.5),
       body: Center(
@@ -129,7 +153,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     padding: const EdgeInsets.all(20),
                     children: [
                       // Profile Section
-                      _buildProfileSection(),
+                      _buildProfileSection(user),
                       const SizedBox(height: 32),
 
                       // Prayer Preferences
@@ -157,7 +181,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     );
   }
 
-  Widget _buildProfileSection() {
+  Widget _buildProfileSection(UserModel? user) {
     return Column(
       children: [
         // Profile Picture
@@ -169,35 +193,49 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               decoration: BoxDecoration(
                 color: Colors.grey.shade200,
                 shape: BoxShape.circle,
+                image:
+                    _profileImagePath != null
+                        ? DecorationImage(
+                          image: FileImage(File(_profileImagePath!)),
+                          fit: BoxFit.cover,
+                        )
+                        : null,
               ),
-              child: const Icon(Icons.person, size: 40, color: Colors.grey),
+              child:
+                  _profileImagePath == null
+                      ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                      : null,
             ),
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check, color: Colors.white, size: 12),
-                    SizedBox(width: 4),
-                    Text(
-                      'Verified',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+            if (user != null && user.isVerified)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check, color: Colors.white, size: 12),
+                      SizedBox(width: 4),
+                      Text(
+                        'Verified',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -466,14 +504,19 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     });
   }
 
-  void _changePhoto() {
-    // Implement photo change functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Photo change functionality coming soon!'),
-        backgroundColor: Color(0xFFE91E63),
-      ),
-    );
+  void _changePhoto() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      await _saveProfileImage(image.path);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile photo updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   void _saveChanges() async {
@@ -482,14 +525,21 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
       final success = await authProvider.updateProfile(
         firstName: _nameController.text.split(' ').first,
-        lastName: _nameController.text.split(' ').length > 1
-            ? _nameController.text.split(' ').sublist(1).join(' ')
-            : null,
+        lastName:
+            _nameController.text.split(' ').length > 1
+                ? _nameController.text.split(' ').sublist(1).join(' ')
+                : null,
         bio: _bioController.text,
         city: _locationController.text.split(',').first.trim(),
-        country: _locationController.text.split(',').length > 1
-            ? _locationController.text.split(',').sublist(1).join(',').trim()
-            : null,
+        country:
+            _locationController.text.split(',').length > 1
+                ? _locationController.text
+                    .split(',')
+                    .sublist(1)
+                    .join(',')
+                    .trim()
+                : null,
+        avatarPath: _profileImagePath,
       );
 
       if (success) {
@@ -524,10 +574,30 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close dialog
-                  Navigator.pop(context); // Close settings
-                  Provider.of<AuthProvider>(context, listen: false).logout();
+                onPressed: () async {
+                  final authProvider = Provider.of<AuthProvider>(
+                    context,
+                    listen: false,
+                  );
+                  final success = await authProvider.logout(context: context);
+                  if (success && context.mounted) {
+                    Navigator.pop(context); // Close dialog
+                    Navigator.pop(context); // Close settings screen
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Signed out successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } else if (context.mounted && authProvider.error != null) {
+                    Navigator.pop(context); // Close dialog
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(authProvider.error!),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
@@ -539,4 +609,4 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           ),
     );
   }
-}             
+}
