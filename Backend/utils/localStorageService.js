@@ -52,7 +52,7 @@ const saveFile = async (fileBuffer, originalName, folder = "temp") => {
       path: filePath,
     }
   } catch (error) {
-    console.error("Error saving file:", error)
+    console.error("Error savin file:", error)
     throw error
   }
 }
