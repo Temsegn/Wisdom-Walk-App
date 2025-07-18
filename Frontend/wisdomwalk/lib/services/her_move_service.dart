@@ -88,6 +88,32 @@ class HerMoveService {
     }
   }
 
+  Future<void> offerHelp({
+    required String requestId,
+    required String userId,
+    required String message,
+    required String token,
+  }) async {
+    print(
+      'HerMoveService: offerHelp called with requestId: $requestId, userId: $userId, message: $message',
+    );
+    final response = await http.post(
+      Uri.parse('$_baseUrl/$requestId/offer-help'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'userId': userId, 'message': message}),
+    );
+
+    print(
+      'HerMoveService: offerHelp status: ${response.statusCode}, body: ${response.body}',
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('Failed to offer help: ${response.body}');
+    }
+  }
+
   Future<List<LocationRequestModel>> getAllMoves() async {
     final token = await _storageService.getAuthToken();
     if (token == null) {

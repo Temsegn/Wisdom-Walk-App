@@ -38,8 +38,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     'Career',
     'Healing',
     'Ministry',
-    'Fitness',
-    'Finance',
     'Friendship',
     'Family',
   ];

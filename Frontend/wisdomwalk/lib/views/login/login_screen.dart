@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:wisdomwalk/providers/auth_provider.dart';
+import 'package:wisdomwalk/providers/user_provider.dart';
 import 'package:wisdomwalk/widgets/loading_overlay.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -27,13 +28,37 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+
       final success = await authProvider.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
       if (success && mounted) {
-        context.go('/dashboard');
+        await userProvider.fetchCurrentUser(
+          forceRefresh: true,
+          context: context,
+        );
+        debugPrint(
+          'Login: isAdminVerified=${userProvider.currentUser.isVerified}, '
+          'isBlocked=${userProvider.currentUser.isBlocked}, verificationStatus=${userProvider.currentUser.verificationStatus}',
+        );
+        if (userProvider.error != null) {
+          debugPrint('Login: User fetch error: ${userProvider.error}');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${userProvider.error}'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+          context.go('/login');
+        } else if (userProvider.currentUser.isVerified &&
+            !userProvider.currentUser.isBlocked) {
+          context.go('/dashboard');
+        } else {
+          context.go('/pending-screen');
+        }
       } else if (mounted && authProvider.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -63,29 +88,27 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         body: SafeArea(
           child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 20),
-                  _buildLogo(),
-                  const SizedBox(height: 40),
-                  _buildWelcomeText(),
-                  const SizedBox(height: 40),
-                  _buildLoginForm(),
-                  const SizedBox(height: 20),
-                  _buildForgotPassword(),
-                  const SizedBox(height: 40),
-                  _buildLoginButton(),
-                  const SizedBox(height: 20),
-                  _buildDivider(),
-                  const SizedBox(height: 20),
-                  _buildSocialLogin(),
-                  const SizedBox(height: 40),
-                  _buildSignUpLink(),
-                ],
-              ),
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 20),
+                _buildLogo(),
+                const SizedBox(height: 40),
+                _buildWelcomeText(),
+                const SizedBox(height: 40),
+                _buildLoginForm(),
+                const SizedBox(height: 20),
+                _buildForgotPassword(),
+                const SizedBox(height: 40),
+                _buildLoginButton(),
+                const SizedBox(height: 20),
+                _buildDivider(),
+                const SizedBox(height: 20),
+                _buildSocialLogin(),
+                const SizedBox(height: 40),
+                _buildSignUpLink(),
+              ],
             ),
           ),
         ),
@@ -324,7 +347,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         TextButton(
           onPressed: () {
-            context.go('/register');
+            context.push('/register');
           },
           child: const Text(
             'Sign Up',

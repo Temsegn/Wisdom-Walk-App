@@ -200,7 +200,9 @@ class AnonymousShareService {
     required String content,
     required String token,
   }) async {
-    print('AnonymousShareService: addComment called with token: $token');
+    print(
+      'AnonymousShareService: addComment called with shareId: $shareId, userId: $userId, content: $content, token: $token',
+    );
     final response = await http.post(
       Uri.parse('$_baseUrl/$shareId/comments'),
       headers: {
@@ -213,12 +215,15 @@ class AnonymousShareService {
         'userName': 'Anonymous Sister',
       }),
     );
-
+    print(
+      'AnonymousShareService: addComment status: ${response.statusCode}, body: ${response.body}',
+    );
     if (response.statusCode == 200 || response.statusCode == 201) {
-      print('AnonymousShareService: addComment response: ${response.body}');
       return AnonymousShareComment.fromJson(jsonDecode(response.body));
     } else {
-      throw Exception('Failed to add comment: ${response.body}');
+      throw Exception(
+        'Failed to add comment: ${response.statusCode} - ${response.body}',
+      );
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 import '../models/anonymous_share_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/anonymous_share_provider.dart';
@@ -23,6 +24,8 @@ class AnonymousShareCard extends StatefulWidget {
 
 class _AnonymousShareCardState extends State<AnonymousShareCard> {
   int visibleComments = 6;
+  final Map<String, TextEditingController> _commentControllers = {};
+  final Map<String, bool> _showCommentSection = {};
 
   void _showMoreComments() {
     setState(() {
@@ -52,122 +55,45 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
     bool isActive = false,
     required VoidCallback onPressed,
   }) {
-    return TextButton(
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        minimumSize: const Size(0, 36),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return Container(
+      decoration: BoxDecoration(
+        gradient:
+            isActive
+                ? LinearGradient(colors: [color, color.withOpacity(0.8)])
+                : LinearGradient(
+                  colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+                ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isActive ? color : color.withOpacity(0.3),
+          width: 1,
+        ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 14,
-            color: isActive ? color : color.withOpacity(0.7),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isActive ? color : color.withOpacity(0.7),
-              fontSize: 12,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: isActive ? Colors.white : color),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isActive ? Colors.white : color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
-    );
-  }
-
-  void _showCommentDialog(
-    BuildContext context,
-    AnonymousShareModel share,
-    String userId,
-  ) {
-    final commentController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add a Comment to Anonymous Share'),
-          content: TextField(
-            controller: commentController,
-            decoration: const InputDecoration(
-              labelText: 'Your Comment',
-              hintText: 'Write your comment here...',
-            ),
-            maxLines: 3,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (commentController.text.trim().isNotEmpty) {
-                  final shareProvider = Provider.of<AnonymousShareProvider>(
-                    context,
-                    listen: false,
-                  );
-                  final success = await shareProvider.addComment(
-                    shareId: share.id,
-                    userId: userId,
-                    content: commentController.text.trim(),
-                  );
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    if (success) {
-                      await shareProvider.fetchShares(type: share.category!);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Comment added successfully!'),
-                          backgroundColor: Colors.blue,
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Failed to add comment: ${shareProvider.error ?? 'Unknown error'}',
-                          ),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-              child: const Text('Post'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildReportButton(AnonymousShareModel share, String userId) {
-    return IconButton(
-      icon: Icon(
-        share.isReported ? Icons.report_problem : Icons.report_problem_outlined,
-        color: share.isReported ? Colors.red : Colors.grey,
-        size: 20,
-      ),
-      onPressed: () {
-        if (userId == 'current_user') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please log in to report this post'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-        _showReportDialog(context, share, userId);
-      },
     );
   }
 
@@ -181,66 +107,124 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Report Post'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Report Post',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2D3436),
+            ),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Please provide a reason for reporting this post.'),
-              const SizedBox(height: 8),
-              TextField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Reason',
-                  hintText: 'Enter reason (10-1000 characters)',
-                  border: OutlineInputBorder(),
+              const Text(
+                'Please provide a reason for reporting this post.',
+                style: TextStyle(color: Color(0xFF636E72)),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.grey[50]!, Colors.white],
+                  ),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                    color: const Color(0xFF74B9FF).withOpacity(0.3),
+                  ),
                 ),
-                maxLines: 3,
-                maxLength: 1000,
+                child: TextField(
+                  controller: reasonController,
+                  decoration: const InputDecoration(
+                    labelText: 'Reason',
+                    hintText: 'Enter reason (10-1000 characters)',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.all(16),
+                  ),
+                  maxLines: 3,
+                  maxLength: 1000,
+                ),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Color(0xFF636E72)),
+              ),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                final reason = reasonController.text.trim();
-                if (reason.length < 10) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Reason must be at least 10 characters'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-                final shareProvider = Provider.of<AnonymousShareProvider>(
-                  context,
-                  listen: false,
-                );
-                final success = await shareProvider.reportShare(
-                  shareId: share.id,
-                  userId: userId,
-                  reason: reason,
-                );
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        success
-                            ? 'Post reported successfully 🚨'
-                            : 'Failed to report post',
+            Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE17055), Color(0xFFD63031)],
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: ElevatedButton(
+                onPressed: () async {
+                  final reason = reasonController.text.trim();
+                  if (reason.length < 10) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                          'Reason must be at least 10 characters',
+                        ),
+                        backgroundColor: const Color(0xFFD63031),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                      backgroundColor: success ? Colors.red : Colors.red,
-                    ),
+                    );
+                    return;
+                  }
+                  final shareProvider = Provider.of<AnonymousShareProvider>(
+                    context,
+                    listen: false,
                   );
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Report'),
+                  final success = await shareProvider.reportShare(
+                    shareId: share.id,
+                    userId: userId,
+                    reason: reason,
+                  );
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? 'Post reported successfully 🚨'
+                              : 'Failed to report post',
+                        ),
+                        backgroundColor:
+                            success
+                                ? const Color(0xFFE17055)
+                                : const Color(0xFFD63031),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                child: const Text(
+                  'Report',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
             ),
           ],
         );
@@ -262,25 +246,44 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _commentControllers[widget.share.id] = TextEditingController();
+    _showCommentSection[widget.share.id] = false;
+  }
+
+  @override
+  void dispose() {
+    _commentControllers.forEach((_, controller) => controller.dispose());
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final share = widget.share;
     final userId = widget.currentUserId;
+    final commentController = _commentControllers[share.id]!;
+    final showCommentSection = _showCommentSection[share.id]!;
 
     return GestureDetector(
       onTap: widget.onTap,
       child: Stack(
         children: [
           Container(
-            margin: const EdgeInsets.only(bottom: 16),
+            margin: const EdgeInsets.only(bottom: 20),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.white, Color(0xFFF8F9FA)],
+              ),
+              borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
@@ -289,10 +292,19 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.grey[300],
-                      radius: 25,
-                      child: const Icon(Icons.person, color: Colors.black54),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1DA1F2), Color(0xFF0984E3)],
+                        ),
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -303,19 +315,28 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                             'Anonymous Sister',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 18,
+                              color: Color(0xFF2D3436),
                             ),
                           ),
+                          const SizedBox(height: 4),
                           Row(
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
+                                  horizontal: 12,
+                                  vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: _getTypeColor(share.category),
-                                  borderRadius: BorderRadius.circular(12),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      _getTypeColor(share.category),
+                                      _getTypeColor(
+                                        share.category,
+                                      ).withOpacity(0.8),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(15),
                                 ),
                                 child: Text(
                                   share.category
@@ -327,16 +348,18 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 12),
                               Text(
                                 _formatTimeAgo(share.createdAt),
-                                style: TextStyle(
-                                  color: Colors.grey[600],
+                                style: const TextStyle(
+                                  color: Color(0xFF636E72),
                                   fontSize: 12,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ],
@@ -346,13 +369,14 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Text(
                   share.content,
                   style: const TextStyle(
                     fontSize: 16,
-                    color: Colors.black87,
-                    height: 1.4,
+                    color: Color(0xFF636E72),
+                    height: 1.6,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 if (share.images.isNotEmpty) ...[
@@ -380,7 +404,7 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -392,19 +416,24 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                                 )
                                 ? Icons.volunteer_activism
                                 : Icons.volunteer_activism_outlined,
-                        label: ' (${share.prayerCount})',
+                        label: '(${share.prayerCount})',
                         color: const Color(0xFF9C27B0),
                         isActive: share.prayers.any(
                           (prayer) => prayer['user'] == userId,
                         ),
                         onPressed: () async {
+                          HapticFeedback.lightImpact();
                           if (userId == 'current_user') {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
+                              SnackBar(
+                                content: const Text(
                                   'Please log in to pray for this share',
                                 ),
-                                backgroundColor: Colors.red,
+                                backgroundColor: const Color(0xFFD63031),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             );
                             return;
@@ -430,6 +459,10 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                                       : 'You are now praying for this share 🙏',
                                 ),
                                 backgroundColor: const Color(0xFF9C27B0),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             );
                           } else if (context.mounted) {
@@ -438,36 +471,33 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                                 content: Text(
                                   'Failed to toggle praying: ${shareProvider.error ?? 'Unknown error'}',
                                 ),
-                                backgroundColor: Colors.red,
+                                backgroundColor: const Color(0xFFD63031),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             );
                           }
                         },
                       ),
-                      const SizedBox(width: 7),
+                      const SizedBox(width: 12),
                       _buildActionButton(
                         icon: Icons.comment_outlined,
                         label: '(${share.commentsCount})',
-                        color: const Color(0xFF2196F3),
-                        isActive: share.comments.any(
-                          (comment) => comment.userId == userId,
-                        ),
+                        color: const Color(0xFF1DA1F2), // X's blue
+                        isActive: showCommentSection,
                         onPressed: () {
-                          if (userId == 'current_user') {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Please log in to comment on this share',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            return;
-                          }
-                          _showCommentDialog(context, share, userId);
+                          HapticFeedback.lightImpact();
+                          setState(() {
+                            _showCommentSection[share.id] = !showCommentSection;
+                            if (!_showCommentSection[share.id]!) {
+                              commentController.clear();
+                            }
+                          });
                         },
                       ),
-                      const SizedBox(width: 7),
+                      const SizedBox(width: 12),
                       _buildActionButton(
                         icon:
                             share.likes.contains(userId)
@@ -477,13 +507,18 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                         color: const Color(0xFF2196F3),
                         isActive: share.likes.contains(userId),
                         onPressed: () async {
+                          HapticFeedback.lightImpact();
                           if (userId == 'current_user') {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
+                              SnackBar(
+                                content: const Text(
                                   'Please log in to heart this share',
                                 ),
-                                backgroundColor: Colors.red,
+                                backgroundColor: const Color(0xFFD63031),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             );
                             return;
@@ -506,6 +541,10 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                                       : 'Share hearted! ❤️',
                                 ),
                                 backgroundColor: const Color(0xFF2196F3),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             );
                           } else if (context.mounted) {
@@ -514,21 +553,18 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                                 content: Text(
                                   'Failed to toggle heart: ${shareProvider.error ?? 'Unknown error'}',
                                 ),
-                                backgroundColor: Colors.red,
+                                backgroundColor: const Color(0xFFD63031),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             );
                           }
                         },
                       ),
-                      const SizedBox(width: 7),
-                      _buildActionButton(
-                        icon: Icons.chat_outlined,
-                        label: 'Chat',
-                        color: const Color(0xFF4CAF50),
-                        isActive: false,
-                        onPressed: widget.onTap,
-                      ),
-                      const SizedBox(width: 7),
+                      const SizedBox(width: 12),
+
                       _buildActionButton(
                         icon:
                             share.virtualHugs.any(
@@ -542,13 +578,18 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                           (hug) => hug['user'] == userId,
                         ),
                         onPressed: () async {
+                          HapticFeedback.lightImpact();
                           if (userId == 'current_user') {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
+                              SnackBar(
+                                content: const Text(
                                   'Please log in to send a virtual hug',
                                 ),
-                                backgroundColor: Colors.red,
+                                backgroundColor: const Color(0xFFD63031),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             );
                             return;
@@ -565,9 +606,13 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                           );
                           if (success && context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Virtual hug sent! 🤗'),
-                                backgroundColor: Color(0xFFE91E63),
+                              SnackBar(
+                                content: const Text('Virtual hug sent! 🤗'),
+                                backgroundColor: const Color(0xFFE91E63),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             );
                           } else if (context.mounted) {
@@ -576,7 +621,11 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                                 content: Text(
                                   'Failed to send virtual hug: ${shareProvider.error ?? 'Unknown error'}',
                                 ),
-                                backgroundColor: Colors.red,
+                                backgroundColor: const Color(0xFFD63031),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             );
                           }
@@ -585,80 +634,273 @@ class _AnonymousShareCardState extends State<AnonymousShareCard> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
-                if (share.comments.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Divider(),
-                      ...share.comments
-                          .take(visibleComments)
-                          .map(
-                            (comment) => Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 12,
-                                    backgroundColor: Colors.grey[300],
-                                    child: const Icon(
-                                      Icons.person,
-                                      size: 12,
-                                      color: Colors.black54,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          comment.userName ??
-                                              'Anonymous Sister',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        Text(
-                                          comment.content,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.black87,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                if (showCommentSection) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color:
+                          Colors.grey[100], // Light gray like X's reply field
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.grey[300]!, width: 1),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: commentController,
+                            decoration: const InputDecoration(
+                              hintText: 'Reply to this share…',
+                              hintStyle: TextStyle(
+                                color: Color(0xFF657786),
+                              ), // X's hint color
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
                               ),
                             ),
-                          ),
-                      if (share.comments.length > visibleComments)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: TextButton(
-                            onPressed: _showMoreComments,
-                            child: Text(
-                              'See More (${share.comments.length - visibleComments} more)',
-                              style: const TextStyle(
-                                color: Color(0xFF2196F3),
-                                fontWeight: FontWeight.w600,
-                              ),
+                            maxLines: null, // Expand as needed
+                            minLines: 1,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF14171A), // X's text color
                             ),
                           ),
                         ),
-                    ],
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFF1DA1F2), // X's blue
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0x331DA1F2),
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            onPressed: () async {
+                              if (userId == 'current_user') {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                      'Please log in to comment on this share',
+                                    ),
+                                    backgroundColor: const Color(0xFFD63031),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+                              final content = commentController.text.trim();
+                              if (content.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                      'Comment cannot be empty',
+                                    ),
+                                    backgroundColor: const Color(0xFFD63031),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+                              final shareProvider =
+                                  Provider.of<AnonymousShareProvider>(
+                                    context,
+                                    listen: false,
+                                  );
+                              final success = await shareProvider.addComment(
+                                shareId: share.id,
+                                userId: userId,
+                                content: content,
+                              );
+                              if (success && context.mounted) {
+                                commentController.clear();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                      'Comment added successfully!',
+                                    ),
+                                    backgroundColor: const Color(0xFF1DA1F2),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                );
+                              } else if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Failed to add comment: ${shareProvider.error ?? 'Unknown error'}',
+                                    ),
+                                    backgroundColor: const Color(0xFFD63031),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                            icon: const Icon(
+                              Icons.send,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            padding: const EdgeInsets.all(8),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                  Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.grey[200]!, Colors.grey[100]!],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (share.comments.isNotEmpty)
+                    ...share.comments
+                        .take(visibleComments)
+                        .map(
+                          (comment) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF1DA1F2),
+                                        Color(0xFF0984E3),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(25),
+                                  ),
+                                  child: const Icon(
+                                    Icons.person,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Anonymous Sister',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: Color(
+                                            0xFF14171A,
+                                          ), // X's text color
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        comment.content,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Color(
+                                            0xFF657786,
+                                          ), // X's secondary text
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                  else
+                    const Text(
+                      'see more comments  on the details page',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF657786), // X's secondary text
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  if (share.comments.length > visibleComments)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: TextButton(
+                        onPressed: _showMoreComments,
+                        child: Text(
+                          'See More (${share.comments.length - visibleComments} more)',
+                          style: const TextStyle(
+                            color: Color(0xFF1DA1F2), // X's blue
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ],
             ),
           ),
           Positioned(
             top: 10,
             right: 10,
-            child: _buildReportButton(share, userId),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: IconButton(
+                icon: Icon(
+                  share.isReported
+                      ? Icons.report_problem
+                      : Icons.report_problem_outlined,
+                  color:
+                      share.isReported
+                          ? const Color(0xFFE17055)
+                          : const Color(0xFF636E72),
+                  size: 20,
+                ),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  if (userId == 'current_user') {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text(
+                          'Please log in to report this post',
+                        ),
+                        backgroundColor: const Color(0xFFD63031),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  _showReportDialog(context, share, userId);
+                },
+              ),
+            ),
           ),
         ],
       ),

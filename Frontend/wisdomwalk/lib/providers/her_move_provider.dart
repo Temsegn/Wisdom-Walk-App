@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:wisdomwalk/models/location_request_model.dart';
 import 'package:wisdomwalk/services/her_move_service.dart';
+import 'package:wisdomwalk/services/local_storage_service.dart';
 
 class HerMoveProvider extends ChangeNotifier {
   final HerMoveService _herMoveService = HerMoveService();
@@ -16,6 +17,7 @@ class HerMoveProvider extends ChangeNotifier {
   List<LocationRequestModel> get nearbyRequests => _nearbyRequests;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  final LocalStorageService _storageService = LocalStorageService();
 
   Future<void> fetchRequests() async {
     _isLoading = true;
@@ -29,6 +31,40 @@ class HerMoveProvider extends ChangeNotifier {
       }
     } catch (e) {
       _error = 'Failed to load requests: ${e.toString()}';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> offerHelp({
+    required String requestId,
+    required String userId,
+    required String message,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final token = await _storageService.getAuthToken();
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
+      await _herMoveService.offerHelp(
+        requestId: requestId,
+        userId: userId,
+        message: message,
+        token: token,
+      );
+      print(
+        'HerMoveProvider: Successfully offered help for requestId: $requestId',
+      );
+      return true;
+    } catch (e) {
+      _error = 'Failed to offer help: ${e.toString()}';
+      print('HerMoveProvider: Error offering help: $e');
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();

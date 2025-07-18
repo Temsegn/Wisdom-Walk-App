@@ -9,55 +9,62 @@ class UserService {
   static const String baseUrl = 'https://wisdom-walk-app.onrender.com/api';
   static final LocalStorageService _localStorageService = LocalStorageService();
   static Future<List<UserModel>> searchUsers(String query) async {
-  try {
-    final token = await _localStorageService.getAuthToken();
-    if (token == null || token.isEmpty) {
-      throw Exception('Authentication required');
-    }
-
-    final url = Uri.parse('$baseUrl/users/search?q=${Uri.encodeComponent(query)}');
-    debugPrint('Search Request: $url');
-
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    ).timeout(const Duration(seconds: 30));
-
-    debugPrint('Search Response: ${response.statusCode}');
-    
-    if (response.statusCode == 200) {
-      final responseData = json.decode(response.body);
-      if (responseData['success'] == true) {
-        return (responseData['data'] as List)
-            .map((userJson) => UserModel.fromJson(userJson))
-            .toList();
+    try {
+      final token = await _localStorageService.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw Exception('Authentication required');
       }
+
+      final url = Uri.parse(
+        '$baseUrl/users/search?q=${Uri.encodeComponent(query)}',
+      );
+      debugPrint('Search Request: $url');
+
+      final response = await http
+          .get(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 30));
+
+      debugPrint('Search Response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (responseData['success'] == true) {
+          return (responseData['data'] as List)
+              .map((userJson) => UserModel.fromJson(userJson))
+              .toList();
+        }
+      }
+      throw Exception('Failed to search users');
+    } on TimeoutException {
+      throw Exception('Request timed out');
+    } catch (e) {
+      debugPrint('Search error: $e');
+      throw Exception('Search failed: ${e.toString()}');
     }
-    throw Exception('Failed to search users');
-  } on TimeoutException {
-    throw Exception('Request timed out');
-  } catch (e) {
-    debugPrint('Search error: $e');
-    throw Exception('Search failed: ${e.toString()}');
   }
-}
-static Future<UserModel> getCurrentUser() async {
+
+  static Future<UserModel> getCurrentUser() async {
     try {
       final token = await _localStorageService.getAuthToken();
       if (token == null || token.isEmpty) {
         throw Exception('Authentication required - No token available');
       }
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/users/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/users/profile'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       debugPrint('Get Current User Response: ${response.statusCode}');
       _validateResponse(response);
@@ -83,13 +90,15 @@ static Future<UserModel> getCurrentUser() async {
         throw Exception('Authentication required - No token available');
       }
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/users/$userId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/users/$userId'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       debugPrint('Get User by ID Response: ${response.statusCode}');
       _validateResponse(response);
@@ -113,16 +122,18 @@ static Future<UserModel> getCurrentUser() async {
         throw Exception('Authentication required - No token available');
       }
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/users/users/recents'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/users/users/recents'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       debugPrint('Get Recent Users Response: ${response.statusCode}');
-      
+
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         return (responseData['data'] as List)
@@ -143,7 +154,10 @@ static Future<UserModel> getCurrentUser() async {
   static void _validateResponse(http.Response response) {
     if (response.statusCode != 200) {
       final errorData = json.decode(response.body);
-      throw Exception(errorData['message'] ?? 'Request failed with status ${response.statusCode}');
+      throw Exception(
+        errorData['message'] ??
+            'Request failed with status ${response.statusCode}',
+      );
     }
   }
 }

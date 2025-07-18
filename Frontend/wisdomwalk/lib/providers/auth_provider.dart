@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:wisdomwalk/models/user_model.dart';
+import 'package:wisdomwalk/providers/user_provider.dart';
 import 'package:wisdomwalk/services/auth_service.dart';
 import 'package:wisdomwalk/services/local_storage_service.dart';
 import 'package:go_router/go_router.dart';
@@ -23,11 +25,25 @@ class AuthProvider extends ChangeNotifier {
     _loadThemePreference();
     _loadUserFromToken(); // Load user if token exists
   }
+  void setCurrentUser(UserModel? user) {
+    _currentUser = user;
+    notifyListeners();
+  }
 
   Future<void> _loadThemePreference() async {
     final isDarkMode = await _localStorageService.getDarkModePreference();
     _themeMode = isDarkMode ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
+  }
+
+  Future<void> refreshUser(BuildContext context) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    await userProvider.fetchCurrentUser(forceRefresh: true);
+    if (userProvider.currentUser.id.isNotEmpty) {
+      setCurrentUser(userProvider.currentUser);
+    } else {
+      setCurrentUser(null);
+    }
   }
 
   Future<void> toggleThemeMode() async {

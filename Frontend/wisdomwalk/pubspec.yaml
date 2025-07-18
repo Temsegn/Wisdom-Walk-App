@@ -54,6 +54,7 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   collection: ^1.19.1
   flutter_animate: ^4.5.2
+  lottie: ^3.3.1
 
 dev_dependencies:
   flutter_test:
@@ -87,6 +88,7 @@ flutter:
     - assets/images/facebook_icon.png
     - assets/images/twitter_icon.png
     - assets/images/telegram_icon.png
+    - assets/pending_animation.json
 
   #   - images/a_dot_ham.jpeg
 

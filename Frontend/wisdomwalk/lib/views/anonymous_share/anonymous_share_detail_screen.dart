@@ -579,16 +579,7 @@ class _AnonymousShareDetailScreenState
                                           }
                                         },
                                       ),
-                                      const SizedBox(width: 7),
-                                      _buildActionButton(
-                                        icon: Icons.chat_outlined,
-                                        label: 'Chat',
-                                        color: const Color(0xFF4CAF50),
-                                        isActive: false,
-                                        onPressed: () {
-                                          context.push('/chat/${share.id}');
-                                        },
-                                      ),
+
                                       const SizedBox(width: 7),
                                       _buildActionButton(
                                         icon:

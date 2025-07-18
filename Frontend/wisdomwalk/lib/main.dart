@@ -14,8 +14,9 @@ import 'package:wisdomwalk/services/local_storage_service.dart';
 import 'package:wisdomwalk/themes/app_theme.dart';
 import 'package:wisdomwalk/providers/reflection_provider.dart';
 //import 'package:wisdomwalk/services/chat_service.dart';
-import 'package:wisdomwalk/providers/user_provider.dart'; 
+import 'package:wisdomwalk/providers/user_provider.dart';
 import 'package:wisdomwalk/providers/message_provider.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
@@ -41,7 +42,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => ReflectionProvider()),
         ChangeNotifierProvider(create: (_) => EventProvider()),
-        ChangeNotifierProvider(create: (_) => UserProvider(localStorageService: LocalStorageService())),
+
+        ChangeNotifierProvider(
+          create:
+              (_) => UserProvider(localStorageService: LocalStorageService()),
+        ),
         ChangeNotifierProvider(create: (_) => MessageProvider()),
       ],
       child: Consumer<AuthProvider>(
