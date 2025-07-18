@@ -1,5 +1,6 @@
-// lib/providers/event_provider.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:wisdomwalk/models/event_model.dart';
 
 class EventProvider with ChangeNotifier {
@@ -11,73 +12,62 @@ class EventProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  // Simulated backend call to fetch events
+  final String _baseUrl = 'https://wisdom-walk-app.onrender.com/api/events';
+
   Future<void> fetchEvents() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      // Replace with actual API call (e.g., Firebase, REST API)
-      await Future.delayed(
-        const Duration(seconds: 1),
-      ); // Simulate network delay
-      _events = [
-        EventModel(
-          id: 'event1',
-          title: 'Virtual Prayer Night',
-          dateTime: DateTime.now().add(const Duration(days: 1)),
-          platform: 'Zoom',
-          link: 'https://zoom.us/j/123456789',
-          participants: [],
-          description: 'Join us for a night of prayer and fellowship.',
-        ),
-        EventModel(
-          id: 'event2',
-          title: 'Bible Study: Proverbs',
-          dateTime: DateTime.now().add(const Duration(days: 4)),
-          platform: 'Telegram',
-          link: 'https://t.me/+soetKOhlubFhMWE0',
-          participants: [],
-          description: 'Explore the wisdom of Proverbs with our community.',
-        ),
-      ];
-      _isLoading = false;
-      notifyListeners();
+      final response = await http.get(Uri.parse(_baseUrl));
+      final responseBody = json.decode(response.body);
+
+      if (response.statusCode == 200 && responseBody['success'] == true) {
+        final List<dynamic> data = responseBody['data'];
+        _events = data.map((event) => EventModel.fromJson(event)).toList();
+        _isLoading = false;
+      } else {
+        _error = responseBody['error'] ?? 'Failed to load events.';
+        _isLoading = false;
+      }
     } catch (e) {
-      _isLoading = false;
       _error = 'Failed to fetch events: $e';
-      notifyListeners();
+      _isLoading = false;
     }
+
+    notifyListeners();
   }
 
-  // Join or leave an event
   Future<bool> toggleJoinEvent(String eventId, String userId) async {
     try {
-      final eventIndex = _events.indexWhere((event) => event.id == eventId);
-      if (eventIndex == -1) return false;
+      final index = _events.indexWhere((event) => event.id == eventId);
+      if (index == -1) return false;
 
-      final event = _events[eventIndex];
-      final updatedParticipants = List<String>.from(event.participants);
+      final event = _events[index];
+      final participants = [...event.participants];
 
-      if (updatedParticipants.contains(userId)) {
-        updatedParticipants.remove(userId); // Leave event
+      if (participants.contains(userId)) {
+        participants.remove(userId);
       } else {
-        updatedParticipants.add(userId); // Join event
+        participants.add(userId);
       }
 
-      _events[eventIndex] = EventModel(
+      _events[index] = EventModel(
         id: event.id,
         title: event.title,
         dateTime: event.dateTime,
         platform: event.platform,
         link: event.link,
-        participants: updatedParticipants,
+        participants: participants,
         description: event.description,
+         duration: event.duration,
       );
 
       notifyListeners();
-      // Optionally, update backend here
+
+      // Optional: Add backend sync later
+
       return true;
     } catch (e) {
       _error = 'Failed to update event participation: $e';
