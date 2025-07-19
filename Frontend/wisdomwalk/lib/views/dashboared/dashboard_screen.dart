@@ -1977,9 +1977,14 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       ),
     );
   }
-  Widget _buildUpcomingEvents() {
+
+
+Widget _buildUpcomingEvents() {
   return Consumer<EventProvider>(
     builder: (context, eventProvider, child) {
+      final now = DateTime.now();
+
+      // Loading state
       if (eventProvider.isLoading) {
         return Container(
           height: 200,
@@ -1991,12 +1996,13 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           ),
           child: const Center(
             child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C5CE7)),
+              valueColor: AlwaysStoppedAnimation(Color(0xFF6C5CE7)),
             ),
           ),
         );
       }
 
+      // Error state
       if (eventProvider.error != null) {
         return Container(
           padding: const EdgeInsets.all(24),
@@ -2017,7 +2023,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                   ),
                   borderRadius: BorderRadius.circular(50),
                 ),
-                child: const Icon(Icons.error_outline, size: 32, color: Colors.white),
+                child: const Icon(Icons.error_outline, color: Colors.white, size: 32),
               ),
               const SizedBox(height: 16),
               Text(
@@ -2029,44 +2035,38 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6C5CE7), Color(0xFF74B9FF)],
+              ElevatedButton(
+                onPressed: eventProvider.fetchEvents,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6C5CE7),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
                   ),
-                  borderRadius: BorderRadius.circular(25),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
-                child: ElevatedButton(
-                  onPressed: () => eventProvider.fetchEvents(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
-                  child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
+                child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.w600)),
               ),
             ],
           ),
         );
       }
 
-      final now = DateTime.now();
-      final upcomingEvents = eventProvider.events.where((event) {
-        final endTime = event.dateTime.add(const Duration(hours: 1));
-        return endTime.isAfter(now);
-      }).toList();
+      // Filter upcoming events: those that haven't ended yet
+ 
+final upcomingEvents = eventProvider.events.where((event) {
+  final duration = _getDuration(event.duration);
+  final endTime = event.dateTime.add(duration);
+  return now.isBefore(endTime); // Only future or currently live events
+}).toList();
 
+
+      // Empty state
       if (upcomingEvents.isEmpty) {
         return Container(
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.grey[50]!, Colors.white],
-            ),
+            gradient: LinearGradient(colors: [Colors.grey[50]!, Colors.white]),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.grey[200]!),
           ),
@@ -2075,16 +2075,14 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.grey[300]!, Colors.grey[200]!],
-                  ),
+                  gradient: LinearGradient(colors: [Colors.grey[300]!, Colors.grey[200]!]),
                   borderRadius: BorderRadius.circular(50),
                 ),
                 child: const Icon(Icons.event_outlined, size: 32, color: Colors.white),
               ),
               const SizedBox(height: 16),
               const Text(
-                'No upcoming or live events',
+                'No upcoming events',
                 style: TextStyle(
                   fontSize: 18,
                   color: Color(0xFF636E72),
@@ -2097,6 +2095,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
         );
       }
 
+      // Upcoming events list
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2114,10 +2113,9 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: upcomingEvents.length,
             itemBuilder: (context, index) {
-              final event = upcomingEvents[index];
-              return _buildEventCard(
+              return buildEventCard(
                 context: context,
-                event: event,
+                event: upcomingEvents[index],
               );
             },
           ),
@@ -2127,40 +2125,59 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
   );
 }
 
- Widget _buildEventCard({
+Duration _getDuration(Object? duration) {
+  // Helper function to safely cast duration or return default
+  if (duration is Duration) {
+    return duration;
+  }
+  return const Duration(hours: 1);
+}
+
+Widget buildEventCard({
   required BuildContext context,
   required EventModel event,
 }) {
   final now = DateTime.now();
-  final endTime = event.dateTime.add(const Duration(hours: 1));
-  final isLive = now.isAfter(event.dateTime) && now.isBefore(endTime);
+  final duration = _getDuration(event.duration);
+  final endTime = event.dateTime.add(duration);
+
+  bool isLive = now.isAfter(event.dateTime) && now.isBefore(endTime);
+  bool hasEnded = now.isAfter(endTime);
+  bool hasStarted = now.isAfter(event.dateTime);
+
   final timeLeft = event.dateTime.difference(now);
 
-  String formatTimeLeft() {
-    if (isLive) return '🔴 Live Now';
-    if (timeLeft.inDays > 1) return 'Starts in ${timeLeft.inDays} days';
-    if (timeLeft.inDays == 1) return 'Starts tomorrow';
-    if (timeLeft.inHours >= 1) return 'Starts in ${timeLeft.inHours}h ${timeLeft.inMinutes % 60}m';
-    if (timeLeft.inMinutes > 1) return 'Starts in ${timeLeft.inMinutes} minutes';
+  String formatTimeLeft(Duration duration) {
+    if (duration.inDays > 1) return 'Starts in ${duration.inDays} days';
+    if (duration.inDays == 1) return 'Starts tomorrow';
+    if (duration.inHours >= 1) {
+      return 'Starts in ${duration.inHours}h ${duration.inMinutes % 60}m';
+    }
+    if (duration.inMinutes > 1) return 'Starts in ${duration.inMinutes} minutes';
     return 'Starting soon';
   }
 
-  String formatDate(DateTime dateTime) => '${dateTime.day}/${dateTime.month}/${dateTime.year}';
-  String formatTime(DateTime dateTime) => '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  String badgeText = '';
+  Color badgeColor = Colors.transparent;
 
-  void showSnackBar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.redAccent : Colors.green,
-      ),
-    );
+  if (isLive) {
+    badgeText = 'LIVE NOW';
+    badgeColor = Colors.red;
+  } else if (!hasStarted) {
+    badgeText = formatTimeLeft(timeLeft);
+    badgeColor = const Color(0xFF0984E3);
+  } else if (hasEnded) {
+    // No badge after event ended; you can change to "Ended" if you want
+    badgeText = '';
+    badgeColor = Colors.transparent;
   }
 
   return Container(
     margin: const EdgeInsets.only(bottom: 20),
     decoration: BoxDecoration(
       gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
         colors: [Colors.white, Color(0xFFF8F9FA)],
       ),
       borderRadius: BorderRadius.circular(20),
@@ -2184,13 +2201,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                 colors: [Color(0xFFFDCB6E), Color(0xFFE17055)],
               ),
               borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFE17055).withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
             child: const Icon(Icons.event, color: Colors.white, size: 28),
           ),
@@ -2209,78 +2219,75 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${formatDate(event.dateTime)} • ${formatTime(event.dateTime)} • ${event.platform}',
+                  '${event.dateTime.day}/${event.dateTime.month}/${event.dateTime.year} • '
+                  '${event.dateTime.hour.toString().padLeft(2, '0')}:${event.dateTime.minute.toString().padLeft(2, '0')} • '
+                  '${event.platform}',
                   style: const TextStyle(
                     fontSize: 13,
                     color: Color(0xFF636E72),
-                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  formatTimeLeft(),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isLive ? Colors.red : Color(0xFF0984E3),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                badgeText.isEmpty
+                    ? const SizedBox.shrink()
+                    : Text(
+                        badgeText,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: badgeColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                 const SizedBox(height: 8),
                 Text(
                   event.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 14,
                     color: Color(0xFF636E72),
                     height: 1.4,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 16),
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6C5CE7), Color(0xFF74B9FF)],
-              ),
-              borderRadius: BorderRadius.circular(25),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF6C5CE7).withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ElevatedButton(
-              onPressed: () async {
-                HapticFeedback.lightImpact();
-                final uri = Uri.parse(event.link);
-                try {
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication);
-                  } else {
-                    await Clipboard.setData(ClipboardData(text: uri.toString()));
-                    showSnackBar('Could not open link. Copied to clipboard.', isError: true);
-                  }
-                } catch (_) {
-                  await Clipboard.setData(ClipboardData(text: uri.toString()));
-                  showSnackBar('Error launching link. Copied to clipboard.', isError: true);
+          ElevatedButton(
+            onPressed: () async {
+              HapticFeedback.lightImpact();
+              final uri = Uri.parse(event.link);
+              try {
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(
+                    uri,
+                    mode: kIsWeb
+                        ? LaunchMode.platformDefault
+                        : LaunchMode.externalApplication,
+                  );
+                } else {
+                  throw 'Could not launch URL';
                 }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              } catch (_) {
+                await Clipboard.setData(ClipboardData(text: uri.toString()));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Could not open link. Copied to clipboard.'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6C5CE7),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
               ),
-              child: const Text('Join', style: TextStyle(fontWeight: FontWeight.w600)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              elevation: 4,
             ),
+            child: const Text('Join', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
       ),

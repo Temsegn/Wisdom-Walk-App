@@ -80,21 +80,20 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       context.read<MessageProvider>().loadMessages(widget.chat.id);
     }
   }
-
-  Future<void> _loadInitialMessages() async {
-    await context.read<MessageProvider>().loadMessages(
-      widget.chat.id,
-      refresh: true,
-    );
-    setState(() => _isInitialLoad = false);
-    
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.minScrollExtent);
-      }
-    });
-  }
-
+Future<void> _loadInitialMessages() async {
+  await context.read<MessageProvider>().loadMessages(
+    widget.chat.id,
+    refresh: true,
+  );
+  setState(() => _isInitialLoad = false);
+  
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (_scrollController.hasClients) {
+      // Change to maxScrollExtent to scroll to bottom
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    }
+  });
+}
   void _markChatAsRead() {
     context.read<ChatProvider>().markChatAsRead(widget.chat.id);
   }
@@ -343,8 +342,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           ),
           child: ListView.builder(
             controller: _scrollController,
-            reverse: true,
-            physics: const AlwaysScrollableScrollPhysics(),
+             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
             itemCount: messages.length + (isLoading ? 1 : 0),
             itemBuilder: (context, index) {
@@ -844,27 +842,26 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       ),
     );
   }
-
-  Future<void> _sendMessage(String content) async {
-    if (content.trim().isEmpty) return;
-    
-    final messageProvider = context.read<MessageProvider>();
-    await messageProvider.sendMessage(
-      chatId: widget.chat.id,
-      content: content.trim(),
+Future<void> _sendMessage(String content) async {
+  if (content.trim().isEmpty) return;
+  
+  final messageProvider = context.read<MessageProvider>();
+  await messageProvider.sendMessage(
+    chatId: widget.chat.id,
+    content: content.trim(),
+  );
+  
+  _messageController.clear();
+  
+  if (_scrollController.hasClients) {
+    // Change to maxScrollExtent to scroll to bottom
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
     );
-    
-    _messageController.clear();
-    
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.minScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
   }
-
+}
   Future<void> _attachFile() async {
     showModalBottomSheet(
       context: context,

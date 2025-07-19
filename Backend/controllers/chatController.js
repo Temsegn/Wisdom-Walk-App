@@ -209,7 +209,7 @@ const createDirectChat = async (req, res) => {
       .populate("sender", "firstName lastName profilePicture")
       .populate("replyTo", "content sender")
       .populate("forwardedFrom", "content sender")
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .skip(skip)
       .limit(Number.parseInt(limit));
 
