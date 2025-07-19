@@ -1,21 +1,28 @@
+import 'dart:math';
+
 import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wisdomwalk/models/chat_model.dart';
+import 'package:wisdomwalk/models/user_model.dart';
 import 'package:wisdomwalk/models/wisdom_circle_model.dart';
 import 'package:wisdomwalk/providers/auth_provider.dart';
 import 'package:wisdomwalk/providers/chat_provider.dart';
 import 'package:wisdomwalk/providers/event_provider.dart';
 import 'package:wisdomwalk/providers/prayer_provider.dart';
 import 'package:wisdomwalk/providers/reflection_provider.dart';
+import 'package:wisdomwalk/providers/user_provider.dart';
 import 'package:wisdomwalk/providers/wisdom_circle_provider.dart';
 import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
 import 'package:wisdomwalk/providers/her_move_provider.dart';
 import 'package:wisdomwalk/models/prayer_model.dart';
 import 'package:wisdomwalk/services/local_storage_service.dart';
+import 'package:wisdomwalk/views/chat/chat_screen.dart';
 import 'package:wisdomwalk/views/dashboared/her_move_tab.dart';
+import 'package:wisdomwalk/views/settings/profile_settings_screen.dart';
 import 'package:wisdomwalk/widgets/add_prayer_modal.dart';
 import 'package:wisdomwalk/widgets/anonymous_share_card.dart';
 import 'package:wisdomwalk/widgets/booking_form.dart';
@@ -40,7 +47,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> with TickerProviderStateMixin {
+class _DashboardScreenState extends State<DashboardScreen>
+    with TickerProviderStateMixin {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
   AnimationController? _animationController;
@@ -61,11 +69,34 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     )..repeat(reverse: true);
 
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.98).animate(
-      CurvedAnimation(parent: _animationController!, curve: Curves.easeInOutCubic),
+      CurvedAnimation(
+        parent: _animationController!,
+        curve: Curves.easeInOutCubic,
+      ),
     );
     _breathingAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
       CurvedAnimation(parent: _breathingController!, curve: Curves.easeInOut),
     );
+
+    // Check for initial tab from route
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final extra = ModalRoute.of(context)?.settings.arguments as Map?;
+      final tabIndex = extra?['tab'] as int? ?? 0;
+      if (tabIndex != _currentIndex) {
+        _onTabTapped(tabIndex);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(DashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Handle tab changes from route updates
+    final extra = ModalRoute.of(context)?.settings.arguments as Map?;
+    final tabIndex = extra?['tab'] as int? ?? _currentIndex;
+    if (tabIndex != _currentIndex) {
+      _onTabTapped(tabIndex);
+    }
   }
 
   @override
@@ -77,20 +108,16 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
 
   void _onTabTapped(int index) {
-    print('Tapped index: $index'); // Debug print to confirm tap
+    print('Tapped index: $index');
     if (_currentIndex != index) {
       HapticFeedback.selectionClick();
       setState(() {
         _currentIndex = index;
       });
-      _pageController.jumpToPage(index); // Use jumpToPage for reliability
-      // Optional: Uncomment for smooth transitions after confirming functionality
-      // _pageController.animateToPage(
-      //   index,
-      //   duration: const Duration(milliseconds: 500),
-      //   curve: Curves.easeInOutCubicEmphasized,
-      // );
-      _animationController?.forward().then((_) => _animationController?.reverse());
+      _pageController.jumpToPage(index);
+      _animationController?.forward().then(
+        (_) => _animationController?.reverse(),
+      );
     }
   }
 
@@ -118,12 +145,12 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               child: PageView(
                 controller: _pageController,
                 onPageChanged: (index) {
-                  print('Page changed to: $index'); // Debug print
+                  print('Page changed to: $index');
                   setState(() {
                     _currentIndex = index;
                   });
                 },
-                children: [
+                children: const [
                   HomeTab(),
                   PrayerWallTab(),
                   WisdomCirclesTab(),
@@ -153,19 +180,48 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           fontWeight: FontWeight.w500,
           fontSize: 11,
         ),
-        items: [
-          _buildNavItem(Icons.home_outlined, Icons.home_rounded, 'Home', 0),
-          _buildNavItem(Icons.volunteer_activism_outlined, Icons.volunteer_activism_rounded, 'Prayer', 1),
-          _buildNavItem(Icons.people_outline_rounded, Icons.people_rounded, 'Circles', 2),
-          _buildNavItem(Icons.mail_outline_rounded, Icons.mail_rounded, 'Share', 3),
-          _buildNavItem(Icons.map_outlined, Icons.map_rounded, 'Her Move', 4),
-          _buildNavItem(Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, 'Chat', 5),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined, size: 26),
+            activeIcon: Icon(Icons.home_rounded, size: 26),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.volunteer_activism_outlined, size: 26),
+            activeIcon: Icon(Icons.volunteer_activism_rounded, size: 26),
+            label: 'Prayer',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people_outline_rounded, size: 26),
+            activeIcon: Icon(Icons.people_rounded, size: 26),
+            label: 'Circles',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.mail_outline_rounded, size: 26),
+            activeIcon: Icon(Icons.mail_rounded, size: 26),
+            label: 'Share',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.map_outlined, size: 26),
+            activeIcon: Icon(Icons.map_rounded, size: 26),
+            label: 'Her Move',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat_bubble_outline_rounded, size: 26),
+            activeIcon: Icon(Icons.chat_bubble_rounded, size: 26),
+            label: 'Chat',
+          ),
         ],
       ),
     );
   }
 
-  BottomNavigationBarItem _buildNavItem(IconData icon, IconData activeIcon, String label, int index) {
+  BottomNavigationBarItem _buildNavItem(
+    IconData icon,
+    IconData activeIcon,
+    String label,
+    int index,
+  ) {
     final isSelected = _currentIndex == index;
     return BottomNavigationBarItem(
       icon: AnimatedContainer(
@@ -173,33 +229,35 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         curve: Curves.easeInOutCubicEmphasized,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          gradient: isSelected
-              ? const LinearGradient(
-                  colors: [
-                    Color(0xFF6366F1),
-                    Color(0xFF8B5CF6),
-                    Color(0xFFA855F7),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
+          gradient:
+              isSelected
+                  ? const LinearGradient(
+                    colors: [
+                      Color(0xFF6366F1),
+                      Color(0xFF8B5CF6),
+                      Color(0xFFA855F7),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                  : null,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF6366F1).withOpacity(0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                    spreadRadius: 0,
-                  ),
-                  BoxShadow(
-                    color: const Color(0xFF6366F1).withOpacity(0.2),
-                    blurRadius: 32,
-                    offset: const Offset(0, 8),
-                  ),
-                ]
-              : null,
+          boxShadow:
+              isSelected
+                  ? [
+                    BoxShadow(
+                      color: const Color(0xFF6366F1).withOpacity(0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                      spreadRadius: 0,
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF6366F1).withOpacity(0.2),
+                      blurRadius: 32,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                  : null,
         ),
         child: Icon(
           icon,
@@ -208,16 +266,12 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         ),
       ),
       activeIcon: AnimatedContainer(
-        duration:  Duration(milliseconds: 400),
+        duration: Duration(milliseconds: 400),
         curve: Curves.easeInOutCubicEmphasized,
         padding: const EdgeInsets.all(12),
-        decoration:  BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color(0xFF6366F1),
-              Color(0xFF8B5CF6),
-              Color(0xFFA855F7),
-            ],
+            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFFA855F7)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -236,16 +290,13 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
             ),
           ],
         ),
-        child: Icon(
-          activeIcon,
-          color: Colors.white,
-          size: 26,
-        ),
+        child: Icon(activeIcon, color: Colors.white, size: 26),
       ),
       label: label,
     );
   }
 }
+
 // Enhanced HomeTab Implementation
 class HomeTab extends StatefulWidget {
   const HomeTab({Key? key}) : super(key: key);
@@ -278,14 +329,16 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat();
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController!, curve: Curves.easeOutCubic),
     );
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.5),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideController!, curve: Curves.easeOutCubic));
+    ).animate(
+      CurvedAnimation(parent: _slideController!, curve: Curves.easeOutCubic),
+    );
     _shimmerAnimation = Tween<double>(begin: -2.0, end: 2.0).animate(
       CurvedAnimation(parent: _shimmerController!, curve: Curves.easeInOut),
     );
@@ -336,11 +389,12 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           ),
         ),
         title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.white, Color(0xFFF1F5F9)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ).createShader(bounds),
+          shaderCallback:
+              (bounds) => const LinearGradient(
+                colors: [Colors.white, Color(0xFFF1F5F9)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ).createShader(bounds),
           child: const Text(
             'WisdomWalk',
             style: TextStyle(
@@ -443,8 +497,12 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                 size: 28,
               ),
               onPressed: () {
-                HapticFeedback.lightImpact();
-                context.push('/settings');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileSettingsScreen(),
+                  ),
+                );
               },
             ),
           ),
@@ -453,16 +511,14 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       body: FadeTransition(
         opacity: _fadeAnimation ?? const AlwaysStoppedAnimation(1.0),
         child: SlideTransition(
-          position: _slideAnimation ?? const AlwaysStoppedAnimation(Offset.zero),
+          position:
+              _slideAnimation ?? const AlwaysStoppedAnimation(Offset.zero),
           child: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFF8FAFF),
-                  Color(0xFFFFFFFF),
-                ],
+                colors: [Color(0xFFF8FAFF), Color(0xFFFFFFFF)],
               ),
             ),
             child: SafeArea(
@@ -530,7 +586,11 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               },
               backgroundColor: Colors.transparent,
               elevation: 0,
-              icon: const Icon(Icons.event_available_rounded, color: Colors.white, size: 24),
+              icon: const Icon(
+                Icons.event_available_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
               label: const Text(
                 'Book Session',
                 style: TextStyle(
@@ -661,11 +721,18 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                       _showShareModal(context, shareMessage);
                     },
                     child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.share_rounded, size: 20, color: Colors.white),
+                          Icon(
+                            Icons.share_rounded,
+                            size: 20,
+                            color: Colors.white,
+                          ),
                           SizedBox(width: 12),
                           Text(
                             'Share',
@@ -745,10 +812,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [
-                              Colors.grey[50]!,
-                              Colors.white,
-                            ],
+                            colors: [Colors.grey[50]!, Colors.white],
                           ),
                           borderRadius: BorderRadius.circular(15),
                           border: Border.all(
@@ -762,9 +826,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                             hintText: 'Write your reflection...',
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.all(20),
-                            hintStyle: TextStyle(
-                              color: Color(0xFF636E72),
-                            ),
+                            hintStyle: TextStyle(color: Color(0xFF636E72)),
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
@@ -797,48 +859,57 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                               borderRadius: BorderRadius.circular(25),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF6C5CE7).withOpacity(0.3),
+                                  color: const Color(
+                                    0xFF6C5CE7,
+                                  ).withOpacity(0.3),
                                   blurRadius: 8,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
                             child: ElevatedButton(
-                              onPressed: _isLoading
-                                  ? null
-                                  : () async {
-                                      if (_formKey.currentState!.validate()) {
-                                        setState(() => _isLoading = true);
-                                        final reflectionProvider =
-                                            Provider.of<ReflectionProvider>(
-                                          context,
-                                          listen: false,
-                                        );
-                                        reflectionProvider.addReflection(
-                                          verseReference,
-                                          _reflectionController.text.trim(),
-                                        );
-                                        setState(() => _isLoading = false);
-                                        Navigator.pop(context);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: const Text(
-                                              'Reflection saved successfully',
+                              onPressed:
+                                  _isLoading
+                                      ? null
+                                      : () async {
+                                        if (_formKey.currentState!.validate()) {
+                                          setState(() => _isLoading = true);
+                                          final reflectionProvider =
+                                              Provider.of<ReflectionProvider>(
+                                                context,
+                                                listen: false,
+                                              );
+                                          reflectionProvider.addReflection(
+                                            verseReference,
+                                            _reflectionController.text.trim(),
+                                          );
+                                          setState(() => _isLoading = false);
+                                          Navigator.pop(context);
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: const Text(
+                                                'Reflection saved successfully',
+                                              ),
+                                              backgroundColor: const Color(
+                                                0xFF00B894,
+                                              ),
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
                                             ),
-                                            backgroundColor: const Color(0xFF00B894),
-                                            behavior: SnackBarBehavior.floating,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
-                                          ),
-                                        );
-                                        _showShareModal(
-                                          context,
-                                          'My reflection on $verseReference:\n\n${_reflectionController.text.trim()}\n\nJoin me on WisdomWalk: https://wisdomwalk.app',
-                                        );
-                                        _reflectionController.clear();
-                                      }
-                                    },
+                                          );
+                                          _showShareModal(
+                                            context,
+                                            'My reflection on $verseReference:\n\n${_reflectionController.text.trim()}\n\nJoin me on WisdomWalk: https://wisdomwalk.app',
+                                          );
+                                          _reflectionController.clear();
+                                        }
+                                      },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,
                                 foregroundColor: Colors.white,
@@ -851,21 +922,22 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                   borderRadius: BorderRadius.circular(25),
                                 ),
                               ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
+                              child:
+                                  _isLoading
+                                      ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                      : const Text(
+                                        'Save & Share',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                    )
-                                  : const Text(
-                                      'Save & Share',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
                             ),
                           ),
                         ],
@@ -994,16 +1066,10 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                color.withOpacity(0.1),
-                color.withOpacity(0.05),
-              ],
+              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: color.withOpacity(0.3),
-              width: 2,
-            ),
+            border: Border.all(color: color.withOpacity(0.3), width: 2),
             boxShadow: [
               BoxShadow(
                 color: color.withOpacity(0.2),
@@ -1019,11 +1085,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Icon(
-                  _getIconForPlatform(label),
-                  color: color,
-                  size: 32,
-                ),
+                child: Icon(_getIconForPlatform(label), color: color, size: 32),
               ),
             ),
           ),
@@ -1077,11 +1139,13 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
         break;
       case 'facebook':
         if (kIsWeb) {
-          url = 'https://www.facebook.com/sharer/sharer.php?quote=$encodedMessage';
+          url =
+              'https://www.facebook.com/sharer/sharer.php?quote=$encodedMessage';
           fallbackUrl = url;
         } else {
           url = 'fb://share?text=$encodedMessage';
-          fallbackUrl = 'https://www.facebook.com/sharer/sharer.php?quote=$encodedMessage';
+          fallbackUrl =
+              'https://www.facebook.com/sharer/sharer.php?quote=$encodedMessage';
         }
         break;
       case 'twitter':
@@ -1095,11 +1159,13 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
         break;
       case 'telegram':
         if (kIsWeb) {
-          url = 'https://t.me/share/url?text=$encodedMessage&url=https://wisdomwalk.app';
+          url =
+              'https://t.me/share/url?text=$encodedMessage&url=https://wisdomwalk.app';
           fallbackUrl = url;
         } else {
           url = 'tg://msg?text=$encodedMessage';
-          fallbackUrl = 'https://t.me/share/url?text=$encodedMessage&url=https://wisdomwalk.app';
+          fallbackUrl =
+              'https://t.me/share/url?text=$encodedMessage&url=https://wisdomwalk.app';
         }
         break;
       default:
@@ -1156,10 +1222,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             height: 200,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Colors.grey[100]!,
-                  Colors.grey[50]!,
-                ],
+                colors: [Colors.grey[100]!, Colors.grey[50]!],
               ),
               borderRadius: BorderRadius.circular(20),
             ),
@@ -1217,9 +1280,10 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                     borderRadius: BorderRadius.circular(25),
                   ),
                   child: ElevatedButton(
-                    onPressed: () => shareProvider.fetchShares(
-                      type: AnonymousShareType.testimony,
-                    ),
+                    onPressed:
+                        () => shareProvider.fetchShares(
+                          type: AnonymousShareType.testimony,
+                        ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       foregroundColor: Colors.white,
@@ -1239,24 +1303,22 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           );
         }
 
-        final testimonies = shareProvider.shares
-            .where((share) => share.category == AnonymousShareType.testimony)
-            .toList();
-        
+        final testimonies =
+            shareProvider.shares
+                .where(
+                  (share) => share.category == AnonymousShareType.testimony,
+                )
+                .toList();
+
         if (testimonies.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Colors.grey[50]!,
-                  Colors.white,
-                ],
+                colors: [Colors.grey[50]!, Colors.white],
               ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.grey[200]!,
-              ),
+              border: Border.all(color: Colors.grey[200]!),
             ),
             child: Column(
               children: [
@@ -1264,10 +1326,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        Colors.grey[300]!,
-                        Colors.grey[200]!,
-                      ],
+                      colors: [Colors.grey[300]!, Colors.grey[200]!],
                     ),
                     borderRadius: BorderRadius.circular(50),
                   ),
@@ -1370,7 +1429,10 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                     ),
                                     decoration: BoxDecoration(
                                       gradient: const LinearGradient(
-                                        colors: [Color(0xFF00B894), Color(0xFF00CEC9)],
+                                        colors: [
+                                          Color(0xFF00B894),
+                                          Color(0xFF00CEC9),
+                                        ],
                                       ),
                                       borderRadius: BorderRadius.circular(15),
                                     ),
@@ -1401,7 +1463,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    if (testimony.title != null && testimony.title!.isNotEmpty) ...[
+                    if (testimony.title != null &&
+                        testimony.title!.isNotEmpty) ...[
                       Text(
                         testimony.title!,
                         style: const TextStyle(
@@ -1451,24 +1514,26 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                                   width: 120,
                                   height: 120,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(
-                                    width: 120,
-                                    height: 120,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          Colors.grey[200]!,
-                                          Colors.grey[100]!,
-                                        ],
+                                  errorBuilder:
+                                      (context, error, stackTrace) => Container(
+                                        width: 120,
+                                        height: 120,
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.grey[200]!,
+                                              Colors.grey[100]!,
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            15,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.error_outline,
+                                          color: Color(0xFF636E72),
+                                        ),
                                       ),
-                                      borderRadius: BorderRadius.circular(15),
-                                    ),
-                                    child: const Icon(
-                                      Icons.error_outline,
-                                      color: Color(0xFF636E72),
-                                    ),
-                                  ),
                                 ),
                               ),
                             );
@@ -1482,17 +1547,22 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                       child: Row(
                         children: [
                           _buildActionButton(
-                            icon: isPraying
-                                ? Icons.volunteer_activism
-                                : Icons.volunteer_activism_outlined,
+                            icon:
+                                isPraying
+                                    ? Icons.volunteer_activism
+                                    : Icons.volunteer_activism_outlined,
                             label: '${testimony.prayerCount}',
                             color: const Color(0xFF6C5CE7),
                             isActive: isPraying,
                             onPressed: () async {
                               HapticFeedback.lightImpact();
-                              final token = await localStorageService.getAuthToken();
+                              final token =
+                                  await localStorageService.getAuthToken();
                               if (userId == 'current_user' || token == null) {
-                                _showLoginPrompt(context, 'pray for this testimony');
+                                _showLoginPrompt(
+                                  context,
+                                  'pray for this testimony',
+                                );
                                 return;
                               }
                               final success = await shareProvider.togglePraying(
@@ -1522,7 +1592,10 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                             onPressed: () {
                               HapticFeedback.lightImpact();
                               if (userId == 'current_user') {
-                                _showLoginPrompt(context, 'comment on this testimony');
+                                _showLoginPrompt(
+                                  context,
+                                  'comment on this testimony',
+                                );
                                 return;
                               }
                               context.push('/anonymous-share/${testimony.id}');
@@ -1530,15 +1603,22 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                           ),
                           const SizedBox(width: 12),
                           _buildActionButton(
-                            icon: isLiked ? Icons.favorite : Icons.favorite_border,
+                            icon:
+                                isLiked
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
                             label: '${testimony.heartCount}',
                             color: const Color(0xFFE17055),
                             isActive: isLiked,
                             onPressed: () async {
                               HapticFeedback.lightImpact();
-                              final token = await localStorageService.getAuthToken();
+                              final token =
+                                  await localStorageService.getAuthToken();
                               if (userId == 'current_user' || token == null) {
-                                _showLoginPrompt(context, 'heart this testimony');
+                                _showLoginPrompt(
+                                  context,
+                                  'heart this testimony',
+                                );
                                 return;
                               }
                               final success = await shareProvider.toggleHeart(
@@ -1548,7 +1628,9 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                               if (success && context.mounted) {
                                 _showSuccessSnackBar(
                                   context,
-                                  isLiked ? 'Removed heart' : 'Testimony hearted! ❤️',
+                                  isLiked
+                                      ? 'Removed heart'
+                                      : 'Testimony hearted! ❤️',
                                   const Color(0xFFE17055),
                                 );
                               }
@@ -1556,22 +1638,27 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                           ),
                           const SizedBox(width: 12),
                           _buildActionButton(
-                            icon: hasHugged ? Icons.favorite : Icons.favorite_border,
+                            icon:
+                                hasHugged
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
                             label: '${testimony.hugCount}',
                             color: const Color(0xFFE84393),
                             isActive: hasHugged,
                             onPressed: () async {
                               HapticFeedback.lightImpact();
-                              final token = await localStorageService.getAuthToken();
+                              final token =
+                                  await localStorageService.getAuthToken();
                               if (userId == 'current_user' || token == null) {
                                 _showLoginPrompt(context, 'send a virtual hug');
                                 return;
                               }
-                              final success = await shareProvider.sendVirtualHug(
-                                shareId: testimony.id,
-                                userId: userId,
-                                scripture: '',
-                              );
+                              final success = await shareProvider
+                                  .sendVirtualHug(
+                                    shareId: testimony.id,
+                                    userId: userId,
+                                    scripture: '',
+                                  );
                               if (success && context.mounted) {
                                 _showSuccessSnackBar(
                                   context,
@@ -1600,9 +1687,10 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                       testimony.isReported
                           ? Icons.report_problem
                           : Icons.report_problem_outlined,
-                      color: testimony.isReported
-                          ? const Color(0xFFE17055)
-                          : const Color(0xFF636E72),
+                      color:
+                          testimony.isReported
+                              ? const Color(0xFFE17055)
+                              : const Color(0xFF636E72),
                       size: 20,
                     ),
                     onPressed: () async {
@@ -1633,16 +1721,12 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
   }) {
     return Container(
       decoration: BoxDecoration(
-        gradient: isActive
-            ? LinearGradient(
-                colors: [color, color.withOpacity(0.8)],
-              )
-            : LinearGradient(
-                colors: [
-                  color.withOpacity(0.1),
-                  color.withOpacity(0.05),
-                ],
-              ),
+        gradient:
+            isActive
+                ? LinearGradient(colors: [color, color.withOpacity(0.8)])
+                : LinearGradient(
+                  colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+                ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isActive ? color : color.withOpacity(0.3),
@@ -1659,11 +1743,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: isActive ? Colors.white : color,
-                ),
+                Icon(icon, size: 16, color: isActive ? Colors.white : color),
                 const SizedBox(width: 6),
                 Text(
                   label,
@@ -1687,9 +1767,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
         content: Text('Please log in to $action'),
         backgroundColor: const Color(0xFFE17055),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -1700,9 +1778,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
         content: Text(message),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -1769,14 +1845,16 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                   colors: [Color(0xFFE17055), Color(0xFFD63031)],
                 ),
                 borderRadius: BorderRadius.circular(20),
-                 ),
-                
-              
+              ),
+
               child: ElevatedButton(
                 onPressed: () async {
                   final reason = reasonController.text.trim();
                   if (reason.length < 10) {
-                    _showErrorSnackBar(context, 'Reason must be at least 10 characters');
+                    _showErrorSnackBar(
+                      context,
+                      'Reason must be at least 10 characters',
+                    );
                     return;
                   }
                   final shareProvider = Provider.of<AnonymousShareProvider>(
@@ -1795,7 +1873,9 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                       success
                           ? 'Testimony reported successfully 🚨'
                           : 'Failed to report testimony',
-                      success ? const Color(0xFFE17055) : const Color(0xFFD63031),
+                      success
+                          ? const Color(0xFFE17055)
+                          : const Color(0xFFD63031),
                     );
                   }
                 },
@@ -1825,9 +1905,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
         content: Text(message),
         backgroundColor: const Color(0xFFD63031),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -1954,11 +2032,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(15),
                   ),
-                  child: Icon(
-                    icon,
-                    color: Colors.white,
-                    size: 28,
-                  ),
+                  child: Icon(icon, color: Colors.white, size: 28),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -1977,14 +2051,9 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       ),
     );
   }
-
-
-Widget _buildUpcomingEvents() {
+  Widget _buildUpcomingEvents() {
   return Consumer<EventProvider>(
     builder: (context, eventProvider, child) {
-      final now = DateTime.now();
-
-      // Loading state
       if (eventProvider.isLoading) {
         return Container(
           height: 200,
@@ -1996,13 +2065,12 @@ Widget _buildUpcomingEvents() {
           ),
           child: const Center(
             child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation(Color(0xFF6C5CE7)),
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C5CE7)),
             ),
           ),
         );
       }
 
-      // Error state
       if (eventProvider.error != null) {
         return Container(
           padding: const EdgeInsets.all(24),
@@ -2023,7 +2091,7 @@ Widget _buildUpcomingEvents() {
                   ),
                   borderRadius: BorderRadius.circular(50),
                 ),
-                child: const Icon(Icons.error_outline, color: Colors.white, size: 32),
+                child: const Icon(Icons.error_outline, size: 32, color: Colors.white),
               ),
               const SizedBox(height: 16),
               Text(
@@ -2035,38 +2103,44 @@ Widget _buildUpcomingEvents() {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: eventProvider.fetchEvents,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C5CE7),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C5CE7), Color(0xFF74B9FF)],
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  borderRadius: BorderRadius.circular(25),
                 ),
-                child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.w600)),
+                child: ElevatedButton(
+                  onPressed: () => eventProvider.fetchEvents(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                  ),
+                  child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
               ),
             ],
           ),
         );
       }
 
-      // Filter upcoming events: those that haven't ended yet
- 
-final upcomingEvents = eventProvider.events.where((event) {
-  final duration = _getDuration(event.duration);
-  final endTime = event.dateTime.add(duration);
-  return now.isBefore(endTime); // Only future or currently live events
-}).toList();
+      final now = DateTime.now();
+      final upcomingEvents = eventProvider.events.where((event) {
+        final endTime = event.dateTime.add(const Duration(hours: 1));
+        return endTime.isAfter(now);
+      }).toList();
 
-
-      // Empty state
       if (upcomingEvents.isEmpty) {
         return Container(
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [Colors.grey[50]!, Colors.white]),
+            gradient: LinearGradient(
+              colors: [Colors.grey[50]!, Colors.white],
+            ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.grey[200]!),
           ),
@@ -2075,14 +2149,16 @@ final upcomingEvents = eventProvider.events.where((event) {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [Colors.grey[300]!, Colors.grey[200]!]),
+                  gradient: LinearGradient(
+                    colors: [Colors.grey[300]!, Colors.grey[200]!],
+                  ),
                   borderRadius: BorderRadius.circular(50),
                 ),
                 child: const Icon(Icons.event_outlined, size: 32, color: Colors.white),
               ),
               const SizedBox(height: 16),
               const Text(
-                'No upcoming events',
+                'No upcoming or live events',
                 style: TextStyle(
                   fontSize: 18,
                   color: Color(0xFF636E72),
@@ -2095,7 +2171,6 @@ final upcomingEvents = eventProvider.events.where((event) {
         );
       }
 
-      // Upcoming events list
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2113,9 +2188,10 @@ final upcomingEvents = eventProvider.events.where((event) {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: upcomingEvents.length,
             itemBuilder: (context, index) {
-              return buildEventCard(
+              final event = upcomingEvents[index];
+              return _buildEventCard(
                 context: context,
-                event: upcomingEvents[index],
+                event: event,
               );
             },
           ),
@@ -2125,59 +2201,40 @@ final upcomingEvents = eventProvider.events.where((event) {
   );
 }
 
-Duration _getDuration(Object? duration) {
-  // Helper function to safely cast duration or return default
-  if (duration is Duration) {
-    return duration;
-  }
-  return const Duration(hours: 1);
-}
-
-Widget buildEventCard({
+ Widget _buildEventCard({
   required BuildContext context,
   required EventModel event,
 }) {
   final now = DateTime.now();
-  final duration = _getDuration(event.duration);
-  final endTime = event.dateTime.add(duration);
-
-  bool isLive = now.isAfter(event.dateTime) && now.isBefore(endTime);
-  bool hasEnded = now.isAfter(endTime);
-  bool hasStarted = now.isAfter(event.dateTime);
-
+  final endTime = event.dateTime.add(const Duration(hours: 1));
+  final isLive = now.isAfter(event.dateTime) && now.isBefore(endTime);
   final timeLeft = event.dateTime.difference(now);
 
-  String formatTimeLeft(Duration duration) {
-    if (duration.inDays > 1) return 'Starts in ${duration.inDays} days';
-    if (duration.inDays == 1) return 'Starts tomorrow';
-    if (duration.inHours >= 1) {
-      return 'Starts in ${duration.inHours}h ${duration.inMinutes % 60}m';
-    }
-    if (duration.inMinutes > 1) return 'Starts in ${duration.inMinutes} minutes';
+  String formatTimeLeft() {
+    if (isLive) return '🔴 Live Now';
+    if (timeLeft.inDays > 1) return 'Starts in ${timeLeft.inDays} days';
+    if (timeLeft.inDays == 1) return 'Starts tomorrow';
+    if (timeLeft.inHours >= 1) return 'Starts in ${timeLeft.inHours}h ${timeLeft.inMinutes % 60}m';
+    if (timeLeft.inMinutes > 1) return 'Starts in ${timeLeft.inMinutes} minutes';
     return 'Starting soon';
   }
 
-  String badgeText = '';
-  Color badgeColor = Colors.transparent;
+  String formatDate(DateTime dateTime) => '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+  String formatTime(DateTime dateTime) => '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
 
-  if (isLive) {
-    badgeText = 'LIVE NOW';
-    badgeColor = Colors.red;
-  } else if (!hasStarted) {
-    badgeText = formatTimeLeft(timeLeft);
-    badgeColor = const Color(0xFF0984E3);
-  } else if (hasEnded) {
-    // No badge after event ended; you can change to "Ended" if you want
-    badgeText = '';
-    badgeColor = Colors.transparent;
+  void showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.redAccent : Colors.green,
+      ),
+    );
   }
 
   return Container(
     margin: const EdgeInsets.only(bottom: 20),
     decoration: BoxDecoration(
       gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
         colors: [Colors.white, Color(0xFFF8F9FA)],
       ),
       borderRadius: BorderRadius.circular(20),
@@ -2201,6 +2258,13 @@ Widget buildEventCard({
                 colors: [Color(0xFFFDCB6E), Color(0xFFE17055)],
               ),
               borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFE17055).withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: const Icon(Icons.event, color: Colors.white, size: 28),
           ),
@@ -2219,75 +2283,78 @@ Widget buildEventCard({
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${event.dateTime.day}/${event.dateTime.month}/${event.dateTime.year} • '
-                  '${event.dateTime.hour.toString().padLeft(2, '0')}:${event.dateTime.minute.toString().padLeft(2, '0')} • '
-                  '${event.platform}',
+                  '${formatDate(event.dateTime)} • ${formatTime(event.dateTime)} • ${event.platform}',
                   style: const TextStyle(
                     fontSize: 13,
                     color: Color(0xFF636E72),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 6),
-                badgeText.isEmpty
-                    ? const SizedBox.shrink()
-                    : Text(
-                        badgeText,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: badgeColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                Text(
+                  formatTimeLeft(),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isLive ? Colors.red : Color(0xFF0984E3),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   event.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 14,
                     color: Color(0xFF636E72),
                     height: 1.4,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 16),
-          ElevatedButton(
-            onPressed: () async {
-              HapticFeedback.lightImpact();
-              final uri = Uri.parse(event.link);
-              try {
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(
-                    uri,
-                    mode: kIsWeb
-                        ? LaunchMode.platformDefault
-                        : LaunchMode.externalApplication,
-                  );
-                } else {
-                  throw 'Could not launch URL';
-                }
-              } catch (_) {
-                await Clipboard.setData(ClipboardData(text: uri.toString()));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Could not open link. Copied to clipboard.'),
-                    backgroundColor: Colors.redAccent,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6C5CE7),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
+          Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6C5CE7), Color(0xFF74B9FF)],
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              elevation: 4,
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF6C5CE7).withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: const Text('Join', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: ElevatedButton(
+              onPressed: () async {
+                HapticFeedback.lightImpact();
+                final uri = Uri.parse(event.link);
+                try {
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication);
+                  } else {
+                    await Clipboard.setData(ClipboardData(text: uri.toString()));
+                    showSnackBar('Could not open link. Copied to clipboard.', isError: true);
+                  }
+                } catch (_) {
+                  await Clipboard.setData(ClipboardData(text: uri.toString()));
+                  showSnackBar('Error launching link. Copied to clipboard.', isError: true);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: const Text('Join', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
           ),
         ],
       ),
@@ -2315,9 +2382,12 @@ class PrayerWallTab extends StatefulWidget {
   State<PrayerWallTab> createState() => _PrayerWallTabState();
 }
 
-class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateMixin {
+class _PrayerWallTabState extends State<PrayerWallTab>
+    with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  final Map<String, TextEditingController> _commentControllers = {};
+  final Map<String, bool> _showCommentSection = {};
 
   @override
   void initState() {
@@ -2326,9 +2396,10 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
     _fadeController.forward();
 
     final prayerProvider = Provider.of<PrayerProvider>(context, listen: false);
@@ -2338,6 +2409,7 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
   @override
   void dispose() {
     _fadeController.dispose();
+    _commentControllers.forEach((_, controller) => controller.dispose());
     super.dispose();
   }
 
@@ -2353,18 +2425,15 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF6C5CE7),
-                Color(0xFFA29BFE),
-                Color(0xFF74B9FF),
-              ],
+              colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE), Color(0xFF74B9FF)],
             ),
           ),
         ),
         title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.white, Color(0xFFF8F9FA)],
-          ).createShader(bounds),
+          shaderCallback:
+              (bounds) => const LinearGradient(
+                colors: [Colors.white, Color(0xFFF8F9FA)],
+              ).createShader(bounds),
           child: const Text(
             'Prayer Wall',
             style: TextStyle(
@@ -2427,10 +2496,7 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFF8F9FA),
-                Color(0xFFFFFFFF),
-              ],
+              colors: [Color(0xFFF8F9FA), Color(0xFFFFFFFF)],
             ),
           ),
           child: Consumer<PrayerProvider>(
@@ -2438,7 +2504,9 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
               if (prayerProvider.isLoading) {
                 return const Center(
                   child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C5CE7)),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Color(0xFF6C5CE7),
+                    ),
                   ),
                 );
               }
@@ -2526,15 +2594,10 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [
-                          Colors.grey[50]!,
-                          Colors.white,
-                        ],
+                        colors: [Colors.grey[50]!, Colors.white],
                       ),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.grey[200]!,
-                      ),
+                      border: Border.all(color: Colors.grey[200]!),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -2599,6 +2662,14 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
   Widget _buildPrayerCard(PrayerModel prayer) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final userId = authProvider.currentUser?.id ?? 'current_user';
+    final commentController = _commentControllers.putIfAbsent(
+      prayer.id,
+      () => TextEditingController(),
+    );
+    final showCommentSection = _showCommentSection.putIfAbsent(
+      prayer.id,
+      () => false,
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -2626,29 +2697,59 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: prayer.isAnonymous || prayer.userAvatar == null
-                            ? const LinearGradient(
-                                colors: [Color(0xFF74B9FF), Color(0xFF0984E3)],
-                              )
-                            : null,
-                        borderRadius: BorderRadius.circular(50),
-                        image: prayer.isAnonymous || prayer.userAvatar == null
-                            ? null
-                            : DecorationImage(
-                                image: NetworkImage(prayer.userAvatar!),
-                                fit: BoxFit.cover,
-                              ),
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        if (prayer.isAnonymous) {
+                          _showErrorSnackBar(
+                            context,
+                            'Cannot view anonymous profiles',
+                          );
+                          return;
+                        }
+                        if (userId == 'current_user') {
+                          _showLoginPrompt(context, 'view your profile');
+                          return;
+                        }
+                        if (prayer.userId != userId) {
+                          _showErrorSnackBar(
+                            context,
+                            'You can only view your own profile',
+                          );
+                          return;
+                        }
+                        context.push('/profile');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient:
+                              prayer.isAnonymous || prayer.userAvatar == null
+                                  ? const LinearGradient(
+                                    colors: [
+                                      Color(0xFF74B9FF),
+                                      Color(0xFF0984E3),
+                                    ],
+                                  )
+                                  : null,
+                          borderRadius: BorderRadius.circular(50),
+                          image:
+                              prayer.isAnonymous || prayer.userAvatar == null
+                                  ? null
+                                  : DecorationImage(
+                                    image: NetworkImage(prayer.userAvatar!),
+                                    fit: BoxFit.cover,
+                                  ),
+                        ),
+                        child:
+                            prayer.isAnonymous || prayer.userAvatar == null
+                                ? const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 24,
+                                )
+                                : null,
                       ),
-                      child: prayer.isAnonymous || prayer.userAvatar == null
-                          ? const Icon(
-                              Icons.person,
-                              color: Colors.white,
-                              size: 24,
-                            )
-                          : null,
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -2675,7 +2776,10 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
                                 ),
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
-                                    colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE)],
+                                    colors: [
+                                      Color(0xFF6C5CE7),
+                                      Color(0xFFA29BFE),
+                                    ],
                                   ),
                                   borderRadius: BorderRadius.circular(15),
                                 ),
@@ -2721,9 +2825,10 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
                   child: Row(
                     children: [
                       _buildActionButton(
-                        icon: prayer.prayingUsers.contains(userId)
-                            ? Icons.volunteer_activism
-                            : Icons.volunteer_activism_outlined,
+                        icon:
+                            prayer.prayingUsers.contains(userId)
+                                ? Icons.volunteer_activism
+                                : Icons.volunteer_activism_outlined,
                         label: '${prayer.prayingUsers.length}',
                         color: const Color(0xFF6C5CE7),
                         isActive: prayer.prayingUsers.contains(userId),
@@ -2762,24 +2867,25 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
                       _buildActionButton(
                         icon: Icons.comment_outlined,
                         label: '${prayer.comments.length}',
-                        color: const Color(0xFF74B9FF),
-                        isActive: prayer.comments.any(
-                          (comment) => comment.userId == userId,
-                        ),
+                        color: const Color(0xFF1DA1F2), // X's blue color
+                        isActive: showCommentSection,
                         onPressed: () {
                           HapticFeedback.lightImpact();
-                          if (userId == 'current_user') {
-                            _showLoginPrompt(context, 'comment on this post');
-                            return;
-                          }
-                          _showCommentDialog(context, prayer, userId);
+                          setState(() {
+                            _showCommentSection[prayer.id] =
+                                !showCommentSection;
+                            if (!_showCommentSection[prayer.id]!) {
+                              commentController.clear();
+                            }
+                          });
                         },
                       ),
                       const SizedBox(width: 12),
                       _buildActionButton(
-                        icon: prayer.likedUsers.contains(userId)
-                            ? Icons.thumb_up
-                            : Icons.thumb_up_outlined,
+                        icon:
+                            prayer.likedUsers.contains(userId)
+                                ? Icons.thumb_up
+                                : Icons.thumb_up_outlined,
                         label: '${prayer.likedUsers.length}',
                         color: const Color(0xFF00B894),
                         isActive: prayer.likedUsers.contains(userId),
@@ -2819,87 +2925,326 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
                         label: 'Chat',
                         color: const Color(0xFFE84393),
                         isActive: false,
-                        onPressed: () {
+                        onPressed: () async {
                           HapticFeedback.lightImpact();
-                          context.push('/prayer/${prayer.id}');
+
+                          // Check if user is logged in
+                          final authProvider = Provider.of<AuthProvider>(
+                            context,
+                            listen: false,
+                          );
+                          if (!authProvider.isAuthenticated) {
+                            _showLoginPrompt(context, 'start a chat');
+                            return;
+                          }
+
+                          // Check if the prayer is anonymous
+                          if (prayer.isAnonymous) {
+                            _showErrorSnackBar(
+                              context,
+                              'Cannot chat with anonymous users',
+                            );
+                            return;
+                          }
+
+                          // Prevent chatting with self       //////////////////////////////////////////
+                          // if (prayer.userId == authProvider.userId) {
+                          //   _showErrorSnackBar(context, 'You cannot chat with yourself');
+                          //   return;
+                          // }
+
+                          // Check if the target user is blocked
+                          final userProvider = Provider.of<UserProvider>(
+                            context,
+                            listen: false,
+                          );
+                          final targetUser = userProvider.allUsers.firstWhere(
+                            (user) => user.id == prayer.userId,
+                            orElse: () => UserModel.empty(),
+                          );
+                          if (targetUser.isBlocked) {
+                            _showErrorSnackBar(
+                              context,
+                              'Cannot chat with blocked users',
+                            );
+                            return;
+                          }
+
+                          try {
+                            final chatProvider = Provider.of<ChatProvider>(
+                              context,
+                              listen: false,
+                            );
+
+                            // Check for existing chat or create a new one
+                            Chat? chat = await chatProvider.getExistingChat(
+                              prayer.userId,
+                            );
+                            if (chat == null) {
+                              chat = await chatProvider
+                                  .createDirectChatWithGreeting(
+                                    prayer.userId,
+                                    greeting:
+                                        '👋 Hi! I saw your prayer request "${prayer.title ?? prayer.content.substring(0, min(prayer.content.length, 20))}..." and wanted to connect.',
+                                  );
+                            }
+
+                            if (chat == null || !context.mounted) {
+                              _showErrorSnackBar(
+                                context,
+                                'Failed to start chat',
+                              );
+                              return;
+                            }
+
+                            // Navigate to the chat tab in DashboardScreen
+                            context.go(
+                              '/dashboard',
+                              extra: {'tab': 5},
+                            ); // Select chat tab (index 5)
+
+                            // Push ChatScreen after a slight delay to ensure tab switch
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (context.mounted) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => ChatScreen(chat: chat!),
+                                  ),
+                                );
+                              }
+                            });
+                          } catch (e) {
+                            if (context.mounted) {
+                              _showErrorSnackBar(
+                                context,
+                                'Error starting chat: $e',
+                              );
+                            }
+                          }
                         },
                       ),
                     ],
                   ),
                 ),
-                if (prayer.comments.isNotEmpty) ...[
-                  const SizedBox(height: 20),
+                if (showCommentSection) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color:
+                          Colors.grey[100], // Light gray like X's reply field
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.grey[300]!, width: 1),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: commentController,
+                            decoration: const InputDecoration(
+                              hintText: 'Reply to this prayer…',
+                              hintStyle: TextStyle(
+                                color: Color(0xFF657786),
+                              ), // X's hint color
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                            maxLines: null, // Expand as needed
+                            minLines: 1,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF14171A), // X's text color
+                            ),
+                          ),
+                        ),
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFF1DA1F2), // X's blue
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0x331DA1F2),
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            onPressed: () async {
+                              if (userId == 'current_user') {
+                                _showLoginPrompt(
+                                  context,
+                                  'comment on this post',
+                                );
+                                return;
+                              }
+                              final content = commentController.text.trim();
+                              if (content.isEmpty) {
+                                _showErrorSnackBar(
+                                  context,
+                                  'Comment cannot be empty',
+                                );
+                                return;
+                              }
+                              final authProvider = Provider.of<AuthProvider>(
+                                context,
+                                listen: false,
+                              );
+                              final prayerProvider =
+                                  Provider.of<PrayerProvider>(
+                                    context,
+                                    listen: false,
+                                  );
+                              final success = await prayerProvider.addComment(
+                                prayerId: prayer.id,
+                                userId: userId,
+                                content: content,
+                                isAnonymous: false,
+                                userName: authProvider.currentUser?.name,
+                                userAvatar: authProvider.currentUser?.avatar,
+                              );
+                              if (success && context.mounted) {
+                                commentController.clear();
+                                _showSuccessSnackBar(
+                                  context,
+                                  'Comment added successfully!',
+                                  const Color(0xFF1DA1F2),
+                                );
+                              } else if (context.mounted) {
+                                _showErrorSnackBar(
+                                  context,
+                                  'Failed to add comment: ${prayerProvider.error ?? 'Unknown error'}',
+                                );
+                              }
+                            },
+                            icon: const Icon(
+                              Icons.send,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            padding: const EdgeInsets.all(8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Container(
                     height: 1,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [
-                          Colors.grey[200]!,
-                          Colors.grey[100]!,
-                        ],
+                        colors: [Colors.grey[200]!, Colors.grey[100]!],
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ...prayer.comments.map(
-                    (comment) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              gradient: comment.userAvatar == null
-                                  ? const LinearGradient(
-                                      colors: [Color(0xFF74B9FF), Color(0xFF0984E3)],
-                                    )
-                                  : null,
-                              borderRadius: BorderRadius.circular(25),
-                              image: comment.userAvatar != null
-                                  ? DecorationImage(
-                                      image: NetworkImage(comment.userAvatar!),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : null,
-                            ),
-                            child: comment.userAvatar == null
-                                ? const Icon(
-                                    Icons.person,
-                                    size: 16,
-                                    color: Colors.white,
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  comment.userName ?? 'Anonymous',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: Color(0xFF2D3436),
-                                  ),
+                  if (prayer.comments.isNotEmpty)
+                    ...prayer.comments.map(
+                      (comment) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                if (userId == 'current_user') {
+                                  _showLoginPrompt(
+                                    context,
+                                    'view your profile',
+                                  );
+                                  return;
+                                }
+                                if (comment.userId != userId) {
+                                  _showErrorSnackBar(
+                                    context,
+                                    'You can only view your own profile',
+                                  );
+                                  return;
+                                }
+                                context.push('/profile');
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  gradient:
+                                      comment.userAvatar == null
+                                          ? const LinearGradient(
+                                            colors: [
+                                              Color(0xFF1DA1F2),
+                                              Color(0xFF0984E3),
+                                            ],
+                                          )
+                                          : null,
+                                  borderRadius: BorderRadius.circular(25),
+                                  image:
+                                      comment.userAvatar != null
+                                          ? DecorationImage(
+                                            image: NetworkImage(
+                                              comment.userAvatar!,
+                                            ),
+                                            fit: BoxFit.cover,
+                                          )
+                                          : null,
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  comment.content,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Color(0xFF636E72),
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ],
+                                child:
+                                    comment.userAvatar == null
+                                        ? const Icon(
+                                          Icons.person,
+                                          size: 16,
+                                          color: Colors.white,
+                                        )
+                                        : null,
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    comment.userName ?? 'Anonymous',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: Color(
+                                        0xFF14171A,
+                                      ), // X's text color
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    comment.content,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Color(
+                                        0xFF657786,
+                                      ), // X's secondary text
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    const Text(
+                      'No comments yet',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF657786), // X's secondary text
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ),
                 ],
               ],
             ),
@@ -2917,9 +3262,10 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
                   prayer.isReported
                       ? Icons.report_problem
                       : Icons.report_problem_outlined,
-                  color: prayer.isReported
-                      ? const Color(0xFFE17055)
-                      : const Color(0xFF636E72),
+                  color:
+                      prayer.isReported
+                          ? const Color(0xFFE17055)
+                          : const Color(0xFF636E72),
                   size: 20,
                 ),
                 onPressed: () {
@@ -2947,16 +3293,12 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
   }) {
     return Container(
       decoration: BoxDecoration(
-        gradient: isActive
-            ? LinearGradient(
-                colors: [color, color.withOpacity(0.8)],
-              )
-            : LinearGradient(
-                colors: [
-                  color.withOpacity(0.1),
-                  color.withOpacity(0.05),
-                ],
-              ),
+        gradient:
+            isActive
+                ? LinearGradient(colors: [color, color.withOpacity(0.8)])
+                : LinearGradient(
+                  colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+                ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isActive ? color : color.withOpacity(0.3),
@@ -2973,11 +3315,7 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: isActive ? Colors.white : color,
-                ),
+                Icon(icon, size: 16, color: isActive ? Colors.white : color),
                 const SizedBox(width: 6),
                 Text(
                   label,
@@ -3001,9 +3339,7 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
         content: Text('Please log in to $action'),
         backgroundColor: const Color(0xFFE17055),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -3014,9 +3350,7 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
         content: Text(message),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -3027,117 +3361,8 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
         content: Text(message),
         backgroundColor: const Color(0xFFD63031),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
-    );
-  }
-
-  void _showCommentDialog(
-    BuildContext context,
-    PrayerModel prayer,
-    String userId,
-  ) {
-    final commentController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            'Add a Comment to ${prayer.isAnonymous ? "Anonymous Sister" : prayer.userName ?? 'Unknown'}',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D3436),
-            ),
-          ),
-          content: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.grey[50]!, Colors.white],
-              ),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(
-                color: const Color(0xFF74B9FF).withOpacity(0.3),
-              ),
-            ),
-            child: TextField(
-              controller: commentController,
-              decoration: const InputDecoration(
-                labelText: 'Your Comment',
-                hintText: 'Write your comment here...',
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.all(16),
-              ),
-              maxLines: 3,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Color(0xFF636E72)),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF74B9FF), Color(0xFF0984E3)],
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: ElevatedButton(
-                onPressed: () async {
-                  if (commentController.text.trim().isNotEmpty) {
-                    final authProvider = Provider.of<AuthProvider>(
-                      context,
-                      listen: false,
-                    );
-                    final prayerProvider = Provider.of<PrayerProvider>(
-                      context,
-                      listen: false,
-                    );
-                    final success = await prayerProvider.addComment(
-                      prayerId: prayer.id,
-                      userId: userId,
-                      content: commentController.text.trim(),
-                      isAnonymous: false,
-                      userName: authProvider.currentUser?.name,
-                      userAvatar: authProvider.currentUser?.avatar,
-                    );
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      _showSuccessSnackBar(
-                        context,
-                        success
-                            ? 'Comment added successfully!'
-                            : 'Failed to add comment: ${prayerProvider.error ?? 'Unknown error'}',
-                        success ? const Color(0xFF74B9FF) : const Color(0xFFD63031),
-                      );
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-                child: const Text(
-                  'Post',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -3212,7 +3437,10 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
                 onPressed: () async {
                   final reason = reasonController.text.trim();
                   if (reason.length < 10) {
-                    _showErrorSnackBar(context, 'Reason must be at least 10 characters');
+                    _showErrorSnackBar(
+                      context,
+                      'Reason must be at least 10 characters',
+                    );
                     return;
                   }
                   final prayerProvider = Provider.of<PrayerProvider>(
@@ -3232,7 +3460,9 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
                         success
                             ? 'Post reported successfully 🚨'
                             : 'Failed to report post',
-                        success ? const Color(0xFFE17055) : const Color(0xFFD63031),
+                        success
+                            ? const Color(0xFFE17055)
+                            : const Color(0xFFD63031),
                       );
                     }
                   } catch (e) {
@@ -3282,22 +3512,23 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Colors.white, Color(0xFFF8F9FA)],
+      builder:
+          (context) => Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.white, Color(0xFFF8F9FA)],
+              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+            ),
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: const AddPrayerModal(isAnonymous: false),
+            ),
           ),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-        ),
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: const AddPrayerModal(isAnonymous: false),
-        ),
-      ),
     );
   }
 
@@ -3310,107 +3541,110 @@ class _PrayerWallTabState extends State<PrayerWallTab> with TickerProviderStateM
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Text(
-          'Encourage ${prayer.isAnonymous ? "Anonymous Sister" : prayer.userName}',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF2D3436),
-          ),
-        ),
-        content: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.grey[50]!, Colors.white],
-            ),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(
-              color: const Color(0xFF74B9FF).withOpacity(0.3),
-            ),
-          ),
-          child: TextField(
-            controller: encourageController,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              hintText: 'Write your encouragement...',
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.all(16),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Color(0xFF636E72)),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE)],
-              ),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            child: ElevatedButton(
-              onPressed: () async {
-                if (encourageController.text.trim().isNotEmpty) {
-                  final authProvider = Provider.of<AuthProvider>(
-                    context,
-                    listen: false,
-                  );
-                  final prayerProvider = Provider.of<PrayerProvider>(
-                    context,
-                    listen: false,
-                  );
-                  final userId = authProvider.currentUser?.id ?? 'current_user';
-
-                  final success = await prayerProvider.addComment(
-                    prayerId: prayer.id,
-                    userId: userId,
-                    content: encourageController.text.trim(),
-                    isAnonymous: false,
-                    userName: authProvider.currentUser?.name,
-                    userAvatar: authProvider.currentUser?.avatar,
-                  );
-
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    _showSuccessSnackBar(
-                      context,
-                      success
-                          ? '💝 Encouragement sent successfully!'
-                          : 'Failed to send encouragement',
-                      success ? const Color(0xFF00B894) : const Color(0xFFD63031),
-                    );
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: const Text(
-                'Send',
-                style: TextStyle(fontWeight: FontWeight.w600),
+            title: Text(
+              'Encourage ${prayer.isAnonymous ? "Anonymous Sister" : prayer.userName}',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2D3436),
               ),
             ),
+            content: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.grey[50]!, Colors.white],
+                ),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: const Color(0xFF74B9FF).withOpacity(0.3),
+                ),
+              ),
+              child: TextField(
+                controller: encourageController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Write your encouragement...',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.all(16),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Color(0xFF636E72)),
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE)],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    if (encourageController.text.trim().isNotEmpty) {
+                      final authProvider = Provider.of<AuthProvider>(
+                        context,
+                        listen: false,
+                      );
+                      final prayerProvider = Provider.of<PrayerProvider>(
+                        context,
+                        listen: false,
+                      );
+                      final userId =
+                          authProvider.currentUser?.id ?? 'current_user';
+
+                      final success = await prayerProvider.addComment(
+                        prayerId: prayer.id,
+                        userId: userId,
+                        content: encourageController.text.trim(),
+                        isAnonymous: false,
+                        userName: authProvider.currentUser?.name,
+                        userAvatar: authProvider.currentUser?.avatar,
+                      );
+
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        _showSuccessSnackBar(
+                          context,
+                          success
+                              ? '💝 Encouragement sent successfully!'
+                              : 'Failed to send encouragement',
+                          success
+                              ? const Color(0xFF00B894)
+                              : const Color(0xFFD63031),
+                        );
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Text(
+                    'Send',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 }
 
-// WisdomCirclesTab Implementation
 class WisdomCirclesTab extends StatefulWidget {
   const WisdomCirclesTab({Key? key}) : super(key: key);
 
@@ -3418,7 +3652,8 @@ class WisdomCirclesTab extends StatefulWidget {
   State<WisdomCirclesTab> createState() => _WisdomCirclesTabState();
 }
 
-class _WisdomCirclesTabState extends State<WisdomCirclesTab> with TickerProviderStateMixin {
+class _WisdomCirclesTabState extends State<WisdomCirclesTab>
+    with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -3429,9 +3664,10 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> with TickerProvider
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
     _fadeController.forward();
   }
 
@@ -3453,18 +3689,15 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> with TickerProvider
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF74B9FF),
-                Color(0xFF0984E3),
-                Color(0xFF6C5CE7),
-              ],
+              colors: [Color(0xFF74B9FF), Color(0xFF0984E3), Color(0xFF6C5CE7)],
             ),
           ),
         ),
         title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.white, Color(0xFFF8F9FA)],
-          ).createShader(bounds),
+          shaderCallback:
+              (bounds) => const LinearGradient(
+                colors: [Colors.white, Color(0xFFF8F9FA)],
+              ).createShader(bounds),
           child: const Text(
             'Wisdom Circles',
             style: TextStyle(
@@ -3483,10 +3716,7 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> with TickerProvider
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFF8F9FA),
-                Color(0xFFFFFFFF),
-              ],
+              colors: [Color(0xFFF8F9FA), Color(0xFFFFFFFF)],
             ),
           ),
           child: SafeArea(
@@ -3549,25 +3779,28 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> with TickerProvider
                   const SizedBox(height: 20),
                   Consumer<WisdomCircleProvider>(
                     builder: (context, provider, child) {
-                      final myCircles = provider.circles
-                          .where((circle) => provider.joinedCircles.contains(circle.id))
-                          .toList();
+                      final myCircles =
+                          provider.circles
+                              .where(
+                                (circle) =>
+                                    provider.joinedCircles.contains(circle.id),
+                              )
+                              .toList();
 
                       if (myCircles.isEmpty && provider.isLoading) {
                         return Container(
                           height: 200,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [
-                                Colors.grey[100]!,
-                                Colors.grey[50]!,
-                              ],
+                              colors: [Colors.grey[100]!, Colors.grey[50]!],
                             ),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Center(
                             child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF74B9FF)),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF74B9FF),
+                              ),
                             ),
                           ),
                         );
@@ -3578,15 +3811,10 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> with TickerProvider
                           padding: const EdgeInsets.all(32),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [
-                                Colors.grey[50]!,
-                                Colors.white,
-                              ],
+                              colors: [Colors.grey[50]!, Colors.white],
                             ),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.grey[200]!,
-                            ),
+                            border: Border.all(color: Colors.grey[200]!),
                           ),
                           child: Column(
                             children: [
@@ -3594,7 +3822,10 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> with TickerProvider
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
-                                    colors: [Color(0xFF74B9FF), Color(0xFF0984E3)],
+                                    colors: [
+                                      Color(0xFF74B9FF),
+                                      Color(0xFF0984E3),
+                                    ],
                                   ),
                                   borderRadius: BorderRadius.circular(50),
                                 ),
@@ -3626,16 +3857,17 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> with TickerProvider
                       }
 
                       return Column(
-                        children: myCircles.map((circle) {
-                          return WisdomCircleCard(
-                            circle: circle,
-                            isJoined: true,
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              context.push('/wisdom-circle/${circle.id}');
-                            },
-                          );
-                        }).toList(),
+                        children:
+                            myCircles.map((circle) {
+                              return WisdomCircleCard(
+                                circle: circle,
+                                isJoined: true,
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  context.push('/wisdom-circle/${circle.id}');
+                                },
+                              );
+                            }).toList(),
                       );
                     },
                   ),
@@ -3651,48 +3883,53 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> with TickerProvider
                   const SizedBox(height: 20),
                   Consumer<WisdomCircleProvider>(
                     builder: (context, provider, child) {
-                      final discoverCircles = provider.circles
-                          .where((circle) => !provider.joinedCircles.contains(circle.id))
-                          .toList();
+                      final discoverCircles =
+                          provider.circles
+                              .where(
+                                (circle) =>
+                                    !provider.joinedCircles.contains(circle.id),
+                              )
+                              .toList();
 
                       if (discoverCircles.isEmpty && provider.isLoading) {
                         return Container(
                           height: 200,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [
-                                Colors.grey[100]!,
-                                Colors.grey[50]!,
-                              ],
+                              colors: [Colors.grey[100]!, Colors.grey[50]!],
                             ),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Center(
                             child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF74B9FF)),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF74B9FF),
+                              ),
                             ),
                           ),
                         );
                       }
 
                       return Column(
-                        children: discoverCircles.map((circle) {
-                          return WisdomCircleCard(
-                            circle: circle,
-                            isJoined: false,
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              final provider = Provider.of<WisdomCircleProvider>(
-                                context,
-                                listen: false,
+                        children:
+                            discoverCircles.map((circle) {
+                              return WisdomCircleCard(
+                                circle: circle,
+                                isJoined: false,
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  final provider =
+                                      Provider.of<WisdomCircleProvider>(
+                                        context,
+                                        listen: false,
+                                      );
+                                  provider.joinCircle(
+                                    circleId: circle.id,
+                                    userId: 'user123',
+                                  );
+                                },
                               );
-                              provider.joinCircle(
-                                circleId: circle.id,
-                                userId: 'user123',
-                              );
-                            },
-                          );
-                        }).toList(),
+                            }).toList(),
                       );
                     },
                   ),
@@ -3811,7 +4048,10 @@ class _WisdomCirclesTabState extends State<WisdomCirclesTab> with TickerProvider
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     gradient: gradient,
                     borderRadius: BorderRadius.circular(15),
@@ -3851,7 +4091,8 @@ class WisdomCircleCard extends StatefulWidget {
   State<WisdomCircleCard> createState() => _WisdomCircleCardState();
 }
 
-class _WisdomCircleCardState extends State<WisdomCircleCard> with SingleTickerProviderStateMixin {
+class _WisdomCircleCardState extends State<WisdomCircleCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
 
@@ -3882,9 +4123,14 @@ class _WisdomCircleCardState extends State<WisdomCircleCard> with SingleTickerPr
     LinearGradient cardGradient = _getCardGradient();
     LinearGradient iconGradient = _getIconGradient();
     String buttonText = widget.isJoined ? 'Open' : 'Join';
-    LinearGradient buttonGradient = widget.isJoined
-        ? const LinearGradient(colors: [Color(0xFF00B894), Color(0xFF00CEC9)])
-        : const LinearGradient(colors: [Color(0xFF6C5CE7), Color(0xFF74B9FF)]);
+    LinearGradient buttonGradient =
+        widget.isJoined
+            ? const LinearGradient(
+              colors: [Color(0xFF00B894), Color(0xFF00CEC9)],
+            )
+            : const LinearGradient(
+              colors: [Color(0xFF6C5CE7), Color(0xFF74B9FF)],
+            );
 
     return AnimatedBuilder(
       animation: _scaleAnimation,
@@ -3928,7 +4174,9 @@ class _WisdomCircleCardState extends State<WisdomCircleCard> with SingleTickerPr
                               borderRadius: BorderRadius.circular(50),
                               boxShadow: [
                                 BoxShadow(
-                                  color: iconGradient.colors.first.withOpacity(0.3),
+                                  color: iconGradient.colors.first.withOpacity(
+                                    0.3,
+                                  ),
                                   blurRadius: 8,
                                   offset: const Offset(0, 4),
                                 ),
@@ -3975,7 +4223,8 @@ class _WisdomCircleCardState extends State<WisdomCircleCard> with SingleTickerPr
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: buttonGradient.colors.first.withOpacity(0.3),
+                                  color: buttonGradient.colors.first
+                                      .withOpacity(0.3),
                                   blurRadius: 8,
                                   offset: const Offset(0, 4),
                                 ),
@@ -3993,7 +4242,9 @@ class _WisdomCircleCardState extends State<WisdomCircleCard> with SingleTickerPr
                                   );
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('✅ Joined ${widget.circle.name}!'),
+                                      content: Text(
+                                        '✅ Joined ${widget.circle.name}!',
+                                      ),
                                       backgroundColor: const Color(0xFF00B894),
                                       behavior: SnackBarBehavior.floating,
                                       shape: RoundedRectangleBorder(
@@ -4030,7 +4281,10 @@ class _WisdomCircleCardState extends State<WisdomCircleCard> with SingleTickerPr
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.8),
                               borderRadius: BorderRadius.circular(12),
@@ -4058,10 +4312,16 @@ class _WisdomCircleCardState extends State<WisdomCircleCard> with SingleTickerPr
                           if (hasNewMessages) ...[
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFFE84393), Color(0xFFD63031)],
+                                  colors: [
+                                    Color(0xFFE84393),
+                                    Color(0xFFD63031),
+                                  ],
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -4187,9 +4447,10 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
     _fadeController.forward();
 
     final shareProvider = Provider.of<AnonymousShareProvider>(
@@ -4221,18 +4482,15 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF6C5CE7),
-                Color(0xFFA29BFE),
-                Color(0xFFE84393),
-              ],
+              colors: [Color(0xFF6C5CE7), Color(0xFFA29BFE), Color(0xFFE84393)],
             ),
           ),
         ),
         title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Colors.white, Color(0xFFF8F9FA)],
-          ).createShader(bounds),
+          shaderCallback:
+              (bounds) => const LinearGradient(
+                colors: [Colors.white, Color(0xFFF8F9FA)],
+              ).createShader(bounds),
           child: const Text(
             'Anonymous Share',
             style: TextStyle(
@@ -4335,10 +4593,7 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFF8F9FA),
-                Color(0xFFFFFFFF),
-              ],
+              colors: [Color(0xFFF8F9FA), Color(0xFFFFFFFF)],
             ),
           ),
           child: TabBarView(
@@ -4373,11 +4628,7 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
           },
           backgroundColor: Colors.transparent,
           elevation: 0,
-          child: const Icon(
-            Icons.add,
-            color: Colors.white,
-            size: 28,
-          ),
+          child: const Icon(Icons.add, color: Colors.white, size: 28),
         ),
       ),
     );
@@ -4449,10 +4700,11 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
                       borderRadius: BorderRadius.circular(25),
                     ),
                     child: ElevatedButton(
-                      onPressed: () =>
-                          type == null
-                              ? shareProvider.fetchAllShares()
-                              : shareProvider.fetchShares(type: type),
+                      onPressed:
+                          () =>
+                              type == null
+                                  ? shareProvider.fetchAllShares()
+                                  : shareProvider.fetchShares(type: type),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         foregroundColor: Colors.white,
@@ -4480,15 +4732,10 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    Colors.grey[50]!,
-                    Colors.white,
-                  ],
+                  colors: [Colors.grey[50]!, Colors.white],
                 ),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.grey[200]!,
-                ),
+                border: Border.all(color: Colors.grey[200]!),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -4563,12 +4810,13 @@ class _AnonymousShareTabState extends State<AnonymousShareTab>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => ShareAnonymouslyModal(
-        shareProvider: Provider.of<AnonymousShareProvider>(
-          context,
-          listen: false,
-        ),
-      ),
+      builder:
+          (context) => ShareAnonymouslyModal(
+            shareProvider: Provider.of<AnonymousShareProvider>(
+              context,
+              listen: false,
+            ),
+          ),
     );
   }
 }
@@ -4577,7 +4825,7 @@ class ShareAnonymouslyModal extends StatefulWidget {
   final AnonymousShareProvider shareProvider;
 
   const ShareAnonymouslyModal({Key? key, required this.shareProvider})
-      : super(key: key);
+    : super(key: key);
 
   @override
   State<ShareAnonymouslyModal> createState() => _ShareAnonymouslyModalState();
@@ -4591,7 +4839,7 @@ class _ShareAnonymouslyModalState extends State<ShareAnonymouslyModal>
   AnonymousShareType _selectedType = AnonymousShareType.testimony;
   bool _isLoading = false;
   final LocalStorageService _localStorageService = LocalStorageService();
-  
+
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
 
@@ -4682,22 +4930,25 @@ class _ShareAnonymouslyModalState extends State<ShareAnonymouslyModal>
                     ),
                     child: TextButton(
                       onPressed: _isLoading ? null : _submitShare,
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      child:
+                          _isLoading
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                              : const Text(
+                                'Share',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            )
-                          : const Text(
-                              'Share',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
                     ),
                   ),
                 ],
@@ -4707,10 +4958,7 @@ class _ShareAnonymouslyModalState extends State<ShareAnonymouslyModal>
               height: 1,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    Colors.grey[200]!,
-                    Colors.grey[100]!,
-                  ],
+                  colors: [Colors.grey[200]!, Colors.grey[100]!],
                 ),
               ),
             ),
@@ -4753,18 +5001,23 @@ class _ShareAnonymouslyModalState extends State<ShareAnonymouslyModal>
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          items: AnonymousShareType.values.map((type) {
-                            return DropdownMenuItem<AnonymousShareType>(
-                              value: type,
-                              child: Text(
-                                type.toString().split('.').last.toUpperCase(),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF2D3436),
-                                ),
-                              ),
-                            );
-                          }).toList(),
+                          items:
+                              AnonymousShareType.values.map((type) {
+                                return DropdownMenuItem<AnonymousShareType>(
+                                  value: type,
+                                  child: Text(
+                                    type
+                                        .toString()
+                                        .split('.')
+                                        .last
+                                        .toUpperCase(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF2D3436),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
                           onChanged: (value) {
                             setState(() {
                               _selectedType = value!;
@@ -4827,7 +5080,7 @@ class _ShareAnonymouslyModalState extends State<ShareAnonymouslyModal>
   Future<void> _submitShare() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true); 
+    setState(() => _isLoading = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.currentUser;
 
@@ -4858,9 +5111,10 @@ class _ShareAnonymouslyModalState extends State<ShareAnonymouslyModal>
         userId: user.id,
         content: _contentController.text.trim(),
         type: _selectedType,
-        title: _titleController.text.trim().isNotEmpty
-            ? _titleController.text.trim()
-            : null,
+        title:
+            _titleController.text.trim().isNotEmpty
+                ? _titleController.text.trim()
+                : null,
       );
 
       setState(() => _isLoading = false);
@@ -4898,15 +5152,16 @@ class _ShareAnonymouslyModalState extends State<ShareAnonymouslyModal>
         }
       } else if (context.mounted) {
         throw Exception(widget.shareProvider.error ?? 'Unknown error');
-      } 
-
+      }
+      // for the purpose of the test for remote repository
     } catch (e) {
       setState(() => _isLoading = false);
       if (context.mounted) {
-        final errorMessage = e.toString().contains('Invalid token') ||
-                e.toString().contains('No authentication token found')
-            ? 'Authentication failed: Please log in again'
-            : 'Failed to post share: ${e.toString()}';
+        final errorMessage =
+            e.toString().contains('Invalid token') ||
+                    e.toString().contains('No authentication token found')
+                ? 'Authentication failed: Please log in again'
+                : 'Failed to post share: ${e.toString()}';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
@@ -4926,5 +5181,4 @@ extension StringExtension on String {
   String capitalize() {
     return "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
   }
-}  
-
+}
