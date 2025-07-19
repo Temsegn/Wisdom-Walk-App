@@ -7,7 +7,7 @@ const { uploadMultiple } = require("../middleware/upload");
 // Debugging - verify controller imports
 console.log("Group Controller Methods:", Object.keys(groupController));
 
-// router.use(authenticateToken);
+router.use(authenticateToken);
 
 // Group CRUD
 router.post("/", groupController.createGroup);

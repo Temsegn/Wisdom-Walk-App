@@ -48,70 +48,80 @@ export default function CreateGroupPage() {
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!validateForm()) return;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!validateForm()) return
+  setLoading(true);
 
-    setLoading(true)
+  try {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      throw new Error('Authentication token missing');
+    }
 
-    try {
-      const token = localStorage.getItem('adminToken')
-      if (!token) {
-        throw new Error('Authentication required')
-      }
-
-     const response = await fetch('/api/groups', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  },
-  body: JSON.stringify({
-    name: formData.name,
-    description: formData.description,
-    type: formData.type,
-    isActive: formData.isActive
-  })
-})
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to create group')
-      }
-
-      toast.success('Group created successfully!')
-      router.push(`/dashboard/groups/${data.id}`)
-    } catch (error) {
-      console.error('Error creating group:', error)
-      
-      let errorMessage = 'Failed to create group'
-      if (error instanceof Error) {
-        errorMessage = error.message
-        
-        if (error.message.includes('401') || error.message.includes('token')) {
-          errorMessage = 'Session expired - please login again'
-          localStorage.removeItem('adminToken')
-          localStorage.removeItem('adminUser')
-          router.push('/login')
-          return
-        }
-      }
-      
-      toast.error(errorMessage, {
-        action: {
-          label: 'Retry',
-          onClick: () => handleSubmit(e)
-        }
+    const response = await fetch('/api/groups', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: formData.name,
+        description: formData.description,
+        type: formData.type,
+        isActive: formData.isActive
       })
-    } finally {
-      if (isMounted) {
-        setLoading(false)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Enhanced error message extraction
+      const errorMessage = data.message || 
+                         data.error?.message || 
+                         'Failed to create group';
+      throw new Error(errorMessage);
+    }
+
+    toast.success('Group created successfully!');
+    router.push(`/dashboard/groups/${data.id || data._id}`);
+    
+  } catch (error) {
+    console.error('Error creating group:', error);
+    
+    let errorMessage = 'Failed to create group';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      
+      // Handle specific error cases
+      if (error.message.toLowerCase().includes('unauthorized') || 
+          error.message.includes('401')) {
+        errorMessage = 'Session expired - please login again';
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        router.push('/login');
+        return;
+      }
+      
+      if (error.message.toLowerCase().includes('validation')) {
+        errorMessage = `Validation error: ${error.message}`;
       }
     }
+    
+    toast.error(errorMessage, {
+      action: {
+        label: 'Retry',
+        onClick: () => handleSubmit(e)
+      }
+    });
+  } finally {
+    if (isMounted) {
+      setLoading(false);
+    }
   }
+};
 
   if (!isMounted) return null
 

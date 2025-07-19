@@ -1,51 +1,52 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server"
+
+/**
+ * Handles all group-related requests
+ */
 
 export async function GET(request: NextRequest) {
   try {
-    // Get token from headers or cookies
-    const authHeader = request.headers.get('authorization') || 
-                      `Bearer ${request.cookies.get('adminToken')?.value}`;
-    
+    // Extract token from Authorization header
+    const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json(
-        { success: false, message: "Authorization required" },
+        { error: 'Authorization header required' },
         { status: 401 }
       );
     }
 
-    const backendResponse = await fetch(`https://wisdom-walk-app.onrender.com/api/groups`, {
+    // Forward request to backend API
+    const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups`;
+    const response = await fetch(backendUrl, {
       headers: {
         'Authorization': authHeader,
-        'Content-Type': 'application/json',
-        'Cookie': request.headers.get('cookie') || ''
+        'Content-Type': 'application/json'
       },
-      credentials: 'include'
+      cache: 'no-store'
     });
 
-    // Forward the exact response from backend
-    if (backendResponse.status === 401) {
-      return new NextResponse(JSON.stringify({
-        success: false,
-        message: "Unauthorized"
-      }), {
-        status: 401,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+    // Handle unauthorized responses
+    if (response.status === 401) {
+      return NextResponse.json(
+        { error: 'Unauthorized - Invalid or expired token' },
+        { status: 401 }
+      );
     }
 
-    const data = await backendResponse.json();
-    return NextResponse.json(data);
+    // Return the backend response
+    const data = await response.json();
+    return NextResponse.json(data, { status: response.status });
 
   } catch (error) {
     console.error('Groups API Error:', error);
     return NextResponse.json(
-      { success: false, message: "Internal server error" },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
 }
+ 
+
 export async function POST(request: Request) {
   try {
     // Get token from headers
@@ -88,3 +89,4 @@ export async function POST(request: Request) {
     )
   }
 }
+ 
