@@ -111,13 +111,13 @@ const getGroupDetails = async (req, res) => {
       });
     }
 
-    // Allow access if user is a member or an admin
-    if (!isGroupMember(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Access denied. Not a group member" 
-      });
-    }
+    // // Allow access if user is a member or an admin
+    // if (!isGroupMember(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Access denied. Not a group member" 
+    //   });
+    // }
 
     res.status(200).json({ 
       success: true,
@@ -219,12 +219,12 @@ const joinGroupViaLink = async (req, res) => {
       });
     }
 
-    if (isGroupMember(group, req.user._id)) {
-      return res.status(400).json({ 
-        success: false,
-        message: "You are already a member of this group" 
-      });
-    }
+    // if (isGroupMember(group, req.user._id)) {
+    //   return res.status(400).json({ 
+    //     success: false,
+    //     message: "You are already a member of this group" 
+    //   });
+    // }
 
     group.members.push({ user: req.user._id });
     await group.save();
@@ -253,12 +253,12 @@ const leaveGroup = async (req, res) => {
       });
     }
 
-    if (!isGroupMember(group, req.user._id)) {
-      return res.status(400).json({ 
-        success: false,
-        message: "You are not a member of this group" 
-      });
-    }
+    // if (!isGroupMember(group, req.user._id)) {
+    //   return res.status(400).json({ 
+    //     success: false,
+    //     message: "You are not a member of this group" 
+    //   });
+    // }
 
     // Remove from admins if admin
     group.admins = group.admins.filter(
@@ -306,12 +306,12 @@ const addMember = async (req, res) => {
     // }
 
     // Check if user is already a member
-    if (isGroupMember(group, userId)) {
-      return res.status(400).json({ 
-        success: false,
-        message: "User is already a group member" 
-      });
-    }
+    // if (isGroupMember(group, userId)) {
+    //   return res.status(400).json({ 
+    //     success: false,
+    //     message: "User is already a group member" 
+    //   });
+    // }
 
     group.members.push({ user: userId });
     await group.save();
@@ -410,12 +410,12 @@ const promoteToAdmin = async (req, res) => {
     // }
 
     // Check if user is a member
-    if (!isGroupMember(group, req.params.userId)) {
-      return res.status(400).json({ 
-        success: false,
-        message: "User is not a group member" 
-      });
-    }
+    // if (!isGroupMember(group, req.params.userId)) {
+    //   return res.status(400).json({ 
+    //     success: false,
+    //     message: "User is not a group member" 
+    //   });
+    // }
 
     group.admins.push(req.params.userId);
     await group.save();
@@ -499,12 +499,12 @@ const getChatMessages = async (req, res) => {
     }
 
     // Allow access if user is member or system admin
-    if (!isGroupMember(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Access denied. Not a group member" 
-      });
-    }
+    // if (!isGroupMember(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Access denied. Not a group member" 
+    //   });
+    // }
 
     const chat = await Chat.findOne({ group: group._id })
       .populate({
@@ -542,12 +542,12 @@ const sendMessage = async (req, res) => {
     }
 
     // Allow sending if user is member or system admin
-    if (!isGroupMember(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Access denied. Not a group member" 
-      });
-    }
+    // if (!isGroupMember(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Access denied. Not a group member" 
+    //   });
+    // }
 
     const member = group.members.find(
       m => m.user.toString() === req.user._id.toString()
@@ -621,12 +621,12 @@ const getPinnedMessages = async (req, res) => {
     }
 
     // Allow access if user is member or system admin
-    if (!isGroupMember(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Access denied. Not a group member" 
-      });
-    }
+    // if (!isGroupMember(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Access denied. Not a group member" 
+    //   });
+    // }
 
     res.status(200).json({ 
       success: true,

@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
   try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json(
+        { success: false, message: 'Authorization header missing' },
+        { status: 401 }
+      );
+    }
+
     const { groupId } = await params;
 
     if (!groupId || groupId === 'undefined') {
@@ -11,15 +19,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       );
     }
 
-    const token = request.headers.get('Authorization') || '';
-    const adminRequest = request.headers.get('X-Admin-Request') || 'false';
-
     const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups/${groupId}/settings`;
     const res = await fetch(backendUrl, {
       method: 'GET',
       headers: {
-        Authorization: token,
-        'X-Admin-Request': adminRequest,
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
       },
       cache: 'no-store',
     });
@@ -45,6 +50,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
   try {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json(
+        { success: false, message: 'Authorization header missing' },
+        { status: 401 }
+      );
+    }
+
     const { groupId } = await params;
 
     if (!groupId || groupId === 'undefined') {
@@ -54,17 +67,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       );
     }
 
-    const token = request.headers.get('Authorization') || '';
-    const adminRequest = request.headers.get('X-Admin-Request') || 'false';
     const body = await request.json();
 
     const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups/${groupId}/settings`;
     const res = await fetch(backendUrl, {
       method: 'PATCH',
       headers: {
-        Authorization: token,
-        'X-Admin-Request': adminRequest,
         'Content-Type': 'application/json',
+        'Authorization': authHeader
       },
       body: JSON.stringify(body),
     });

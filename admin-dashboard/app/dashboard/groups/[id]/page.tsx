@@ -4,13 +4,12 @@ import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  ArrowLeft, Edit, Users, Settings, Activity, 
-  MoreVertical, Trash2, Loader2, UserPlus, Shield, UserX
+import {
+  ArrowLeft, Edit, Users, Activity, MoreVertical, Trash2, Loader2, UserPlus, Shield, UserX
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
@@ -69,7 +68,7 @@ type GroupActivity = {
 
 export default function GroupDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const { id } = React.use(params); // Unwrap params using React.use()
+  const { id } = React.use(params);
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [activities, setActivities] = useState<GroupActivity[]>([]);
@@ -85,16 +84,10 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [editGroup, setEditGroup] = useState({ name: '', description: '' });
-  const [isAdmin, setIsAdmin] = useState<boolean>(false); // Track admin status
+  const [isMounted, setIsMounted] = useState(true);
 
   useEffect(() => {
-    // Check if user has admin privileges (based on adminToken)
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-      // Assume adminToken implies admin privileges; verify with backend if needed
-      setIsAdmin(true);
-    }
-
+    setIsMounted(true);
     if (!id || id === 'undefined') {
       setError('Invalid group ID');
       setLoading({ group: false, members: false, activities: false });
@@ -102,28 +95,25 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       return;
     }
     fetchGroupData();
+    return () => setIsMounted(false);
   }, [id, router]);
 
-  const fetchGroupData = async () => {
+  async function fetchGroupData() {
     try {
-      setLoading({
-        group: true,
-        members: true,
-        activities: true
-      });
+      setLoading({ group: true, members: true, activities: true });
       setError(null);
 
       const token = localStorage.getItem('adminToken');
       if (!token) {
-        throw new Error('Authentication required');
+        throw new Error('Authentication token missing - please login again');
       }
 
       const headers = {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        // Add header to indicate admin request
-        'X-Admin-Request': isAdmin ? 'true' : 'false'
+        'Authorization': `Bearer ${token}`
       };
+
+      console.log('Fetching group data with token:', token);
 
       const [groupRes, membersRes, activitiesRes] = await Promise.all([
         fetch(`/api/groups/${id}`, { headers }),
@@ -131,252 +121,421 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
         fetch(`/api/groups/${id}/activities`, { headers })
       ]);
 
-      if (!groupRes.ok) {
-        const errorData = await groupRes.json();
-        const errorMessage = errorData.message || `Failed to fetch group details (Status: ${groupRes.status})`;
-        if (errorMessage.includes('Access denied') || groupRes.status === 403) {
-          throw new Error('Access denied. You are not a member of this group or lack admin privileges.');
-        }
-        throw new Error(errorMessage);
-      }
-      if (!membersRes.ok) {
-        const errorData = await membersRes.json();
-        throw new Error(errorData.message || `Failed to fetch members (Status: ${membersRes.status})`);
-      }
-      if (!activitiesRes.ok) {
-        const errorData = await activitiesRes.json();
-        throw new Error(errorData.message || `Failed to fetch activities (Status: ${activitiesRes.status})`);
-      }
-
       const [groupData, membersData, activitiesData] = await Promise.all([
         groupRes.json(),
         membersRes.json(),
         activitiesRes.json()
       ]);
 
+      if (!groupRes.ok) {
+        const errorMessage = groupData.message || `Failed to fetch group details (Status: ${groupRes.status})`;
+        throw new Error(errorMessage);
+      }
+      if (!membersRes.ok) {
+        const errorMessage = membersData.message || `Failed to fetch members (Status: ${membersRes.status})`;
+        throw new Error(errorMessage);
+      }
+      if (!activitiesRes.ok) {
+        const errorMessage = activitiesData.message || `Failed to fetch activities (Status: ${activitiesRes.status})`;
+        throw new Error(errorMessage);
+      }
+
       setGroup({
-        ...groupData,
+        ...groupData.group,
         settings: {
-          sendMessages: groupData.settings?.sendMessages ?? true,
-          sendMedia: groupData.settings?.sendMedia ?? true,
-          sendPolls: groupData.settings?.sendPolls ?? true,
-          allowInvites: groupData.settings?.allowInvites ?? true
+          sendMessages: groupData.group?.settings?.sendMessages ?? true,
+          sendMedia: groupData.group?.settings?.sendMedia ?? true,
+          sendPolls: groupData.group?.settings?.sendPolls ?? true,
+          allowInvites: groupData.group?.settings?.allowInvites ?? true
         }
       });
-      setMembers(membersData);
-      setActivities(activitiesData);
-      setEditGroup({ name: groupData.name, description: groupData.description || '' });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load group data';
-      console.error('Fetch error:', err);
+      setMembers(membersData.members || []);
+      setActivities(activitiesData.activities || []);
+      setEditGroup({ name: groupData.group.name, description: groupData.group.description || '' });
+    } catch (error) {
+      let errorMessage = 'Failed to load group data';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        if (error.message.toLowerCase().includes('unauthorized') || error.message.includes('401')) {
+          errorMessage = 'Session expired - please login again';
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          router.push('/login');
+          return;
+        }
+        if (error.message.toLowerCase().includes('validation')) {
+          errorMessage = `Validation error: ${error.message.split(':').pop()?.trim()}`;
+        }
+      }
+      console.error('Fetch error:', error);
       setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setLoading({
-        group: false,
-        members: false,
-        activities: false
+      toast.error(errorMessage, {
+        action: {
+          label: 'Retry',
+          onClick: () => fetchGroupData()
+        },
+        duration: 10000
       });
+    } finally {
+      if (isMounted) {
+        setLoading({ group: false, members: false, activities: false });
+      }
     }
-  };
+  }
 
-  const updateGroupSettings = async (settings: Partial<Group['settings']>) => {
+  async function updateGroupSettings(settings: Partial<Group['settings']>) {
     if (!group) return;
 
     try {
       setUpdating(true);
       const token = localStorage.getItem('adminToken');
-      if (!token) throw new Error('Authentication required');
+      if (!token) {
+        throw new Error('Authentication token missing - please login again');
+      }
+
+      console.log('Updating group settings:', settings);
 
       const response = await fetch(`/api/groups/${id}/settings`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-Admin-Request': isAdmin ? 'true' : 'false'
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(settings)
       });
 
+      const data = await response.json();
+      console.log('Settings update response:', data);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update settings');
+        const errorMessage = data.message || `Failed to update settings (Status: ${response.status})`;
+        throw new Error(errorMessage);
       }
 
-      const updatedSettings = await response.json();
-      setGroup({ ...group, settings: updatedSettings });
+      setGroup({ ...group, settings: data.settings });
       toast.success('Group settings updated');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update settings');
-      console.error(err);
+    } catch (error) {
+      let errorMessage = 'Failed to update settings';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        if (error.message.toLowerCase().includes('unauthorized') || error.message.includes('401')) {
+          errorMessage = 'Session expired - please login again';
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          router.push('/login');
+          return;
+        }
+        if (error.message.toLowerCase().includes('validation')) {
+          errorMessage = `Validation error: ${error.message.split(':').pop()?.trim()}`;
+        }
+      }
+      console.error('Settings update error:', error);
+      toast.error(errorMessage, {
+        action: {
+          label: 'Retry',
+          onClick: () => updateGroupSettings(settings)
+        },
+        duration: 10000
+      });
     } finally {
-      setUpdating(false);
+      if (isMounted) {
+        setUpdating(false);
+      }
     }
-  };
+  }
 
-  const updateGroupDetails = async () => {
+  async function updateGroupDetails() {
     if (!group) return;
 
     try {
       setUpdating(true);
       const token = localStorage.getItem('adminToken');
-      if (!token) throw new Error('Authentication required');
+      if (!token) {
+        throw new Error('Authentication token missing - please login again');
+      }
+
+      console.log('Updating group details:', editGroup);
 
       const response = await fetch(`/api/groups/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-Admin-Request': isAdmin ? 'true' : 'false'
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          name: editGroup.name,
-          description: editGroup.description
+          name: editGroup.name.trim(),
+          description: editGroup.description.trim()
         })
       });
 
+      const data = await response.json();
+      console.log('Group details update response:', data);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update group details');
+        const errorMessage = data.message || `Failed to update group details (Status: ${response.status})`;
+        throw new Error(errorMessage);
       }
 
-      const updatedGroup = await response.json();
-      setGroup({ ...group, ...updatedGroup });
+      setGroup({ ...group, ...data.group });
       toast.success('Group details updated');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update group details');
-      console.error(err);
+    } catch (error) {
+      let errorMessage = 'Failed to update group details';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        if (error.message.toLowerCase().includes('unauthorized') || error.message.includes('401')) {
+          errorMessage = 'Session expired - please login again';
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          router.push('/login');
+          return;
+        }
+        if (error.message.toLowerCase().includes('validation')) {
+          errorMessage = `Validation error: ${error.message.split(':').pop()?.trim()}`;
+        }
+      }
+      console.error('Group details update error:', error);
+      toast.error(errorMessage, {
+        action: {
+          label: 'Retry',
+          onClick: () => updateGroupDetails()
+        },
+        duration: 10000
+      });
     } finally {
-      setUpdating(false);
+      if (isMounted) {
+        setUpdating(false);
+      }
     }
-  };
+  }
 
-  const updateMemberRole = async (memberId: string, newRole: 'member' | 'admin') => {
+  async function updateMemberRole(memberId: string, newRole: 'member' | 'admin') {
     try {
       const token = localStorage.getItem('adminToken');
-      if (!token) throw new Error('Authentication required');
+      if (!token) {
+        throw new Error('Authentication token missing - please login again');
+      }
+
+      console.log('Updating member role:', { memberId, newRole });
 
       const response = await fetch(`/api/groups/${id}/members/${memberId}/role`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-Admin-Request': isAdmin ? 'true' : 'false'
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ role: newRole })
       });
 
+      const data = await response.json();
+      console.log('Member role update response:', data);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update role');
+        const errorMessage = data.message || `Failed to update role (Status: ${response.status})`;
+        throw new Error(errorMessage);
       }
 
       setMembers(members.map(member => 
         member.id === memberId ? { ...member, role: newRole } : member
       ));
       toast.success(`Member role updated to ${newRole}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update role');
-      console.error(err);
+    } catch (error) {
+      let errorMessage = 'Failed to update role';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        if (error.message.toLowerCase().includes('unauthorized') || error.message.includes('401')) {
+          errorMessage = 'Session expired - please login again';
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          router.push('/login');
+          return;
+        }
+        if (error.message.toLowerCase().includes('validation')) {
+          errorMessage = `Validation error: ${error.message.split(':').pop()?.trim()}`;
+        }
+      }
+      console.error('Member role update error:', error);
+      toast.error(errorMessage, {
+        action: {
+          label: 'Retry',
+          onClick: () => updateMemberRole(memberId, newRole)
+        },
+        duration: 10000
+      });
     }
-  };
+  }
 
-  const removeMember = async (memberId: string) => {
+  async function removeMember(memberId: string) {
     try {
       const token = localStorage.getItem('adminToken');
-      if (!token) throw new Error('Authentication required');
+      if (!token) {
+        throw new Error('Authentication token missing - please login again');
+      }
+
+      console.log('Removing member:', memberId);
 
       const response = await fetch(`/api/groups/${id}/members/${memberId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Admin-Request': isAdmin ? 'true' : 'false'
+          'Authorization': `Bearer ${token}`
         }
       });
 
+      const data = await response.json();
+      console.log('Member remove response:', data);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to remove member');
+        const errorMessage = data.message || `Failed to remove member (Status: ${response.status})`;
+        throw new Error(errorMessage);
       }
 
       setMembers(members.filter(member => member.id !== memberId));
       setGroup(group ? { ...group, memberCount: group.memberCount - 1 } : null);
       toast.success('Member removed from group');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to remove member');
-      console.error(err);
+    } catch (error) {
+      let errorMessage = 'Failed to remove member';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        if (error.message.toLowerCase().includes('unauthorized') || error.message.includes('401')) {
+          errorMessage = 'Session expired - please login again';
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          router.push('/login');
+          return;
+        }
+        if (error.message.toLowerCase().includes('validation')) {
+          errorMessage = `Validation error: ${error.message.split(':').pop()?.trim()}`;
+        }
+      }
+      console.error('Member remove error:', error);
+      toast.error(errorMessage, {
+        action: {
+          label: 'Retry',
+          onClick: () => removeMember(memberId)
+        },
+        duration: 10000
+      });
     }
-  };
+  }
 
-  const sendInvite = async () => {
+  async function sendInvite() {
     try {
       const token = localStorage.getItem('adminToken');
-      if (!token) throw new Error('Authentication required');
+      if (!token) {
+        throw new Error('Authentication token missing - please login again');
+      }
+
+      console.log('Sending invite:', inviteEmail);
 
       const response = await fetch(`/api/groups/${id}/invites`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'X-Admin-Request': isAdmin ? 'true' : 'false'
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ email: inviteEmail })
       });
 
+      const data = await response.json();
+      console.log('Invite response:', data);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to send invite');
+        const errorMessage = data.message || `Failed to send invite (Status: ${response.status})`;
+        throw new Error(errorMessage);
       }
 
       toast.success('Invitation sent successfully');
       setShowInviteDialog(false);
       setInviteEmail('');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to send invite');
-      console.error(err);
+    } catch (error) {
+      let errorMessage = 'Failed to send invite';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        if (error.message.toLowerCase().includes('unauthorized') || error.message.includes('401')) {
+          errorMessage = 'Session expired - please login again';
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          router.push('/login');
+          return;
+        }
+        if (error.message.toLowerCase().includes('validation')) {
+          errorMessage = `Validation error: ${error.message.split(':').pop()?.trim()}`;
+        }
+      }
+      console.error('Invite error:', error);
+      toast.error(errorMessage, {
+        action: {
+          label: 'Retry',
+          onClick: () => sendInvite()
+        },
+        duration: 10000
+      });
     }
-  };
+  }
 
-  const handleDeleteGroup = async () => {
+  async function handleDeleteGroup() {
     try {
       setDeleting(true);
       const token = localStorage.getItem('adminToken');
-      if (!token) throw new Error('Authentication required');
+      if (!token) {
+        throw new Error('Authentication token missing - please login again');
+      }
+
+      console.log('Deleting group:', id);
 
       const response = await fetch(`/api/groups/${id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Admin-Request': isAdmin ? 'true' : 'false'
+          'Authorization': `Bearer ${token}`
         }
       });
 
+      const data = await response.json();
+      console.log('Delete group response:', data);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete group');
+        const errorMessage = data.message || `Failed to delete group (Status: ${response.status})`;
+        throw new Error(errorMessage);
       }
 
       toast.success('Group deleted successfully');
       router.push('/dashboard/groups');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete group');
-      console.error(err);
+    } catch (error) {
+      let errorMessage = 'Failed to delete group';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        if (error.message.toLowerCase().includes('unauthorized') || error.message.includes('401')) {
+          errorMessage = 'Session expired - please login again';
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          router.push('/login');
+          return;
+        }
+        if (error.message.toLowerCase().includes('validation')) {
+          errorMessage = `Validation error: ${error.message.split(':').pop()?.trim()}`;
+        }
+      }
+      console.error('Delete group error:', error);
+      toast.error(errorMessage, {
+        action: {
+          label: 'Retry',
+          onClick: () => handleDeleteGroup()
+        },
+        duration: 10000
+      });
     } finally {
-      setDeleting(false);
-      setShowDeleteDialog(false);
+      if (isMounted) {
+        setDeleting(false);
+        setShowDeleteDialog(false);
+      }
     }
-  };
+  }
 
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <div className="text-center space-y-2">
           <h3 className="text-lg font-medium">Error loading group</h3>
-          <p className="text-sm text-muted-foreground">
-            {error.includes('Access denied')
-              ? 'You do not have permission to view this group. Please contact a group admin to gain access.'
-              : error}
-          </p>
+          <p className="text-sm text-muted-foreground">{error}</p>
         </div>
         <Button onClick={() => router.push('/dashboard/groups')}>
           Back to Groups
@@ -441,18 +600,15 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
               <Badge variant={group.isActive ? 'default' : 'destructive'}>
                 {group.isActive ? 'Active' : 'Inactive'}
               </Badge>
-              {isAdmin && (
-                <Badge variant="outline">Admin</Badge>
-              )}
             </div>
           </div>
         </div>
         <div className="ml-auto flex gap-2">
-          <Button onClick={() => setShowInviteDialog(true)} disabled={updating || !isAdmin}>
+          <Button onClick={() => setShowInviteDialog(true)} disabled={updating}>
             <UserPlus className="mr-2 h-4 w-4" />
             Invite Member
           </Button>
-          <Button variant="destructive" onClick={() => setShowDeleteDialog(true)} disabled={deleting || !isAdmin}>
+          <Button variant="destructive" onClick={() => setShowDeleteDialog(true)} disabled={deleting}>
             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
             Delete Group
           </Button>
@@ -480,7 +636,6 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                   id="group-name"
                   value={editGroup.name}
                   onChange={(e) => setEditGroup({ ...editGroup, name: e.target.value })}
-                  disabled={!isAdmin}
                 />
               </div>
               <div className="space-y-2">
@@ -489,10 +644,9 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                   id="group-description"
                   value={editGroup.description}
                   onChange={(e) => setEditGroup({ ...editGroup, description: e.target.value })}
-                  disabled={!isAdmin}
                 />
               </div>
-              <Button onClick={updateGroupDetails} disabled={updating || !isAdmin}>
+              <Button onClick={updateGroupDetails} disabled={updating}>
                 {updating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit className="mr-2 h-4 w-4" />}
                 Update Details
               </Button>
@@ -536,25 +690,23 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                         <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
                           {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                         </Badge>
-                        {isAdmin && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => updateMemberRole(member.id, member.role === 'admin' ? 'member' : 'admin')}>
-                                <Shield className="mr-2 h-4 w-4" />
-                                {member.role === 'admin' ? 'Make Member' : 'Make Admin'}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600" onClick={() => removeMember(member.id)}>
-                                <UserX className="mr-2 h-4 w-4" />
-                                Remove Member
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => updateMemberRole(member.id, member.role === 'admin' ? 'member' : 'admin')}>
+                              <Shield className="mr-2 h-4 w-4" />
+                              {member.role === 'admin' ? 'Make Member' : 'Make Admin'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={() => removeMember(member.id)}>
+                              <UserX className="mr-2 h-4 w-4" />
+                              Remove Member
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   ))}
@@ -579,7 +731,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                 <Switch
                   checked={group.settings.sendMessages}
                   onCheckedChange={(checked) => updateGroupSettings({ sendMessages: checked })}
-                  disabled={updating || !isAdmin}
+                  disabled={updating}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -590,7 +742,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                 <Switch
                   checked={group.settings.sendMedia}
                   onCheckedChange={(checked) => updateGroupSettings({ sendMedia: checked })}
-                  disabled={updating || !isAdmin}
+                  disabled={updating}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -601,7 +753,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                 <Switch
                   checked={group.settings.sendPolls}
                   onCheckedChange={(checked) => updateGroupSettings({ sendPolls: checked })}
-                  disabled={updating || !isAdmin}
+                  disabled={updating}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -612,7 +764,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                 <Switch
                   checked={group.settings.allowInvites}
                   onCheckedChange={(checked) => updateGroupSettings({ allowInvites: checked })}
-                  disabled={updating || !isAdmin}
+                  disabled={updating}
                 />
               </div>
             </CardContent>
@@ -674,7 +826,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteGroup} disabled={deleting || !isAdmin}>
+            <Button variant="destructive" onClick={handleDeleteGroup} disabled={deleting}>
               {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Delete
             </Button>
@@ -699,7 +851,6 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder="Enter email address"
-                disabled={!isAdmin}
               />
             </div>
           </div>
@@ -707,7 +858,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
             <Button variant="outline" onClick={() => setShowInviteDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={sendInvite} disabled={!inviteEmail || !isAdmin}>
+            <Button onClick={sendInvite} disabled={!inviteEmail}>
               Send Invite
             </Button>
           </DialogFooter>

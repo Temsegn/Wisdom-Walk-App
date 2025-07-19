@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
   try {
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
@@ -19,28 +19,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       );
     }
 
-    const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups/${groupId}/activities`;
+    const body = await request.json();
+
+    const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups/${groupId}/invites`;
     const res = await fetch(backendUrl, {
-      method: 'GET',
+      method: 'POST',
       headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': authHeader
       },
-      cache: 'no-store',
+      body: JSON.stringify(body),
     });
 
     const data = await res.json();
 
     if (!res.ok) {
       return NextResponse.json(
-        { success: false, message: data.message || 'Failed to fetch group activities' },
+        { success: false, message: data.message || 'Failed to send invite' },
         { status: res.status }
       );
     }
 
     return NextResponse.json(data, { status: 200 });
   } catch (error) {
-    console.error('Error fetching group activities:', error);
+    console.error('Error sending invite:', error);
     return NextResponse.json(
       { success: false, message: 'Internal server error' },
       { status: 500 }
