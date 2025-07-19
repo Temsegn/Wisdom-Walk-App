@@ -926,5 +926,6 @@ module.exports = {
   updateGroupSettings,
   generateInviteLink,
   muteGroup,
-  unmuteGroup
+  unmuteGroup,
+    getAllGroups
 };
