@@ -72,15 +72,17 @@ const getAllGroups = async (req, res) => {
       .populate("creator", "firstName lastName avatar")
       .populate("members.user", "firstName lastName avatar")
       .populate("admins", "firstName lastName avatar");
+
     res.status(200).json({
-        success: true,
-        groups  
+      success: true,
+      groups: groups || [] // Ensure this matches what your frontend expects
     });
   } catch (error) {
     console.error("Error fetching groups:", error);
     res.status(500).json({
-        success: false,
-        message: "Failed to fetch groups"   
+      success: false,
+      message: "Failed to fetch groups",
+      groups: [] // Return empty array on error
     });
   }
 };

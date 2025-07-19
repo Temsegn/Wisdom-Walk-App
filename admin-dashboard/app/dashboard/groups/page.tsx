@@ -32,23 +32,59 @@ export default function GroupListPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchGroups()
-  }, [])
-
-  const fetchGroups = async () => {
+  const fetchData = async () => {
     try {
-      setLoading(true)
-      // Replace with your actual API endpoint
-      const response = await fetch('/api/groups')
-      const data = await response.json()
-      setGroups(data.groups || [])
+      console.log('Fetching groups...');
+      const token = localStorage.getItem('token');
+      console.log('Using token:', token);
+      
+      const response = await fetch('/api/groups', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Received data:', data);
+      
+      setGroups(data.groups || []);
     } catch (error) {
-      toast.error('Failed to fetch groups')
-      console.error(error)
-    } finally {
-      setLoading(false)
+      console.error('Fetch error:', error);
     }
+  };
+  
+  fetchData();
+}, []);
+const fetchGroups = async () => {
+  try {
+    setLoading(true);
+    const token = localStorage.getItem('token'); // or your auth token storage
+    
+    const response = await fetch('/api/groups', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch groups');
+    }
+    
+    const data = await response.json();
+    console.log('Received data:', data); // Debug log
+    
+    // Handle both possible response formats
+    const groupsArray = data.groups || data || [];
+    setGroups(groupsArray);
+  } catch (error) {
+    toast.error('Failed to fetch groups');
+    console.error('Fetch error:', error);
+  } finally {
+    setLoading(false);
   }
+};
+
 
   const deleteGroup = async (groupId: string) => {
     try {

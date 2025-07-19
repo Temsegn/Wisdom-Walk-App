@@ -1,13 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-
-/**
- * Handles all group-related requests
- */
-import { type NextRequest, NextResponse } from "next/server"
-
 export async function GET(request: NextRequest) {
   try {
-    // Extract token from Authorization header
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json(
@@ -16,28 +9,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Forward request to backend API
-    const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups${request.nextUrl.search}`;
-    const response = await fetch(backendUrl, {
+    const backendResponse = await fetch(`https://wisdom-walk-app.onrender.com/api/groups`, {
       headers: {
         'Authorization': authHeader,
         'Content-Type': 'application/json'
-      },
-      cache: 'no-store'
+      }
     });
 
-    // Handle unauthorized responses
-    if (response.status === 401) {
+    if (!backendResponse.ok) {
+      const error = await backendResponse.json();
       return NextResponse.json(
-        { error: 'Unauthorized - Invalid or expired token' },
-        { status: 401 }
+        { error: error.message || 'Backend error' },
+        { status: backendResponse.status }
       );
     }
 
-    // Return the backend response
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
-
+    const data = await backendResponse.json();
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Groups API Error:', error);
     return NextResponse.json(
@@ -46,7 +34,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
- 
 
 export async function POST(request: Request) {
   try {
@@ -89,32 +76,4 @@ export async function POST(request: Request) {
       { status: 502 }
     )
   }
-}
-// Helper functions
-function getAuthToken(request: NextRequest): string | null {
-  return (
-    request.headers.get("authorization") ??
-    (request.cookies.get("adminToken") ? `Bearer ${request.cookies.get("adminToken")!.value}` : null)
-  )
-}
-
-function unauthorizedResponse(message: string = "Authorization token required") {
-  return NextResponse.json(
-    { success: false, message },
-    { status: 401 }
-  )
-}
-
-function badRequestResponse(message: string) {
-  return NextResponse.json(
-    { success: false, message },
-    { status: 400 }
-  )
-}
-
-function serverErrorResponse(message: string) {
-  return NextResponse.json(
-    { success: false, message },
-    { status: 500 }
-  )
 }
