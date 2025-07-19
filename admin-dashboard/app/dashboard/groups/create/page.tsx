@@ -48,7 +48,7 @@ export default function CreateGroupPage() {
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
-const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   
   if (!validateForm()) return;
@@ -58,8 +58,11 @@ const handleSubmit = async (e: React.FormEvent) => {
   try {
     const token = localStorage.getItem('adminToken');
     if (!token) {
-      throw new Error('Authentication token missing');
+      throw new Error('Authentication token missing - please login again');
     }
+
+    // Debug log the request payload
+    console.log('Submitting group data:', formData);
 
     const response = await fetch('/api/groups', {
       method: 'POST',
@@ -68,28 +71,27 @@ const handleSubmit = async (e: React.FormEvent) => {
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        name: formData.name,
-        description: formData.description,
+        name: formData.name.trim(),
+        description: formData.description.trim(),
         type: formData.type,
         isActive: formData.isActive
       })
     });
 
     const data = await response.json();
+    console.log('Backend response:', data); // Debug log
 
     if (!response.ok) {
-      // Enhanced error message extraction
-      const errorMessage = data.message || 
-                         data.error?.message || 
-                         'Failed to create group';
-      throw new Error(errorMessage);
+      // Enhanced error extraction
+      const serverError = data.error || data.message || 'Unknown server error';
+      throw new Error(`Server responded with ${response.status}: ${serverError}`);
     }
 
     toast.success('Group created successfully!');
     router.push(`/dashboard/groups/${data.id || data._id}`);
     
   } catch (error) {
-    console.error('Error creating group:', error);
+    console.error('Group creation failed:', error);
     
     let errorMessage = 'Failed to create group';
     if (error instanceof Error) {
@@ -106,7 +108,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       }
       
       if (error.message.toLowerCase().includes('validation')) {
-        errorMessage = `Validation error: ${error.message}`;
+        errorMessage = `Validation error: ${error.message.split(':').pop()?.trim()}`;
       }
     }
     
@@ -114,7 +116,8 @@ const handleSubmit = async (e: React.FormEvent) => {
       action: {
         label: 'Retry',
         onClick: () => handleSubmit(e)
-      }
+      },
+      duration: 10000 // Longer duration for error messages
     });
   } finally {
     if (isMounted) {

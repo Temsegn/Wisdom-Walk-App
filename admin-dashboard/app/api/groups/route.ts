@@ -1,23 +1,16 @@
-import { type NextRequest, NextResponse } from "next/server"
-
-/**
- * Handles all group-related requests
- */
+import { type NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    // Extract token from Authorization header
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json(
-        { error: 'Authorization header required' },
+        { success: false, message: "Authorization required", groups: [] },
         { status: 401 }
       );
     }
 
-    // Forward request to backend API
-    const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups`;
-    const response = await fetch(backendUrl, {
+    const backendResponse = await fetch(`https://wisdom-walk-app.onrender.com/api/groups`, {
       headers: {
         'Authorization': authHeader,
         'Content-Type': 'application/json'
@@ -25,27 +18,33 @@ export async function GET(request: NextRequest) {
       cache: 'no-store'
     });
 
-    // Handle unauthorized responses
-    if (response.status === 401) {
+    const data = await backendResponse.json();
+
+    // Ensure consistent response format
+    if (!backendResponse.ok) {
       return NextResponse.json(
-        { error: 'Unauthorized - Invalid or expired token' },
-        { status: 401 }
+        { 
+          success: false,
+          message: data.message || "Failed to fetch groups",
+          groups: []
+        },
+        { status: backendResponse.status }
       );
     }
 
-    // Return the backend response
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
+    return NextResponse.json({
+      success: true,
+      groups: data.groups || data || [] // Handle both response formats
+    });
 
   } catch (error) {
     console.error('Groups API Error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, message: "Internal server error", groups: [] },
       { status: 500 }
     );
   }
 }
- 
 
 export async function POST(request: Request) {
   try {

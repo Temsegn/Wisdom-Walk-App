@@ -66,6 +66,8 @@ const createGroup = async (req, res) => {
     });
   }
 };
+
+
 const getAllGroups = async (req, res) => {
   try {
     const groups = await Group.find({ "members.user": req.user._id })
