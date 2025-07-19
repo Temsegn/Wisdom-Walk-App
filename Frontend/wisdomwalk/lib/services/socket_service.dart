@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:wisdomwalk/models/message_model.dart';
@@ -20,6 +22,15 @@ class SocketService {
     'transports': ['websocket'],
     'autoConnect': false,
     'extraHeaders': {'Authorization': 'Bearer $token'},
+  });
+   Timer.periodic(Duration(seconds: 25), (timer) {
+    if (_socket?.connected == true) {
+      _socket?.emit('ping');
+    }
+  });
+
+  _socket?.on('pong', (_) {
+    debugPrint('Socket connection alive');
   });
 
     _socket?.onConnect((_) {

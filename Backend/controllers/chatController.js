@@ -763,16 +763,18 @@ const pinMessage = async (req, res) => {
         message: "Cannot pin a deleted message",
       });
     }
-
-    message.isPinned = true;
+ message.isPinned = true;
     await message.save();
 
     await Chat.findByIdAndUpdate(chatId, {
       $addToSet: { pinnedMessages: messageId },
     });
 
-    io.to(chatId).emit("messagePinned", { messageId });
-
+    // Emit to all clients in the chat room
+    io.to(chatId).emit("messagePinned", { 
+      messageId: message._id,
+      chatId: chatId
+    });
     res.json({
       success: true,
       message: "Message pinned successfully",
