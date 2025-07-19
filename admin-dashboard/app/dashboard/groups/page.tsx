@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
+import router from 'next/router'
 
 type Group = {
   id: string
@@ -59,27 +60,48 @@ export default function GroupListPage() {
 const fetchGroups = async () => {
   try {
     setLoading(true);
-    const token = localStorage.getItem('token'); // or your auth token storage
     
+    // Get token from localStorage (matches your login page)
+    const token = localStorage.getItem("adminToken");
+    if (!token) {
+      toast.error("Please login first");
+      router.push("/login");
+      return;
+    }
+
     const response = await fetch('/api/groups', {
       headers: {
-        'Authorization': `Bearer ${token}`
-      }
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include' // Important for cookies
     });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch groups');
+
+    console.log('Response status:', response.status);
+
+    if (response.status === 401) {
+      toast.error("Session expired. Please login again.");
+      localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminUser");
+      router.push("/login");
+      return;
     }
-    
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch groups');
+    }
+
     const data = await response.json();
-    console.log('Received data:', data); // Debug log
-    
-    // Handle both possible response formats
-    const groupsArray = data.groups || data || [];
-    setGroups(groupsArray);
+    setGroups(data.groups || data || []);
+
   } catch (error) {
-    toast.error('Failed to fetch groups');
     console.error('Fetch error:', error);
+    toast.error(
+      typeof error === "object" && error !== null && "message" in error
+        ? (error as { message?: string }).message || 'Failed to fetch groups'
+        : 'Failed to fetch groups'
+    );
   } finally {
     setLoading(false);
   }

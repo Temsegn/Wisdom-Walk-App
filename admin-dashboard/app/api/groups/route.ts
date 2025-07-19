@@ -1,10 +1,14 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server";
+
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
+    // Get token from headers or cookies
+    const authHeader = request.headers.get('authorization') || 
+                      `Bearer ${request.cookies.get('adminToken')?.value}`;
+    
     if (!authHeader) {
       return NextResponse.json(
-        { error: 'Authorization header required' },
+        { success: false, message: "Authorization required" },
         { status: 401 }
       );
     }
@@ -12,29 +16,36 @@ export async function GET(request: NextRequest) {
     const backendResponse = await fetch(`https://wisdom-walk-app.onrender.com/api/groups`, {
       headers: {
         'Authorization': authHeader,
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+        'Cookie': request.headers.get('cookie') || ''
+      },
+      credentials: 'include'
     });
 
-    if (!backendResponse.ok) {
-      const error = await backendResponse.json();
-      return NextResponse.json(
-        { error: error.message || 'Backend error' },
-        { status: backendResponse.status }
-      );
+    // Forward the exact response from backend
+    if (backendResponse.status === 401) {
+      return new NextResponse(JSON.stringify({
+        success: false,
+        message: "Unauthorized"
+      }), {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
     }
 
     const data = await backendResponse.json();
     return NextResponse.json(data);
+
   } catch (error) {
     console.error('Groups API Error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, message: "Internal server error" },
       { status: 500 }
     );
   }
 }
-
 export async function POST(request: Request) {
   try {
     // Get token from headers
