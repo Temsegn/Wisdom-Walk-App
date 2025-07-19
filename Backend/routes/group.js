@@ -11,6 +11,7 @@ router.use(authenticateToken);
 
 // Group CRUD
 router.post("/", groupController.createGroup);
+router.get("/", groupController.getAllGroups);
 router.get("/:groupId", groupController.getGroupDetails);
 router.put("/:groupId", groupController.updateGroup);
 router.delete("/:groupId", groupController.deleteGroup);

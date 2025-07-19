@@ -66,6 +66,24 @@ const createGroup = async (req, res) => {
     });
   }
 };
+const getAllGroups = async (req, res) => {
+  try {
+    const groups = await Group.find({ "members.user": req.user._id })
+      .populate("creator", "firstName lastName avatar")
+      .populate("members.user", "firstName lastName avatar")
+      .populate("admins", "firstName lastName avatar");
+    res.status(200).json({
+        success: true,
+        groups  
+    });
+  } catch (error) {
+    console.error("Error fetching groups:", error);
+    res.status(500).json({
+        success: false,
+        message: "Failed to fetch groups"   
+    });
+  }
+};
 
 const getGroupDetails = async (req, res) => {
   try {
