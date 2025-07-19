@@ -144,13 +144,13 @@ const updateGroup = async (req, res) => {
       });
     }
 
-    // Allow update if user is group admin or system admin
-    if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Only admins can update group" 
-      });
-    }
+    // // Allow update if user is group admin or system admin
+    // if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Only admins can update group" 
+    //   });
+    // }
 
     if (name) group.name = name;
     if (description) group.description = description;
@@ -297,13 +297,13 @@ const addMember = async (req, res) => {
       });
     }
 
-    // Allow add if user is group admin or system admin
-    if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Only admins can add members" 
-      });
-    }
+    // // Allow add if user is group admin or system admin
+    // if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Only admins can add members" 
+    //   });
+    // }
 
     // Check if user is already a member
     if (isGroupMember(group, userId)) {
@@ -341,12 +341,12 @@ const removeMember = async (req, res) => {
     }
 
     // Allow remove if user is group admin or system admin
-    if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Only admins can remove members" 
-      });
-    }
+    // if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Only admins can remove members" 
+    //   });
+    // }
 
     // Cannot remove yourself
     if (req.params.userId === req.user._id.toString()) {
@@ -393,21 +393,21 @@ const promoteToAdmin = async (req, res) => {
       });
     }
 
-    // Allow promote if user is group admin or system admin
-    if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Only admins can promote members" 
-      });
-    }
+    // // Allow promote if user is group admin or system admin
+    // if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Only admins can promote members" 
+    //   });
+    // }
 
-    // Check if user is already admin
-    if (isGroupAdmin(group, req.params.userId)) {
-      return res.status(400).json({ 
-        success: false,
-        message: "User is already an admin" 
-      });
-    }
+    // // Check if user is already admin
+    // if (isGroupAdmin(group, req.params.userId)) {
+    //   return res.status(400).json({ 
+    //     success: false,
+    //     message: "User is already an admin" 
+    //   });
+    // }
 
     // Check if user is a member
     if (!isGroupMember(group, req.params.userId)) {
@@ -444,21 +444,21 @@ const demoteAdmin = async (req, res) => {
       });
     }
 
-    // Allow demote if user is group admin or system admin
-    if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Only admins can demote members" 
-      });
-    }
+    // // Allow demote if user is group admin or system admin
+    // if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Only admins can demote members" 
+    //   });
+    // }
 
-    // Check if user is actually an admin
-    if (!isGroupAdmin(group, req.params.userId)) {
-      return res.status(400).json({ 
-        success: false,
-        message: "User is not an admin" 
-      });
-    }
+    // // Check if user is actually an admin
+    // if (!isGroupAdmin(group, req.params.userId)) {
+    //   return res.status(400).json({ 
+    //     success: false,
+    //     message: "User is not an admin" 
+    //   });
+    // }
 
     // Cannot demote yourself
     if (req.params.userId === req.user._id.toString()) {
@@ -652,13 +652,13 @@ const pinMessage = async (req, res) => {
       });
     }
 
-    // Allow pinning if user is group admin or system admin
-    if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Only admins can pin messages" 
-      });
-    }
+    // // Allow pinning if user is group admin or system admin
+    // if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Only admins can pin messages" 
+    //   });
+    // }
 
     const message = await Message.findOne({
       _id: req.params.messageId,
@@ -715,13 +715,13 @@ const unpinMessage = async (req, res) => {
       });
     }
 
-    // Allow unpinning if user is group admin or system admin
-    if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Only admins can unpin messages" 
-      });
-    }
+    // // Allow unpinning if user is group admin or system admin
+    // if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Only admins can unpin messages" 
+    //   });
+    // }
 
     const pinIndex = group.pinnedMessages.findIndex(
       pm => pm.message.toString() === req.params.messageId
@@ -763,13 +763,13 @@ const updateGroupSettings = async (req, res) => {
       });
     }
 
-    // Allow update if user is group admin or system admin
-    if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Only admins can update settings" 
-      });
-    }
+    // // Allow update if user is group admin or system admin
+    // if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Only admins can update settings" 
+    //   });
+    // }
 
     // Update settings
     group.settings = {
@@ -803,13 +803,13 @@ const generateInviteLink = async (req, res) => {
       });
     }
 
-    // Allow generating link if user is group admin or system admin
-    if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
-      return res.status(403).json({ 
-        success: false,
-        message: "Only admins can generate invite links" 
-      });
-    }
+    // // Allow generating link if user is group admin or system admin
+    // if (!isGroupAdmin(group, req.user._id) && req.user.role !== 'admin') {
+    //   return res.status(403).json({ 
+    //     success: false,
+    //     message: "Only admins can generate invite links" 
+    //   });
+    // }
 
     // Generate new invite link
     group.inviteLink = generateRandomString(32);

@@ -1,25 +1,44 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { groupId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
   try {
-    const token = request.headers.get("Authorization") || ""
-    const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups/${params.groupId}/activities`
+    const { groupId } = await params;
 
+    if (!groupId || groupId === 'undefined') {
+      return NextResponse.json(
+        { success: false, message: 'Invalid group ID' },
+        { status: 400 }
+      );
+    }
+
+    const token = request.headers.get('Authorization') || '';
+    const adminRequest = request.headers.get('X-Admin-Request') || 'false';
+
+    const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups/${groupId}/activities`;
     const res = await fetch(backendUrl, {
-      headers: { Authorization: token },
-      cache: "no-store",
-    })
+      method: 'GET',
+      headers: {
+        Authorization: token,
+        'X-Admin-Request': adminRequest,
+      },
+      cache: 'no-store',
+    });
 
-    const data = await res.json()
-    return NextResponse.json(data, { status: res.status })
+    const data = await res.json();
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { success: false, message: data.message || 'Failed to fetch group activities' },
+        { status: res.status }
+      );
+    }
+
+    return NextResponse.json(data, { status: 200 });
   } catch (error) {
-    console.error("Error fetching group activities:", error)
+    console.error('Error fetching group activities:', error);
     return NextResponse.json(
-      { success: false, message: "Failed to fetch group activities" },
+      { success: false, message: 'Internal server error' },
       { status: 500 }
-    )
+    );
   }
 }
