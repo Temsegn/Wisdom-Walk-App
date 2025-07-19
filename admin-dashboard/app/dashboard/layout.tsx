@@ -42,6 +42,15 @@ const navigation = [
    { name: "Notifications", href: "/dashboard/notifications", icon: MessageSquare },
   {name:"event",href:"/dashboard/events",icon:Calendar},
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  {
+    name: "Groups",
+    href: "/dashboard/groups",
+    icon: Users,
+    children: [
+      { name: "All Groups", href: "/dashboard/groups" },
+      { name: "Create Group", href: "/dashboard/groups/create" },
+    ]
+  },
 ]
 
 export default function DashboardLayout({

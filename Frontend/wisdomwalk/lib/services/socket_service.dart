@@ -25,7 +25,7 @@ class SocketService {
   });
    Timer.periodic(Duration(seconds: 25), (timer) {
     if (_socket?.connected == true) {
-      _socket?.emit('ping');
+      _socket?.emit('ping'); 
     }
   });
 
@@ -245,6 +245,29 @@ class SocketService {
       _socket?.emit('messageEdited', updatedMessage.toJson());
     }
   }
+   
+  void onMessagePinned(Function(dynamic) callback) {
+    _socket?.on('message_pinned', callback);
+  }
+
+  void onMessageReacted(Function(dynamic) callback) {
+    _socket?.on('message_reacted', callback);
+  }
+
+  void pinMessage(String chatId, String messageId) {
+    _socket?.emit('pin_message', {
+      'chatId': chatId,
+      'messageId': messageId,
+    });
+  }
+
+  void addReaction(String messageId, String emoji) {
+    _socket?.emit('add_reaction', {
+      'messageId': messageId,
+      'emoji': emoji,
+    });
+  }
+
 
   void disconnect() {
     _socket?.disconnect();

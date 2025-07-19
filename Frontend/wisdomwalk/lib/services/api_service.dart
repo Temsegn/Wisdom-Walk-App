@@ -238,7 +238,7 @@ class ApiService {
       }
 
       final response = await http.put(
-        Uri.parse('$baseUrl/chat/messages/$messageId'),
+        Uri.parse('$baseUrl/chats/messages/$messageId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -265,7 +265,7 @@ class ApiService {
       }
 
       final response = await http.delete(
-        Uri.parse('$baseUrl/chat/messages/$messageId'),
+        Uri.parse('$baseUrl/chats/messages/$messageId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -288,7 +288,7 @@ class ApiService {
       }
 
       final response = await http.post(
-        Uri.parse('$baseUrl/chat/messages/$messageId/reaction'),
+        Uri.parse('$baseUrl/chats/messages/$messageId/reaction'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -312,7 +312,7 @@ class ApiService {
       }
 
       final response = await http.post(
-        Uri.parse('$baseUrl/chat/$chatId/pin/$messageId'),
+        Uri.parse('$baseUrl/chats/$chatId/pin/$messageId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -335,7 +335,7 @@ class ApiService {
       }
 
       final response = await http.put(
-        Uri.parse('$baseUrl/chat/$chatId/unpin/$messageId'),
+        Uri.parse('$baseUrl/chats/$chatId/unpin/$messageId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

@@ -25,54 +25,192 @@ class MessageBubble extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
     
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-      child: Row(
-        mainAxisAlignment: isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-               if (!isCurrentUser) const SizedBox(width: 16.0), // Add left gap for received messages
-
-          Flexible(
-            child: Column(
-              crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              children: [
-                if (!isCurrentUser) _buildSenderName(message.sender),
-                GestureDetector(
-                  onLongPress: () => _showMessageOptions(context),
-                  child: Container(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75,
-                    ),
-                    padding: const EdgeInsets.all(12.0),
-                    decoration: BoxDecoration(
-
-                      color: isCurrentUser
-                          ? (isDarkMode ? Colors.blue[800] : Colors.blue)
-                          : (isDarkMode ? Colors.grey[800] : Colors.grey[200]),
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(18.0),
-                        topRight: const Radius.circular(18.0),
-                        bottomLeft: Radius.circular(isCurrentUser ? 18.0 : 4.0),
-                        bottomRight: Radius.circular(isCurrentUser ? 4.0 : 18.0),
+          if (message.isPinned) _buildPinnedHeader(context),
+          Row(
+            mainAxisAlignment: isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (!isCurrentUser) const SizedBox(width: 16.0),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    if (!isCurrentUser) _buildSenderName(message.sender),
+                    GestureDetector(
+                      onLongPress: () => _showMessageOptions(context),
+                      onDoubleTap: () => _handleDoubleTap(context),
+                      child: Container(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.75,
+                        ),
+                        padding: const EdgeInsets.all(12.0),
+                        decoration: BoxDecoration(
+                          color: isCurrentUser
+                              ? (isDarkMode ? Colors.blue[800] : Colors.blue)
+                              : (isDarkMode ? Colors.grey[800] : Colors.grey[200]),
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(18.0),
+                            topRight: const Radius.circular(18.0),
+                            bottomLeft: Radius.circular(isCurrentUser ? 18.0 : 4.0),
+                            bottomRight: Radius.circular(isCurrentUser ? 4.0 : 18.0),
+                          ),
+                        ),
+                        child: _buildMessageContent(),
                       ),
                     ),
-                    child: _buildMessageContent(),
+                    _buildMessageStatus(),
+                  ],
+                ),
+              ),
+              if (isCurrentUser) const SizedBox(width: 8.0),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  Widget _buildPinnedHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
+      child: Row(
+        mainAxisAlignment: isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.push_pin, size: 14.0, color: Colors.orange),
+                const SizedBox(width: 4.0),
+                Text(
+                  'Pinned',
+                  style: TextStyle(
+                    fontSize: 12.0,
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                _buildMessageStatus(),
               ],
             ),
           ),
-          if (isCurrentUser) const SizedBox(width: 8.0),
         ],
-      ), 
+      ),
     );
-  } 
+  }
+
+void _handleDoubleTap(BuildContext context) {
+    if (onReact != null) {
+      _showQuickReactions(context);
+    }
+  }
+void _showQuickReactions(BuildContext context) {
+    final overlay = Overlay.of(context);
+    final renderBox = context.findRenderObject() as RenderBox;
+    final position = renderBox.localToGlobal(Offset.zero);
+
+    late OverlayEntry overlayEntry;
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: position.dx + renderBox.size.width / 2 - 100,
+        top: position.dy - 50,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(8.0),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(24.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 8.0,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: ['❤️', '👍', '😂', '😮', '😢', '😡'].map((emoji) {
+                return GestureDetector(
+                  onTap: () {
+                    overlayEntry.remove();
+                    onReact?.call(emoji);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: Text(
+                      emoji,
+                      style: const TextStyle(fontSize: 24.0),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (overlayEntry.mounted) overlayEntry.remove();
+    });
+  }
+  Widget _buildReactions() {
+    // Group reactions by emoji and count
+    final reactionGroups = <String, int>{};
+    for (final reaction in message.reactions) {
+      reactionGroups[reaction.emoji] = (reactionGroups[reaction.emoji] ?? 0) + 1;
+    }
+
+    return Wrap(
+      spacing: 4.0,
+      runSpacing: 4.0,
+      alignment: WrapAlignment.end,
+      children: reactionGroups.entries.map((entry) {
+        return GestureDetector(
+          onTap: () => onReact?.call(entry.key),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 6.0,
+              vertical: 2.0,
+            ),
+            decoration: BoxDecoration(
+              color:   Colors.black.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: entry.key),
+                  if (entry.value > 1) TextSpan(
+                    text: ' ${entry.value}',
+                    style: const TextStyle(fontSize: 10.0),
+                  ),
+                ],
+              ),
+              style: const TextStyle(fontSize: 12.0),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+
 
   Widget _buildUserAvatar(UserModel user) {
     return Padding(
@@ -255,30 +393,7 @@ class MessageBubble extends StatelessWidget {
       }
     }).toList();
   }
-
-  Widget _buildReactions() {
-    return Wrap(
-      spacing: 4.0,
-      runSpacing: 4.0,
-      children: message.reactions.map((reaction) {
-        return Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 6.0,
-            vertical: 2.0,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12.0),
-          ),
-          child: Text(
-            reaction.emoji,
-            style: const TextStyle(fontSize: 12.0),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
+ 
   Widget _buildMessageStatus() {
     return Padding(
       padding: const EdgeInsets.only(top: 4.0),

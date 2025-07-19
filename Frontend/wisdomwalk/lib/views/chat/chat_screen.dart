@@ -83,18 +83,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 Future<void> _loadInitialMessages() async {
   await context.read<MessageProvider>().loadMessages(
     widget.chat.id,
-    refresh: true,
+    refresh: true, 
   );
   setState(() => _isInitialLoad = false);
   
   WidgetsBinding.instance.addPostFrameCallback((_) {
     if (_scrollController.hasClients) {
-      // Change to maxScrollExtent to scroll to bottom
       _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     }
   });
 }
-  void _markChatAsRead() {
+void _markChatAsRead() {
     context.read<ChatProvider>().markChatAsRead(widget.chat.id);
   }
 
@@ -312,71 +311,71 @@ Future<void> _loadInitialMessages() async {
       ],
     );
   }
+Widget _buildMessageList() {
+  return Consumer<MessageProvider>(
+    builder: (context, messageProvider, child) {
+      final messages = messageProvider.getChatMessages(widget.chat.id);
+      final isLoading = messageProvider.isLoading(widget.chat.id);
+      final error = messageProvider.getError(widget.chat.id);
 
-  Widget _buildMessageList() {
-    return Consumer<MessageProvider>(
-      builder: (context, messageProvider, child) {
-        final messages = messageProvider.getChatMessages(widget.chat.id);
-        final isLoading = messageProvider.isLoading(widget.chat.id);
-        final error = messageProvider.getError(widget.chat.id);
+      if (_isInitialLoad && messages.isEmpty) {
+        return _buildShimmerLoading();
+      }
 
-        if (_isInitialLoad && messages.isEmpty) {
-          return _buildShimmerLoading();
-        }
+      if (error != null) {
+        return _buildErrorState(error, messageProvider);
+      }
 
-        if (error != null) {
-          return _buildErrorState(error, messageProvider);
-        }
+      if (messages.isEmpty) {
+        return _buildEmptyState();
+      }
 
-        if (messages.isEmpty) {
-          return _buildEmptyState();
-        }
-
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(32),
-              topRight: Radius.circular(32),
-            ),
+      return Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(32),
+            topRight: Radius.circular(32),
           ),
-          child: ListView.builder(
-            controller: _scrollController,
-             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-            itemCount: messages.length + (isLoading ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index == messages.length) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF10B981),
-                    ),
+        ),
+        child: ListView.builder(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+          reverse: true, // This ensures new messages appear at bottom
+          itemCount: messages.length + (isLoading ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index == messages.length) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF10B981),
                   ),
-                );
-              }
-
-              final message = messages[index];
-              final isCurrentUser = message.sender.id == _currentUserId;
-
-              return MessageBubble(
-                message: message,
-                isCurrentUser: isCurrentUser,
-                onReply: () => _setReplyMessage(message),
-                onEdit: () => _editMessage(message),
-                onDelete: () => _deleteMessage(message),
-                onReact: (emoji) => _addReaction(message, emoji),
-                onPin: () => _pinMessage(message),
-                onForward: () => _forwardMessage(message),
+                ),
               );
-            },
-          ),
-        );
-      },
-    );
-  }
+            }
 
+            // Access messages in reverse order
+            final message = messages[messages.length - 1 - index];
+            final isCurrentUser = message.sender.id == _currentUserId;
+
+            return MessageBubble(
+              message: message,
+              isCurrentUser: isCurrentUser,
+              onReply: () => _setReplyMessage(message),
+              onEdit: () => _editMessage(message),
+              onDelete: () => _deleteMessage(message),
+              onReact: (emoji) => _addReaction(message, emoji),
+              onPin: () => _pinMessage(message),
+              onForward: () => _forwardMessage(message),
+            );
+          },
+        ),
+      );
+    },
+  );
+}
   Widget _buildShimmerLoading() {
     return Container(
       decoration: const BoxDecoration(
@@ -842,7 +841,7 @@ Future<void> _loadInitialMessages() async {
       ),
     );
   }
-Future<void> _sendMessage(String content) async {
+  Future<void> _sendMessage(String content) async {
   if (content.trim().isEmpty) return;
   
   final messageProvider = context.read<MessageProvider>();
@@ -854,7 +853,6 @@ Future<void> _sendMessage(String content) async {
   _messageController.clear();
   
   if (_scrollController.hasClients) {
-    // Change to maxScrollExtent to scroll to bottom
     _scrollController.animateTo(
       _scrollController.position.maxScrollExtent,
       duration: const Duration(milliseconds: 300),
@@ -862,7 +860,8 @@ Future<void> _sendMessage(String content) async {
     );
   }
 }
-  Future<void> _attachFile() async {
+
+Future<void> _attachFile() async {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
