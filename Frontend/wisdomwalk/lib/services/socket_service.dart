@@ -12,14 +12,15 @@ class SocketService {
   SocketService(this.context);
 
   void connect(String token) {
-    if (_socket != null && _socket!.connected)
-      return; // Prevent multiple connections
-
+   if (_socket != null) {
+    _socket!.disconnect();
+    _socket = null;
+  }
     _socket = IO.io('https://wisdom-walk-app.onrender.com', <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': false,
-      'extraHeaders': {'Authorization': 'Bearer $token'},
-    });
+    'transports': ['websocket'],
+    'autoConnect': false,
+    'extraHeaders': {'Authorization': 'Bearer $token'},
+  });
 
     _socket?.onConnect((_) {
       debugPrint('Socket connected');
@@ -29,9 +30,10 @@ class SocketService {
       debugPrint('Socket connection error: $data');
     });
 
-    _socket?.onDisconnect((_) {
-      debugPrint('Socket disconnected');
-    });
+    _socket!.onDisconnect((_) {
+    debugPrint('Socket disconnected - attempting reconnect');
+    Future.delayed(Duration(seconds: 2), () => _socket?.connect());
+  });
 
     _socket?.on('newMessage', (data) {
       try {
