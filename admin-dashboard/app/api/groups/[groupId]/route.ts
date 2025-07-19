@@ -10,6 +10,7 @@ export async function GET(request: NextRequest, { params }: { params: { groupId:
     }
 
     const { groupId } = params;
+    console.log('Fetching group with ID:', groupId); // Add this log
 
     if (!groupId || groupId === 'undefined') {
       return NextResponse.json(
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: { groupId:
     }
 
     const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups/${groupId}`;
+    console.log('Backend URL:', backendUrl); // Add this log
     const res = await fetch(backendUrl, {
       method: 'GET',
       headers: {
@@ -29,6 +31,7 @@ export async function GET(request: NextRequest, { params }: { params: { groupId:
     });
 
     const data = await res.json();
+    console.log('Backend response:', data); // Add this log
 
     if (!res.ok) {
       return NextResponse.json(

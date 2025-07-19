@@ -97,91 +97,86 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
     fetchGroupData();
     return () => setIsMounted(false);
   }, [id, router]);
+async function fetchGroupData() {
+  try {
+    setLoading({ group: true, members: true, activities: true });
+    setError(null);
 
-  async function fetchGroupData() {
-    try {
-      setLoading({ group: true, members: true, activities: true });
-      setError(null);
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      throw new Error('Authentication token missing - please login again');
+    }
 
-      const token = localStorage.getItem('adminToken');
-      if (!token) {
-        throw new Error('Authentication token missing - please login again');
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+    console.log('Fetching group data for ID:', id, 'with token:', token);
+
+    const [groupRes, membersRes, activitiesRes] = await Promise.all([
+      fetch(`/api/groups/${id}`, { headers }),
+      fetch(`/api/groups/${id}/members`, { headers }).catch(() => ({ ok: false, status: 404, json: async () => ({ members: [] }) })),
+      fetch(`/api/groups/${id}/activities`, { headers }).catch(() => ({ ok: false, status: 404, json: async () => ({ activities: [] }) }))
+    ]);
+
+    const [groupData, membersData, activitiesData] = await Promise.all([
+      groupRes.json(),
+      membersRes.json(),
+      activitiesRes.json()
+    ]);
+
+    console.log('Group response:', groupData);
+    console.log('Members response:', membersData);
+    console.log('Activities response:', activitiesData);
+
+    if (!groupRes.ok) {
+      
+      const errorMessage = groupData.message || `Failed to fetch group details (Status: ${groupRes.status})`;
+      throw new Error(errorMessage);
+    }
+
+    setGroup({
+      ...groupData.group,
+      settings: {
+        sendMessages: groupData.group?.settings?.sendMessages ?? true,
+        sendMedia: groupData.group?.settings?.sendMedia ?? true,
+        sendPolls: groupData.group?.settings?.sendPolls ?? true,
+        allowInvites: groupData.group?.settings?.allowInvites ?? true
       }
-
-      const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      };
-
-      console.log('Fetching group data with token:', token);
-
-      const [groupRes, membersRes, activitiesRes] = await Promise.all([
-        fetch(`/api/groups/${id}`, { headers }),
-        fetch(`/api/groups/${id}/members`, { headers }),
-        fetch(`/api/groups/${id}/activities`, { headers })
-      ]);
-
-      const [groupData, membersData, activitiesData] = await Promise.all([
-        groupRes.json(),
-        membersRes.json(),
-        activitiesRes.json()
-      ]);
-
-      if (!groupRes.ok) {
-        const errorMessage = groupData.message || `Failed to fetch group details (Status: ${groupRes.status})`;
-        throw new Error(errorMessage);
+    });
+    setMembers(membersData.members || []);
+    setActivities(activitiesData.activities || []);
+    setEditGroup({ name: groupData.group.name, description: groupData.group.description || '' });
+  } catch (error) {
+    let errorMessage = 'Failed to load group data';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      if (error.message.toLowerCase().includes('unauthorized') || error.message.includes('401')) {
+        errorMessage = 'Session expired - please login again';
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        router.push('/login');
+        return;
       }
-      if (!membersRes.ok) {
-        const errorMessage = membersData.message || `Failed to fetch members (Status: ${membersRes.status})`;
-        throw new Error(errorMessage);
-      }
-      if (!activitiesRes.ok) {
-        const errorMessage = activitiesData.message || `Failed to fetch activities (Status: ${activitiesRes.status})`;
-        throw new Error(errorMessage);
-      }
-
-      setGroup({
-        ...groupData.group,
-        settings: {
-          sendMessages: groupData.group?.settings?.sendMessages ?? true,
-          sendMedia: groupData.group?.settings?.sendMedia ?? true,
-          sendPolls: groupData.group?.settings?.sendPolls ?? true,
-          allowInvites: groupData.group?.settings?.allowInvites ?? true
-        }
-      });
-      setMembers(membersData.members || []);
-      setActivities(activitiesData.activities || []);
-      setEditGroup({ name: groupData.group.name, description: groupData.group.description || '' });
-    } catch (error) {
-      let errorMessage = 'Failed to load group data';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-        if (error.message.toLowerCase().includes('unauthorized') || error.message.includes('401')) {
-          errorMessage = 'Session expired - please login again';
-          localStorage.removeItem('adminToken');
-          localStorage.removeItem('adminUser');
-          router.push('/login');
-          return;
-        }
-        if (error.message.toLowerCase().includes('validation')) {
-          errorMessage = `Validation error: ${error.message.split(':').pop()?.trim()}`;
-        }
-      }
-      console.error('Fetch error:', error);
-      setError(errorMessage);
-      toast.error(errorMessage, {
-        action: {
-          label: 'Retry',
-          onClick: () => fetchGroupData()
-        },
-        duration: 10000
-      });
-    } finally {
-      if (isMounted) {
-        setLoading({ group: false, members: false, activities: false });
+      if (error.message.toLowerCase().includes('validation')) {
+        errorMessage = `Validation error: ${error.message.split(':').pop()?.trim()}`;
       }
     }
+    console.error('Fetch error:', error);
+    setError(errorMessage);
+    toast.error(errorMessage, {
+      action: {
+        label: 'Retry',
+        onClick: () => fetchGroupData()
+      },
+      duration: 10000
+    });
+  } finally {
+    if (isMounted) {
+      setLoading({ group: false, members: false, activities: false });
+    }
   }
+}
 
   async function updateGroupSettings(settings: Partial<Group['settings']>) {
     if (!group) return;
