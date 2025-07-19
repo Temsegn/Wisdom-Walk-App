@@ -1,5 +1,5 @@
 "use client"
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, PlusCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -19,47 +19,111 @@ export default function CreateGroupPage() {
     type: 'public',
     isActive: true
   })
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  setLoading(true)
+  const [isMounted, setIsMounted] = useState(false)
 
-  try {
-    const token = localStorage.getItem('token') // Get token from storage
+  useEffect(() => {
+    setIsMounted(true)
+    const token = localStorage.getItem('adminToken')
     if (!token) {
-      throw new Error('Authentication token missing')
+      toast.error('Please login to continue')
+      router.push('/login')
     }
+  }, [router])
 
-    const response = await fetch('/api/groups', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` // Add auth header
-      },
-      body: JSON.stringify({
-        ...formData,
-        members: [] // Add empty members array to match schema
-      })
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json() // Get detailed error from backend
-      throw new Error(errorData.message || 'Failed to create group')
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+    
+    if (!formData.name.trim()) {
+      newErrors.name = 'Group name is required'
+    } else if (formData.name.length > 50) {
+      newErrors.name = 'Name must be 50 characters or less'
     }
-
-    // ... rest of your success handling
-  } catch (error) {
-    console.error('Group creation error:', error)
-    const errorMessage = (error instanceof Error) ? error.message : 'Failed to create group'
-    toast.error(errorMessage) // Show actual error message
-  } finally {
-    setLoading(false)
+    
+    if (formData.description.length > 500) {
+      newErrors.description = 'Description must be 500 characters or less'
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
-}
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateForm()) return
+
+    setLoading(true)
+
+    try {
+      const token = localStorage.getItem('adminToken')
+      if (!token) {
+        throw new Error('Authentication required')
+      }
+
+     const response = await fetch('/api/groups', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    name: formData.name,
+    description: formData.description,
+    type: formData.type,
+    isActive: formData.isActive
+  })
+})
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to create group')
+      }
+
+      toast.success('Group created successfully!')
+      router.push(`/dashboard/groups/${data.id}`)
+    } catch (error) {
+      console.error('Error creating group:', error)
+      
+      let errorMessage = 'Failed to create group'
+      if (error instanceof Error) {
+        errorMessage = error.message
+        
+        if (error.message.includes('401') || error.message.includes('token')) {
+          errorMessage = 'Session expired - please login again'
+          localStorage.removeItem('adminToken')
+          localStorage.removeItem('adminUser')
+          router.push('/login')
+          return
+        }
+      }
+      
+      toast.error(errorMessage, {
+        action: {
+          label: 'Retry',
+          onClick: () => handleSubmit(e)
+        }
+      })
+    } finally {
+      if (isMounted) {
+        setLoading(false)
+      }
+    }
+  }
+
+  if (!isMounted) return null
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => router.back()}>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={() => router.back()}
+          disabled={loading}
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-2xl font-bold">Create New Group</h1>
@@ -76,10 +140,18 @@ const handleSubmit = async (e: React.FormEvent) => {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={(e) => {
+                  setFormData({...formData, name: e.target.value})
+                  if (errors.name) setErrors({...errors, name: ''})
+                }}
                 required
                 placeholder="e.g. Wisdom Walk Support"
+                disabled={loading}
+                className={errors.name ? 'border-red-500' : ''}
               />
+              {errors.name && (
+                <p className="text-sm text-red-500 mt-1">{errors.name}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -87,19 +159,27 @@ const handleSubmit = async (e: React.FormEvent) => {
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                onChange={(e) => {
+                  setFormData({...formData, description: e.target.value})
+                  if (errors.description) setErrors({...errors, description: ''})
+                }}
                 placeholder="What's this group about?"
                 rows={3}
+                disabled={loading}
+                className={errors.description ? 'border-red-500' : ''}
               />
+              {errors.description && (
+                <p className="text-sm text-red-500 mt-1">{errors.description}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>Group Type</Label>
               <RadioGroup
-                defaultValue="public"
                 value={formData.type}
                 onValueChange={(value) => setFormData({...formData, type: value as 'public' | 'private'})}
                 className="grid grid-cols-2 gap-4"
+                disabled={loading}
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="public" id="public" />
@@ -122,20 +202,31 @@ const handleSubmit = async (e: React.FormEvent) => {
               <Switch
                 checked={formData.isActive}
                 onCheckedChange={(value) => setFormData({...formData, isActive: value})}
+                disabled={loading}
               />
             </div>
 
             <div className="flex justify-end gap-4">
-              <Button variant="outline" type="button" onClick={() => router.push('/dashboard/groups')}>
+              <Button 
+                variant="outline" 
+                type="button" 
+                onClick={() => router.push('/dashboard/groups')}
+                disabled={loading}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>
                 {loading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
                 ) : (
-                  <PlusCircle className="mr-2 h-4 w-4" />
+                  <>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Create Group
+                  </>
                 )}
-                Create Group
               </Button>
             </div>
           </form>

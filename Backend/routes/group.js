@@ -4,20 +4,21 @@ const groupController = require("../controllers/groupController");
 const { authenticateToken } = require("../middleware/auth");
 const { validateMessage } = require("../middleware/validation");
 const { uploadMultiple, handleUploadError } = require("../middleware/upload");
-const { checkGroupAdmin } = require("../middleware/groupPermissions");
 
 // All routes require authentication
 router.use(authenticateToken);
 
 // ===== GROUP MANAGEMENT ROUTES =====
 // Create new group (admin only)
-router.post("/", groupController.createGroup);
-
+router.post("/", (req, res, next) => {
+  console.log('Received group creation request', req.body)
+  next() 
+}, groupController.createGroup)
 // Get group details
 router.get("/:groupId", groupController.getGroupDetails);
 
 // Update group info (admin only)
-router.put("/:groupId", checkGroupAdmin, groupController.updateGroup);
+router.put("/:groupId",  groupController.updateGroup);
 
 // Delete group (creator only)
 router.delete("/:groupId", groupController.deleteGroup);
@@ -30,12 +31,12 @@ router.post("/join/:inviteLink", groupController.joinGroupViaLink);
 router.post("/:groupId/leave", groupController.leaveGroup);
 
 // Add member (admin only)
-router.post("/:groupId/members", checkGroupAdmin, groupController.addMember);
+router.post("/:groupId/members",  groupController.addMember);
 
 // Remove member (admin only)
 router.delete(
   "/:groupId/members/:userId",
-  checkGroupAdmin,
+  
   groupController.removeMember
 );
 
@@ -89,14 +90,14 @@ router.delete(
 // Pin message (admin only)
 router.post(
   "/:groupId/chat/messages/:messageId/pin",
-  checkGroupAdmin,
+  
   groupController.pinMessage
 );
 
 // Unpin message (admin only)
 router.delete(
   "/:groupId/chat/messages/:messageId/pin",
-  checkGroupAdmin,
+  
   groupController.unpinMessage
 );
 
@@ -107,14 +108,14 @@ router.get("/:groupId/chat/pinned", groupController.getPinnedMessages);
 // Update group settings (admin only)
 router.put(
   "/:groupId/settings",
-  checkGroupAdmin,
+  
   groupController.updateGroupSettings
 );
 
 // Generate new invite link (admin only)
 router.post(
   "/:groupId/invite-link",
-  checkGroupAdmin,
+  
   groupController.generateInviteLink
 );
 

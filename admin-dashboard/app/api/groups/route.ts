@@ -1,74 +1,108 @@
 import { type NextRequest, NextResponse } from "next/server"
 
+/**
+ * Handles all group-related requests
+ */
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get("Authorization") || ""
-    const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups`
+    // Get token from either Authorization header or cookie
+    const token = getAuthToken(request)
+    if (!token) {
+      return unauthorizedResponse()
+    }
+
+    const qs = request.nextUrl.search // includes leading "?"
+    const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups${qs}`
 
     const res = await fetch(backendUrl, {
-      headers: { Authorization: token },
+      headers: { 
+        Authorization: token,
+        'Content-Type': 'application/json'
+      },
       cache: "no-store",
     })
+
+    // Handle unauthorized (401) responses
+    if (res.status === 401) {
+      return unauthorizedResponse('Session expired, please login again')
+    }
 
     const data = await res.json()
     return NextResponse.json(data, { status: res.status })
   } catch (error) {
     console.error("Error fetching groups:", error)
+    return serverErrorResponse("Failed to fetch groups")
+  }
+}
+ 
+
+export async function POST(request: Request) {
+  try {
+    // Get token from headers
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader) {
+      return NextResponse.json(
+        { success: false, message: "Authorization header missing" },
+        { status: 401 }
+      )
+    }
+
+    // Forward to backend
+    const backendUrl = `${process.env.BACKEND_URL || 'https://wisdom-walk-app.onrender.com'}/api/groups`
+    const body = await request.json()
+    
+    const res = await fetch(backendUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader
+      },
+      body: JSON.stringify(body)
+    })
+
+    // Handle backend errors
+    if (!res.ok) {
+      const errorData = await res.json()
+      return NextResponse.json(
+        { success: false, ...errorData },
+        { status: res.status }
+      )
+    }
+
+    return NextResponse.json(await res.json())
+  } catch (error) {
+    console.error('Group creation error:', error)
     return NextResponse.json(
-      { success: false, message: "Failed to fetch groups" },
-      { status: 500 }
+      { success: false, message: "Unable to connect to backend service" },
+      { status: 502 }
     )
   }
 }
+// Helper functions
+function getAuthToken(request: NextRequest): string | null {
+  return (
+    request.headers.get("authorization") ??
+    (request.cookies.get("adminToken") ? `Bearer ${request.cookies.get("adminToken")!.value}` : null)
+  )
+}
 
-export async function POST(request: NextRequest) {
-  try {
-    const token = request.headers.get("Authorization") || "";
-    if (!token) {
-      return NextResponse.json(
-        { success: false, message: "Authorization token required" },
-        { status: 401 }
-      );
-    }
+function unauthorizedResponse(message: string = "Authorization token required") {
+  return NextResponse.json(
+    { success: false, message },
+    { status: 401 }
+  )
+}
 
-    const body = await request.json();
-    
-    // Add basic validation
-    if (!body.name || !body.type) {
-      return NextResponse.json(
-        { success: false, message: "Group name and type are required" },
-        { status: 400 }
-      );
-    }
+function badRequestResponse(message: string) {
+  return NextResponse.json(
+    { success: false, message },
+    { status: 400 }
+  )
+}
 
-    const backendUrl = `https://wisdom-walk-app.onrender.com/api/groups`;
-    const res = await fetch(backendUrl, {
-      method: "POST",
-      headers: {
-        Authorization: token,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    const data = await res.json();
-    
-    if (!res.ok) {
-      return NextResponse.json(
-        { success: false, message: data.message || "Failed to create group" },
-        { status: res.status }
-      );
-    }
-
-    return NextResponse.json(data, { status: res.status });
-  } catch (error) {
-    console.error("Error creating group:", error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        message: error instanceof Error ? error.message : "Failed to create group" 
-      },
-      { status: 500 }
-    );
-  }
+function serverErrorResponse(message: string) {
+  return NextResponse.json(
+    { success: false, message },
+    { status: 500 }
+  )
 }
