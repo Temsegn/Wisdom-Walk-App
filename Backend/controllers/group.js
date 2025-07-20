@@ -206,37 +206,27 @@ const deleteGroup = async (req, res) => {
     });
   }
 };
+// controllers/group.controller.ts
 
-const getGroupMembers = async (req, res) => {
+export const getGroupMembers = async (req: Request, res: Response) => {
   try {
-    const group = await Group.findById(req.params.groupId)
-      .populate("members.user", "firstName lastName avatar");
+    const groupId = req.params.id;
+
+    const group = await GroupModel.findById(groupId)
+      .populate("members.user", "firstName lastName fullName avatar isOnline")
+      .lean();
+
     if (!group) {
-      return res.status(404).json({ 
-        success: false,
-        message: "Group not found" 
-      });
+      return res.status(404).json({ error: "Group not found" });
     }
-    // Allow access if user is a member or an admin
-    // if (!isGroupMember(group, req.user._id) && req.user.role !== 'admin') {
-    //   return res.status(403).json({ 
-    //     success: false,
-    //     message: "Access denied. Not a group member" 
-    //   });
-    // }
-    res.status(200).json({
-      success: true,
-      members: group.members || [] // Ensure this matches what your frontend expects
-    });
+
+    res.json({ members: group.members });
   } catch (error) {
     console.error("Error fetching group members:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch group members",
-      members: [] // Return empty array on error
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 // Group Membership Management
 const joinGroupViaLink = async (req, res) => {
