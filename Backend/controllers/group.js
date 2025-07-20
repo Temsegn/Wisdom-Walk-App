@@ -206,37 +206,42 @@ const deleteGroup = async (req, res) => {
     });
   }
 };
-
 const getGroupMembers = async (req, res) => {
   try {
     const group = await Group.findById(req.params.groupId)
-      .populate("members.user", "firstName lastName avatar");
+      .populate("members.user", "firstName lastName email avatar");
+
     if (!group) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Group not found" 
+        message: "Group not found",
       });
     }
-    // Allow access if user is a member or an admin
-    // if (!isGroupMember(group, req.user._id) && req.user.role !== 'admin') {
-    //   return res.status(403).json({ 
-    //     success: false,
-    //     message: "Access denied. Not a group member" 
-    //   });
-    // }
+
+    const members = group.members.map((member) => ({
+      id: member._id,
+      role: member.role,
+      isMuted: member.isMuted,
+      joinedAt: member.joinedAt,
+      name: `${member.user?.firstName ?? ''} ${member.user?.lastName ?? ''}`.trim(),
+      email: member.user?.email ?? '',
+      avatar: member.user?.avatar ?? '',
+    }));
+
     res.status(200).json({
       success: true,
-      members: group.members || [] // Ensure this matches what your frontend expects
+      members,
     });
   } catch (error) {
     console.error("Error fetching group members:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch group members",
-      members: [] // Return empty array on error
+      members: [],
     });
   }
 };
+
 
 // Group Membership Management
 const joinGroupViaLink = async (req, res) => {

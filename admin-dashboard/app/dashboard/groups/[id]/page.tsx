@@ -669,42 +669,44 @@ async function fetchGroupData() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {members.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarImage src={member.avatar} />
-                          <AvatarFallback>{member.name.charAt(0).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{member.name}</p>
-                          <p className="text-sm text-muted-foreground">{member.email}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={member.role === 'admin' ? 'default' : 'secondary'}>
-                          {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
-                        </Badge>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => updateMemberRole(member.id, member.role === 'admin' ? 'member' : 'admin')}>
-                              <Shield className="mr-2 h-4 w-4" />
-                              {member.role === 'admin' ? 'Make Member' : 'Make Admin'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600" onClick={() => removeMember(member.id)}>
-                              <UserX className="mr-2 h-4 w-4" />
-                              Remove Member
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  ))}
+                 {members.map((member) => (
+  <div key={member?.id} className="flex items-center justify-between p-4 border rounded-lg">
+    <div className="flex items-center gap-3">
+      <Avatar className="h-9 w-9">
+        <AvatarImage src={member?.avatar} />
+        <AvatarFallback>{member?.name?.charAt?.(0)?.toUpperCase() || "?"}</AvatarFallback>
+      </Avatar>
+      <div>
+        <p className="font-medium">{member?.name || "Unknown"}</p>
+        <p className="text-sm text-muted-foreground">{member?.email || "No email"}</p>
+      </div>
+    </div>
+    <div className="flex items-center gap-2">
+      <Badge variant={member?.role === 'admin' ? 'default' : 'secondary'}>
+        {(member?.role?.charAt?.(0)?.toUpperCase() || "") + (member?.role?.slice?.(1) || "")}
+      </Badge>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => updateMemberRole(member?.id, member?.role === 'admin' ? 'member' : 'admin')}>
+            <Shield className="mr-2 h-4 w-4" />
+            {member?.role === 'admin' ? 'Make Member' : 'Make Admin'}
+          </DropdownMenuItem>
+          <DropdownMenuItem className="text-red-600" onClick={() => removeMember(member?.id)}>
+            <UserX className="mr-2 h-4 w-4" />
+            Remove Member
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  </div>
+))}
+
+
                 </div>
               )}
             </CardContent>
