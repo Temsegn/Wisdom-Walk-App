@@ -192,7 +192,7 @@ async function fetchGroupData() {
 
       const response = await fetch(`/api/groups/${id}/settings`, {
         method: 'PATCH',
-        headers: {
+        headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
