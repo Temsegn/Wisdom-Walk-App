@@ -609,6 +609,8 @@
 //   }
 // }
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:wisdomwalk/models/user_model.dart';
@@ -618,9 +620,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:wisdomwalk/services/local_storage_service.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'dart:io';
 
 class ProfileSettingsScreen extends StatefulWidget {
-  const ProfileSettingsScreen({super.key});
+  const ProfileSettingsScreen({Key? key}) : super(key: key);
 
   @override
   State<ProfileSettingsScreen> createState() => _ProfileSettingsScreenState();
@@ -1095,7 +1099,22 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
     if (image != null) {
-      final success = await _uploadProfilePicture(image);
+      final compressedImage = await _compressImage(image);
+      if (compressedImage == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Failed to compress image. Please try another image.',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final success = await _uploadProfilePicture(compressedImage);
       if (success && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1118,6 +1137,49 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     }
   }
 
+  Future<XFile?> _compressImage(XFile image) async {
+    try {
+      final filePath = image.path;
+      final lastIndex = filePath.lastIndexOf('.');
+      final extension = filePath.substring(lastIndex).toLowerCase();
+      final tempDir = Directory.systemTemp;
+      final compressedFilePath =
+          '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}$extension';
+
+      final compressedFile = await FlutterImageCompress.compressAndGetFile(
+        filePath,
+        compressedFilePath,
+        quality: 70,
+        minWidth: 800,
+        minHeight: 800,
+      );
+
+      if (compressedFile == null) {
+        debugPrint('Image compression failed');
+        Provider.of<AuthProvider>(context, listen: false).error =
+            'Image compression failed';
+        return null;
+      }
+
+      // Check file size
+      final fileSize = await compressedFile.length();
+      debugPrint('Compressed image size: ${fileSize / 1024 / 1024} MB');
+      if (fileSize > 2 * 1024 * 1024) {
+        debugPrint('Compressed image too large: ${fileSize / 1024 / 1024} MB');
+        Provider.of<AuthProvider>(context, listen: false).error =
+            'Image size exceeds 2MB limit after compression';
+        return null;
+      }
+
+      return XFile(compressedFile.path);
+    } catch (e) {
+      debugPrint('Error compressing image: $e');
+      Provider.of<AuthProvider>(context, listen: false).error =
+          'Error compressing image: $e';
+      return null;
+    }
+  }
+
   Future<bool> _uploadProfilePicture(XFile image) async {
     try {
       final token = await LocalStorageService().getAuthToken();
@@ -1135,15 +1197,22 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         ),
       );
       request.headers['Authorization'] = 'Bearer $token';
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'file',
-          image.path,
-          filename: image.name,
-        ),
+      request.headers['Content-Type'] = 'multipart/form-data';
+      final multipartFile = await http.MultipartFile.fromPath(
+        'file',
+        image.path,
+        filename: image.name,
       );
+      request.files.add(multipartFile);
+      debugPrint('Uploading file with field name: file');
+      debugPrint('File path: ${image.path}, File name: ${image.name}');
 
-      final response = await request.send();
+      final response = await request.send().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException('Request timed out after 30 seconds');
+        },
+      );
       final responseBody = await http.Response.fromStream(response);
 
       debugPrint('Upload profile picture response: ${response.statusCode}');
