@@ -2,6 +2,8 @@ const User = require("../models/User")
 const Post = require("../models/Post")
 const { formatUserResponse, getPaginationMeta } = require("../utils/helpers")
 const { saveFile,deleteFile } = require("../utils/localStorageService")
+const { saveVerificationDocument } = require("../utils/storageHelper")
+
 // Get current user profile
 const getProfile = async (req, res) => {
   try {
