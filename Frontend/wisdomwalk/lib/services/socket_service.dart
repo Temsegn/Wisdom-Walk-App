@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'package:wisdomwalk/models/message_model.dart';
@@ -12,14 +14,24 @@ class SocketService {
   SocketService(this.context);
 
   void connect(String token) {
-    if (_socket != null && _socket!.connected)
-      return; // Prevent multiple connections
-
+   if (_socket != null) {
+    _socket!.disconnect();
+    _socket = null;
+  }
     _socket = IO.io('https://wisdom-walk-app.onrender.com', <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': false,
-      'extraHeaders': {'Authorization': 'Bearer $token'},
-    });
+    'transports': ['websocket'],
+    'autoConnect': false,
+    'extraHeaders': {'Authorization': 'Bearer $token'},
+  });
+   Timer.periodic(Duration(seconds: 25), (timer) {
+    if (_socket?.connected == true) {
+      _socket?.emit('ping'); 
+    }
+  });
+
+  _socket?.on('pong', (_) {
+    debugPrint('Socket connection alive');
+  });
 
     _socket?.onConnect((_) {
       debugPrint('Socket connected');
@@ -29,9 +41,10 @@ class SocketService {
       debugPrint('Socket connection error: $data');
     });
 
-    _socket?.onDisconnect((_) {
-      debugPrint('Socket disconnected');
-    });
+    _socket!.onDisconnect((_) {
+    debugPrint('Socket disconnected - attempting reconnect');
+    Future.delayed(Duration(seconds: 2), () => _socket?.connect());
+  });
 
     _socket?.on('newMessage', (data) {
       try {
@@ -232,6 +245,29 @@ class SocketService {
       _socket?.emit('messageEdited', updatedMessage.toJson());
     }
   }
+   
+  void onMessagePinned(Function(dynamic) callback) {
+    _socket?.on('message_pinned', callback);
+  }
+
+  void onMessageReacted(Function(dynamic) callback) {
+    _socket?.on('message_reacted', callback);
+  }
+
+  void pinMessage(String chatId, String messageId) {
+    _socket?.emit('pin_message', {
+      'chatId': chatId,
+      'messageId': messageId,
+    });
+  }
+
+  void addReaction(String messageId, String emoji) {
+    _socket?.emit('add_reaction', {
+      'messageId': messageId,
+      'emoji': emoji,
+    });
+  }
+
 
   void disconnect() {
     _socket?.disconnect();

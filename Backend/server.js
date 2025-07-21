@@ -14,13 +14,13 @@ const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const postRoutes = require("./routes/postRoutes");
 const chatRoutes = require("./routes/chatRoutes");
-const groupRoutes = require("./routes/groupRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const movementRoutes = require("./routes/movementRoute");
 const bookingRoutes = require("./routes/bookingRoute");
 const eventRoutes = require('./routes/eventRoutes');
+const groupRoutes = require("./routes/group");
 
 const app = express();
 const server = http.createServer(app);

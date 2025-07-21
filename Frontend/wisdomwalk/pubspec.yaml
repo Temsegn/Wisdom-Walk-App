@@ -55,6 +55,8 @@ dependencies:
   collection: ^1.19.1
   flutter_animate: ^4.5.2
   lottie: ^3.3.1
+  cloudinary_public: ^0.23.1
+  flutter_image_compress: ^2.4.0
 
 dev_dependencies:
   flutter_test:

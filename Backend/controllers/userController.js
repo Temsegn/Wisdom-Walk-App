@@ -511,7 +511,7 @@ const unblockUser = async (req, res) => {
 
 const updateProfilePhoto = async (req, res) => {
   try {
-    // Check for required file
+    // Check if file is uploaded
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -530,26 +530,26 @@ const updateProfilePhoto = async (req, res) => {
       });
     }
 
-    // Delete old profile photo from Cloudinary if it exists
+    // Delete old profile picture if it exists
     if (existingUser.profilePicture) {
-      // Extract publicId from the URL (assuming URL format is consistent)
-      const publicId = existingUser.profilePicture.split('/').pop().split('.')[0];
+      const urlParts = existingUser.profilePicture.split('/');
+      const filenameWithExt = urlParts[urlParts.length - 1];
+      const publicId = `profile_photos/${userId}/${filenameWithExt.split('.')[0]}`;
       await deleteFile(publicId);
     }
 
-    // Upload new profile photo to Cloudinary
-    const uploadResult = await saveFile(
+    // Upload new profile picture using saveVerificationDocument
+    const uploadedDoc = await saveVerificationDocument(
       req.file.buffer,
-      req.file.originalname,
-      `profile_photos/${userId}`
+      userId,
+      'profilePicture',
+      req.file.originalname
     );
 
-    // Update user document with just the URL string
+    // Update user document with new profile picture URL
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      {
-        profilePicture: uploadResult.secure_url // Store just the URL string
-      },
+      { profilePicture: uploadedDoc.url },
       { new: true }
     ).select('_id email firstName lastName profilePicture');
 
@@ -563,8 +563,8 @@ const updateProfilePhoto = async (req, res) => {
           firstName: updatedUser.firstName,
           lastName: updatedUser.lastName,
         },
-        profilePicture: updatedUser.profilePicture, // This will be just the URL string
-        updateTimestamp: new Date()
+        profilePicture: updatedUser.profilePicture,
+        updateTimestamp: new Date(),
       }
     });
   } catch (error) {
@@ -576,6 +576,7 @@ const updateProfilePhoto = async (req, res) => {
     });
   }
 };
+
  
 module.exports = {
   updateProfilePhoto,

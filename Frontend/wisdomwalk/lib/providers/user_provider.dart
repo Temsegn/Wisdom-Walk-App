@@ -137,6 +137,336 @@
 //     _error = null;
 //     notifyListeners();
 //   }
+// import 'dart:convert';
+// import 'package:flutter/material.dart';
+// import 'package:http/http.dart' as http;
+// import 'package:provider/provider.dart';
+// import '../models/user_model.dart';
+// import 'package:wisdomwalk/services/local_storage_service.dart';
+// import 'package:wisdomwalk/providers/auth_provider.dart';
+// import 'package:wisdomwalk/services/user_service.dart';
+// import 'package:go_router/go_router.dart';
+
+// class UserProvider with ChangeNotifier {
+//   final LocalStorageService _localStorageService;
+//   UserModel _currentUser = UserModel.empty();
+//   String? _userId;
+//   final List<UserModel> _allUsers = [];
+//   List<UserModel> _searchResults = [];
+//   bool _isLoading = false;
+//   String? _error;
+//   DateTime? _lastFetchTime;
+//   static const Duration cacheDuration = Duration(minutes: 5);
+
+//   UserProvider({required LocalStorageService localStorageService})
+//     : _localStorageService = localStorageService {
+//     _initialize();
+//   }
+
+//   UserModel get currentUser => _currentUser;
+//   List<UserModel> get allUsers => List.unmodifiable(_allUsers);
+//   List<UserModel> get searchResults => List.unmodifiable(_searchResults);
+//   bool get isLoading => _isLoading;
+//   String? get error => _error;
+//   String? get userId => _userId;
+
+//   Future<void> _initialize() async {
+//     _userId = await _localStorageService.getUserId();
+//     if (_userId != null) {
+//       await fetchCurrentUser(forceRefresh: true);
+//     } else {
+//       _error = 'User ID not found';
+//       _currentUser = UserModel.empty();
+//       notifyListeners();
+//     }
+//   }
+
+//   Future<void> fetchCurrentUser({
+//     bool forceRefresh = false,
+//     BuildContext? context,
+//   }) async {
+//     if (_userId == null) {
+//       _userId = await _localStorageService.getUserId();
+//       if (_userId == null) {
+//         _error = 'User ID not found';
+//         _isLoading = false;
+//         _currentUser = UserModel.empty();
+//         if (context != null) {
+//           Provider.of<AuthProvider>(
+//             context,
+//             listen: false,
+//           ).setCurrentUser(null);
+//           if (context.mounted) {
+//             context.go('/login');
+//           }
+//         }
+//         notifyListeners();
+//         return;
+//       }
+//     }
+
+//     if (!forceRefresh &&
+//         _lastFetchTime != null &&
+//         DateTime.now().difference(_lastFetchTime!) < cacheDuration) {
+//       if (context != null &&
+//           (!_currentUser.isVerified || _currentUser.isBlocked)) {
+//         Provider.of<AuthProvider>(context, listen: false).setCurrentUser(null);
+//         if (context.mounted) {
+//           context.go('/pending-screen');
+//         }
+//       } else if (context != null) {
+//         Provider.of<AuthProvider>(
+//           context,
+//           listen: false,
+//         ).setCurrentUser(_currentUser);
+//       }
+//       return;
+//     }
+
+//     _isLoading = true;
+//     _error = null;
+//     notifyListeners();
+
+//     final token = await _localStorageService.getAuthToken();
+//     if (token == null) {
+//       _error = 'Authentication required';
+//       _isLoading = false;
+//       _currentUser = UserModel.empty();
+//       if (context != null) {
+//         Provider.of<AuthProvider>(context, listen: false).setCurrentUser(null);
+//         if (context.mounted) {
+//           context.go('/login');
+//         }
+//       }
+//       notifyListeners();
+//       return;
+//     }
+
+//     const url = 'https://wisdom-walk-app.onrender.com/api/users/profile';
+//     const maxRetries = 3;
+//     int retryCount = 0;
+
+//     while (retryCount < maxRetries) {
+//       try {
+//         final user = await UserService.getCurrentUser();
+//         _currentUser = user;
+//         _lastFetchTime = DateTime.now();
+//         debugPrint(
+//           'Fetched current user: ${_currentUser.displayName}, isAdminVerified: ${_currentUser.isVerified}, isBlocked: ${_currentUser.isBlocked}',
+//         );
+
+//         if (context != null) {
+//           Provider.of<AuthProvider>(
+//             context,
+//             listen: false,
+//           ).setCurrentUser(_currentUser);
+//           if (!_currentUser.isVerified || _currentUser.isBlocked) {
+//             if (context.mounted) {
+//               context.go('/pending-screen');
+//             }
+//           } else if (context.mounted) {
+//             context.go('/dashboard');
+//           }
+//         }
+//         break;
+//       } catch (e) {
+//         debugPrint('Error in UserService.getCurrentUser: $e');
+//         try {
+//           final response = await http
+//               .get(
+//                 Uri.parse(url),
+//                 headers: {
+//                   'Content-Type': 'application/json',
+//                   'Authorization': 'Bearer $token',
+//                 },
+//               )
+//               .timeout(const Duration(seconds: 15));
+
+//           debugPrint('fetchCurrentUser Response: ${response.statusCode}');
+//           if (response.statusCode == 200) {
+//             final data = json.decode(response.body);
+//             final userData = data['data'] ?? data;
+//             _currentUser = UserModel.fromJson(userData);
+//             _lastFetchTime = DateTime.now();
+//             debugPrint(
+//               'Fetched current user: ${_currentUser.displayName}, isAdminVerified: ${_currentUser.isVerified}, isBlocked: ${_currentUser.isBlocked}',
+//             );
+
+//             if (context != null) {
+//               Provider.of<AuthProvider>(
+//                 context,
+//                 listen: false,
+//               ).setCurrentUser(_currentUser);
+//               if (!_currentUser.isVerified || _currentUser.isBlocked) {
+//                 if (context.mounted) {
+//                   context.go('/pending-screen');
+//                 }
+//               } else if (context.mounted) {
+//                 context.go('/dashboard');
+//               }
+//             }
+//             break;
+//           } else if (response.statusCode == 401) {
+//             _error = 'Session expired. Please log in again.';
+//             _currentUser = UserModel.empty();
+//             if (context != null && context.mounted) {
+//               Provider.of<AuthProvider>(
+//                 context,
+//                 listen: false,
+//               ).setCurrentUser(null);
+//               context.go('/login');
+//             }
+//             break;
+//           } else {
+//             _error = 'Failed to fetch user: ${response.statusCode}';
+//             retryCount++;
+//             if (retryCount >= maxRetries) {
+//               _currentUser = UserModel.empty();
+//               break;
+//             }
+//             await Future.delayed(const Duration(seconds: 2));
+//           }
+//         } catch (httpError) {
+//           _error = 'Error fetching user: ${httpError.toString()}';
+//           retryCount++;
+//           if (retryCount >= maxRetries) {
+//             _currentUser = UserModel.empty();
+//             if (context != null && context.mounted) {
+//               Provider.of<AuthProvider>(
+//                 context,
+//                 listen: false,
+//               ).setCurrentUser(null);
+//               context.go('/login');
+//             }
+//             break;
+//           }
+//           await Future.delayed(const Duration(seconds: 2));
+//           debugPrint('Error in fetchCurrentUser HTTP call: $httpError');
+//         }
+//       }
+//     }
+
+//     _isLoading = false;
+//     notifyListeners();
+//   }
+
+//   Future<void> fetchAllUsers({bool forceRefresh = false}) async {
+//     if (!forceRefresh &&
+//         _lastFetchTime != null &&
+//         DateTime.now().difference(_lastFetchTime!) < cacheDuration) {
+//       return;
+//     }
+
+//     _isLoading = true;
+//     _error = null;
+//     notifyListeners();
+
+//     final token = await _localStorageService.getAuthToken();
+//     if (token == null) {
+//       _error = 'Authentication required';
+//       _isLoading = false;
+//       notifyListeners();
+//       return;
+//     }
+
+//     const url = 'https://wisdom-walk-app.onrender.com/api/admin/users';
+
+//     try {
+//       final response = await http.get(
+//         Uri.parse(url),
+//         headers: {
+//           'Content-Type': 'application/json',
+//           'Authorization': 'Bearer $token',
+//         },
+//       );
+
+//       if (response.statusCode == 200) {
+//         final List<dynamic> data = json.decode(response.body);
+//         _allUsers
+//           ..clear()
+//           ..addAll(data.map((e) => UserModel.fromJson(e)));
+//         _searchResults = List.from(_allUsers);
+//         _lastFetchTime = DateTime.now();
+//         debugPrint("Fetched ${_allUsers.length} users");
+//       } else {
+//         _error =
+//             'Failed to fetch users: ${response.statusCode} - ${response.body}';
+//       }
+//     } catch (e) {
+//       _error = 'Error fetching users: ${e.toString()}';
+//       debugPrint('Error in fetchAllUsers: $e');
+//     } finally {
+//       _isLoading = false;
+//       notifyListeners();
+//     }
+//   }
+
+//   void searchLocally(String query) {
+//     if (query.isEmpty) {
+//       clearSearch();
+//       return;
+//     }
+
+//     final lowerQuery = query.toLowerCase();
+//     _searchResults =
+//         _allUsers.where((user) {
+//           return (user.name?.toLowerCase().contains(lowerQuery) ?? false) ||
+//               user.email.toLowerCase().contains(lowerQuery) ||
+//               (user.fullName.toLowerCase().contains(lowerQuery));
+//         }).toList();
+
+//     notifyListeners();
+//   }
+
+//   void clearSearch() {
+//     _searchResults = List.from(_allUsers);
+//     notifyListeners();
+//   }
+
+//   Future<bool> blockUser(String userId) async {
+//     final token = await _localStorageService.getAuthToken();
+//     if (token == null) return false;
+
+//     const url = 'https://wisdom-walk-app.onrender.com/api/admin/users/block';
+
+//     try {
+//       final response = await http.post(
+//         Uri.parse(url),
+//         headers: {
+//           'Content-Type': 'application/json',
+//           'Authorization': 'Bearer $token',
+//         },
+//         body: json.encode({'userId': userId}),
+//       );
+
+//       if (response.statusCode == 200) {
+//         final index = _allUsers.indexWhere((user) => user.id == userId);
+//         if (index != -1) {
+//           _allUsers[index] = _allUsers[index].copyWith(isBlocked: true);
+//           if (_currentUser.id == userId) {
+//             _currentUser = _currentUser.copyWith(isBlocked: true);
+//           }
+//           notifyListeners();
+//         }
+//         return true;
+//       } else {
+//         _error = 'Failed to block user: ${response.statusCode}';
+//         notifyListeners();
+//         return false;
+//       }
+//     } catch (e) {
+//       _error = 'Error blocking user: ${e.toString()}';
+//       notifyListeners();
+//       return false;
+//     }
+//   }
+
+//   void clearError() {
+//     _error = null;
+//     notifyListeners();
+//   }
+// }
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -196,9 +526,7 @@ class UserProvider with ChangeNotifier {
             context,
             listen: false,
           ).setCurrentUser(null);
-          if (context.mounted) {
-            context.go('/login');
-          }
+          if (context.mounted) context.go('/login');
         }
         notifyListeners();
         return;
@@ -211,9 +539,7 @@ class UserProvider with ChangeNotifier {
       if (context != null &&
           (!_currentUser.isVerified || _currentUser.isBlocked)) {
         Provider.of<AuthProvider>(context, listen: false).setCurrentUser(null);
-        if (context.mounted) {
-          context.go('/pending-screen');
-        }
+        if (context.mounted) context.go('/pending-screen');
       } else if (context != null) {
         Provider.of<AuthProvider>(
           context,
@@ -234,9 +560,7 @@ class UserProvider with ChangeNotifier {
       _currentUser = UserModel.empty();
       if (context != null) {
         Provider.of<AuthProvider>(context, listen: false).setCurrentUser(null);
-        if (context.mounted) {
-          context.go('/login');
-        }
+        if (context.mounted) context.go('/login');
       }
       notifyListeners();
       return;
@@ -252,7 +576,10 @@ class UserProvider with ChangeNotifier {
         _currentUser = user;
         _lastFetchTime = DateTime.now();
         debugPrint(
-          'Fetched current user: ${_currentUser.displayName}, isAdminVerified: ${_currentUser.isVerified}, isBlocked: ${_currentUser.isBlocked}',
+          'Fetched current user: ${_currentUser.displayName}, '
+          'isAdminVerified: ${_currentUser.isVerified}, '
+          'isBlocked: ${_currentUser.isBlocked}, '
+          'avatarUrl: ${_currentUser.avatarUrl}',
         );
 
         if (context != null) {
@@ -261,9 +588,7 @@ class UserProvider with ChangeNotifier {
             listen: false,
           ).setCurrentUser(_currentUser);
           if (!_currentUser.isVerified || _currentUser.isBlocked) {
-            if (context.mounted) {
-              context.go('/pending-screen');
-            }
+            if (context.mounted) context.go('/pending-screen');
           } else if (context.mounted) {
             context.go('/dashboard');
           }
@@ -289,7 +614,10 @@ class UserProvider with ChangeNotifier {
             _currentUser = UserModel.fromJson(userData);
             _lastFetchTime = DateTime.now();
             debugPrint(
-              'Fetched current user: ${_currentUser.displayName}, isAdminVerified: ${_currentUser.isVerified}, isBlocked: ${_currentUser.isBlocked}',
+              'Fetched current user: ${_currentUser.displayName}, '
+              'isAdminVerified: ${_currentUser.isVerified}, '
+              'isBlocked: ${_currentUser.isBlocked}, '
+              'avatarUrl: ${_currentUser.avatarUrl}',
             );
 
             if (context != null) {
@@ -298,9 +626,7 @@ class UserProvider with ChangeNotifier {
                 listen: false,
               ).setCurrentUser(_currentUser);
               if (!_currentUser.isVerified || _currentUser.isBlocked) {
-                if (context.mounted) {
-                  context.go('/pending-screen');
-                }
+                if (context.mounted) context.go('/pending-screen');
               } else if (context.mounted) {
                 context.go('/dashboard');
               }
