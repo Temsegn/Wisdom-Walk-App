@@ -181,14 +181,24 @@ module.exports = (io) => {
         const message = await Message.findById(messageId)
         if (!message || message.chat.toString() !== chatId) return
 
+        // Update message pin status
         message.isPinned = true
         await message.save()
 
+        // Update chat pinned messages
         await Chat.findByIdAndUpdate(chatId, {
           $addToSet: { pinnedMessages: messageId },
         })
 
-        io.to(chatId).emit("messagePinned", { messageId, chatId })
+        io.to(chatId).emit("messagePinned", {
+          messageId,
+          chatId,
+          pinnedBy: {
+            _id: userId,
+            firstName: socket.user.firstName,
+            lastName: socket.user.lastName,
+          },
+        })
       } catch (error) {
         console.error("Pin message error:", error)
       }
@@ -204,14 +214,24 @@ module.exports = (io) => {
         const message = await Message.findById(messageId)
         if (!message || message.chat.toString() !== chatId) return
 
+        // Update message pin status
         message.isPinned = false
         await message.save()
 
+        // Update chat pinned messages
         await Chat.findByIdAndUpdate(chatId, {
           $pull: { pinnedMessages: messageId },
         })
 
-        io.to(chatId).emit("messageUnpinned", { messageId, chatId })
+        io.to(chatId).emit("messageUnpinned", {
+          messageId,
+          chatId,
+          unpinnedBy: {
+            _id: userId,
+            firstName: socket.user.firstName,
+            lastName: socket.user.lastName,
+          },
+        })
       } catch (error) {
         console.error("Unpin message error:", error)
       }
@@ -227,22 +247,44 @@ module.exports = (io) => {
         const chat = await Chat.findOne({ _id: message.chat, participants: userId })
         if (!chat) return
 
-        const existingReaction = message.reactions.find(
+        const existingReactionIndex = message.reactions.findIndex(
           (reaction) => reaction.user.toString() === userId.toString() && reaction.emoji === emoji,
         )
 
-        if (existingReaction) {
-          message.reactions = message.reactions.filter(
-            (reaction) => !(reaction.user.toString() === userId.toString() && reaction.emoji === emoji),
-          )
+        let isAdding = false
+        if (existingReactionIndex >= 0) {
+          // Remove existing reaction
+          message.reactions.splice(existingReactionIndex, 1)
+          isAdding = false
         } else {
+          // Add new reaction
           message.reactions.push({ user: userId, emoji })
+          isAdding = true
         }
 
         await message.save()
 
-        const reaction = { user: userId, emoji }
-        io.to(chatId).emit("messageReaction", { messageId, chatId, reaction })
+        // Populate user info for the reaction
+        await message.populate("reactions.user", "firstName lastName profilePicture")
+
+        // Emit the reaction with proper structure
+        const reactionData = {
+          messageId,
+          chatId,
+          reaction: {
+            emoji,
+            userId: userId.toString(),
+            user: {
+              _id: userId,
+              firstName: socket.user.firstName,
+              lastName: socket.user.lastName,
+              profilePicture: socket.user.profilePicture,
+            },
+            isAdding, // true if added, false if removed
+          },
+        }
+
+        io.to(chatId).emit("messageReaction", reactionData)
       } catch (error) {
         console.error("Add reaction error:", error)
       }

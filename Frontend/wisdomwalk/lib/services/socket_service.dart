@@ -11,8 +11,11 @@ class SocketService {
   final BuildContext context;
   Timer? _pingTimer;
   String? _currentChatId;
+  bool _isConnected = false;
 
   SocketService(this.context);
+
+  bool get isConnected => _isConnected;
 
   void connect(String token) {
     if (_socket != null) {
@@ -30,23 +33,26 @@ class SocketService {
 
     _socket?.onConnect((_) {
       debugPrint('Socket connected successfully');
+      _isConnected = true;
       _startPingTimer();
       
       // Auto-join current chat if available
       if (_currentChatId != null) {
-        joinChat(_currentChatId!);
+        _joinChatRoom(_currentChatId!);
       }
     });
 
     _socket?.onConnectError((data) {
       debugPrint('Socket connection error: $data');
+      _isConnected = false;
     });
 
     _socket?.onDisconnect((_) {
       debugPrint('Socket disconnected - attempting reconnect');
+      _isConnected = false;
       _cancelPingTimer();
       Future.delayed(const Duration(seconds: 2), () {
-        if (_socket != null) {
+        if (_socket != null && !_isConnected) {
           _socket?.connect();
         }
       });
@@ -56,7 +62,7 @@ class SocketService {
       debugPrint('Socket connection alive');
     });
 
-    // Message event handlers
+    // Setup message event handlers
     _setupMessageHandlers();
 
     _socket?.connect();
@@ -74,13 +80,9 @@ class SocketService {
         );
         final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
-        // Avoid adding duplicate messages
-        if (!messageProvider
-            .getChatMessages(message.chatId)
-            .any((m) => m.id == message.id)) {
-          messageProvider.addNewMessage(message.chatId, message);
-          chatProvider.updateChatLastMessage(message.chatId, message);
-        }
+        // Use the new handler method
+        messageProvider.handleNewMessage(message);
+        chatProvider.updateChatLastMessage(message.chatId, message);
       } catch (e) {
         debugPrint('Error handling newMessage: $e');
       }
@@ -88,13 +90,18 @@ class SocketService {
 
     _socket?.on('messageEdited', (data) {
       try {
-        final message = Message.fromJson(data);
         if (!mounted) return;
         
-        Provider.of<MessageProvider>(
+        final messageId = data['messageId'] ?? data['_id'];
+        final content = data['content'];
+        final chatId = data['chatId'] ?? data['chat'];
+        
+        final messageProvider = Provider.of<MessageProvider>(
           context,
           listen: false,
-        ).editMessage(message.id, message.content);
+        );
+        
+        messageProvider.updateMessageEditStatus(chatId, messageId, content);
       } catch (e) {
         debugPrint('Error handling messageEdited: $e');
       }
@@ -104,10 +111,13 @@ class SocketService {
       try {
         if (!mounted) return;
         
-        Provider.of<MessageProvider>(
+        final messageId = data['messageId'];
+        final messageProvider = Provider.of<MessageProvider>(
           context,
           listen: false,
-        ).deleteMessage(data['messageId']);
+        );
+        
+        messageProvider.handleMessageDeleted(messageId);
       } catch (e) {
         debugPrint('Error handling messageDeleted: $e');
       }
@@ -119,14 +129,22 @@ class SocketService {
         
         final messageId = data['messageId'];
         final chatId = data['chatId'];
-        final reaction = MessageReaction.fromJson(data['reaction']);
+        final reactionData = data['reaction'];
+        
+        final reaction = MessageReaction(
+          emoji: reactionData['emoji'],
+          userId: reactionData['userId'], // Fixed: use userId instead of user
+          createdAt: DateTime.now(),
+        );
+        
+        final isAdding = reactionData['isAdding'] ?? true;
         
         final messageProvider = Provider.of<MessageProvider>(
           context,
           listen: false,
         );
         
-        messageProvider.updateMessageReaction(chatId, messageId, reaction);
+        messageProvider.handleMessageReaction(chatId, messageId, reaction, isAdding);
       } catch (e) {
         debugPrint('Error handling messageReaction: $e');
       }
@@ -144,7 +162,7 @@ class SocketService {
           listen: false,
         );
         
-        messageProvider.updateMessagePinStatus(chatId, messageId, true);
+        messageProvider.handleMessagePinned(chatId, messageId);
       } catch (e) {
         debugPrint('Error handling messagePinned: $e');
       }
@@ -162,7 +180,7 @@ class SocketService {
           listen: false,
         );
         
-        messageProvider.updateMessagePinStatus(chatId, messageId, false);
+        messageProvider.handleMessageUnpinned(chatId, messageId);
       } catch (e) {
         debugPrint('Error handling messageUnpinned: $e');
       }
@@ -172,8 +190,15 @@ class SocketService {
     _socket?.on('typing', (data) {
       try {
         if (!mounted) return;
-        debugPrint('User ${data['firstName']} is typing...');
-        // Handle typing indicator UI updates
+        final userId = data['userId'];
+        final chatId = data['chatId'];
+        
+        final messageProvider = Provider.of<MessageProvider>(
+          context,
+          listen: false,
+        );
+        
+        messageProvider.handleTypingIndicator(chatId, userId, true);
       } catch (e) {
         debugPrint('Error handling typing: $e');
       }
@@ -182,8 +207,15 @@ class SocketService {
     _socket?.on('stopTyping', (data) {
       try {
         if (!mounted) return;
-        debugPrint('User stopped typing');
-        // Handle stop typing indicator UI updates
+        final userId = data['userId'];
+        final chatId = data['chatId'];
+        
+        final messageProvider = Provider.of<MessageProvider>(
+          context,
+          listen: false,
+        );
+        
+        messageProvider.handleTypingIndicator(chatId, userId, false);
       } catch (e) {
         debugPrint('Error handling stopTyping: $e');
       }
@@ -211,12 +243,19 @@ class SocketService {
     }
   }
 
-  void joinChat(String chatId) {
-    _currentChatId = chatId;
+  void _joinChatRoom(String chatId) {
     if (_socket?.connected == true) {
       _socket?.emit('joinChat', chatId);
-      debugPrint('Joined chat: $chatId');
+      debugPrint('Joined chat room: $chatId');
     }
+  }
+
+  void joinChat(String chatId) {
+    _currentChatId = chatId;
+    if (_isConnected) {
+      _joinChatRoom(chatId);
+    }
+    // If not connected, it will auto-join when connection is established
   }
 
   void leaveChat(String chatId) {
@@ -250,12 +289,12 @@ class SocketService {
     }
   }
 
-  void emitMessageEdited(String chatId, Message updatedMessage) {
+  void emitMessageEdited(String chatId, String messageId, String content) {
     if (_socket?.connected == true) {
       _socket?.emit('messageEdited', {
         'chatId': chatId,
-        'messageId': updatedMessage.id,
-        'content': updatedMessage.content,
+        'messageId': messageId,
+        'content': content,
       });
     }
   }
@@ -293,6 +332,7 @@ class SocketService {
     _socket?.disconnect();
     _socket = null;
     _currentChatId = null;
+    _isConnected = false;
     debugPrint('Socket disconnected');
   }
 }
