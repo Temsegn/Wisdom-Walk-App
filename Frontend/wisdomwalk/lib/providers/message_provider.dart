@@ -2,29 +2,31 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:wisdomwalk/models/message_model.dart';
+import 'package:wisdomwalk/services/api_service.dart';
 import 'package:wisdomwalk/services/local_storage_service.dart';
-import '../models/message_model.dart';
-import '../services/api_service.dart';
 
 class MessageProvider with ChangeNotifier {
   final ApiService apiService = ApiService();
+  final LocalStorageService localStorageService = LocalStorageService();
+  
+  // Chat messages storage
   final Map<String, List<Message>> _chatMessages = {};
   final Map<String, bool> _loadingStates = {};
   final Map<String, String?> _errors = {};
   final Map<String, int> _currentPages = {};
   final Map<String, bool> _hasMoreMessages = {};
   final Map<String, String> _pinnedMessages = {}; // chatId: messageId
-
+  
+  // Reply functionality
   Message? _replyToMessage;
-
-  List<Message> getChatMessages(String chatId) {
-    return _chatMessages[chatId] ?? [];
-  }
-
+  
+  // Getters
+  List<Message> getChatMessages(String chatId) => _chatMessages[chatId] ?? [];
   bool isLoading(String chatId) => _loadingStates[chatId] ?? false;
   String? getError(String chatId) => _errors[chatId];
-  bool hasMoreMessages(String chatId) => _hasMoreMessages[chatId] ?? true;
   Message? get replyToMessage => _replyToMessage;
+  bool hasMoreMessages(String chatId) => _hasMoreMessages[chatId] ?? true;
   String? getPinnedMessageId(String chatId) => _pinnedMessages[chatId];
 
   void setReplyToMessage(Message? message) {
@@ -41,7 +43,7 @@ class MessageProvider with ChangeNotifier {
       return;
     }
 
-    if (_loadingStates[chatId] == true || 
+    if (_loadingStates[chatId] == true ||
         (!refresh && (_hasMoreMessages[chatId] ?? true) == false)) {
       return;
     }
@@ -66,8 +68,8 @@ class MessageProvider with ChangeNotifier {
       } else {
         final currentMessages = _chatMessages[chatId] ?? [];
         // Keep messages in chronological order (oldest first)
-        _chatMessages[chatId] = refresh 
-            ? newMessages 
+        _chatMessages[chatId] = refresh
+            ? newMessages
             : [...currentMessages, ...newMessages];
         _currentPages[chatId] = (_currentPages[chatId] ?? 1) + 1;
       }
@@ -120,13 +122,17 @@ class MessageProvider with ChangeNotifier {
   }
 
   void addNewMessage(String chatId, Message message) {
-    // Add new message to the end of the list (chronological order)
-    _chatMessages[chatId] = [..._chatMessages[chatId] ?? [], message];
-    notifyListeners();
+    // Check for duplicates before adding
+    final existingMessages = _chatMessages[chatId] ?? [];
+    if (!existingMessages.any((m) => m.id == message.id)) {
+      // Add new message to the end of the list (chronological order)
+      _chatMessages[chatId] = [...existingMessages, message];
+      notifyListeners();
+    }
   }
 
   Future<List<Map<String, dynamic>>> _uploadFiles(List<File> files) async {
-    final token = await LocalStorageService().getAuthToken();
+    final token = await localStorageService.getAuthToken();
     final uri = Uri.parse('https://wisdom-walk-app.onrender.com/api/upload');
     var request = http.MultipartRequest('POST', uri);
     request.headers['Authorization'] = 'Bearer $token';
@@ -165,19 +171,18 @@ class MessageProvider with ChangeNotifier {
     }
   }
 
-
   Future<void> addReaction(String messageId, String emoji) async {
     try {
       final chatId = _findChatIdForMessage(messageId);
       if (chatId == null) return;
 
       // Get current user ID
-      final currentUserId = await LocalStorageService().getCurrentUserId() ?? '';
-      
+      final currentUserId = await localStorageService.getCurrentUserId() ?? '';
+
       // Find the message
       final messages = _chatMessages[chatId];
       if (messages == null) return;
-      
+
       final messageIndex = messages.indexWhere((m) => m.id == messageId);
       if (messageIndex == -1) return;
 
@@ -228,7 +233,7 @@ class MessageProvider with ChangeNotifier {
       // Find the message
       final messages = _chatMessages[chatId];
       if (messages == null) return;
-      
+
       final messageIndex = messages.indexWhere((m) => m.id == messageId);
       if (messageIndex == -1) return;
 
@@ -260,9 +265,6 @@ class MessageProvider with ChangeNotifier {
     }
   }
 
- 
-
-
   Future<Message?> forwardMessage(String messageId, String targetChatId) async {
     try {
       final forwardedMessage = await apiService.forwardMessage(
@@ -282,12 +284,37 @@ class MessageProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Socket event handlers - these are called by the SocketService
+  void handleNewMessage(Message message) {
+    addNewMessage(message.chatId, message);
+  }
+
+  void handleMessageEdited(Message editedMessage) {
+    _updateMessageInChats(editedMessage);
+  }
+
+  void handleMessageDeleted(String messageId) {
+    _removeMessageFromChats(messageId);
+  }
+
+  void handleMessageReaction(String chatId, String messageId, MessageReaction reaction) {
+    updateMessageReaction(chatId, messageId, reaction);
+  }
+
+  void handleMessagePinned(String chatId, String messageId) {
+    updateMessagePinStatus(chatId, messageId, true);
+  }
+
+  void handleMessageUnpinned(String chatId, String messageId) {
+    updateMessagePinStatus(chatId, messageId, false);
+  }
+
   // Helper methods
   String? _findChatIdForMessage(String messageId) {
     for (final entry in _chatMessages.entries) {
       if (entry.value.any((m) => m.id == messageId)) {
         return entry.key;
-    }
+      }
     }
     return null;
   }
@@ -313,37 +340,134 @@ class MessageProvider with ChangeNotifier {
 
   void updateMessageReaction(String chatId, String messageId, MessageReaction reaction) {
     final messages = _chatMessages[chatId];
-    if (messages != null) {
-      final index = messages.indexWhere((m) => m.id == messageId);
-      if (index != -1) {
-        final updatedMessage = messages[index].copyWith(
-          reactions: [...messages[index].reactions, reaction],
-          updatedAt: DateTime.now(),
-        );
-        _chatMessages[chatId]![index] = updatedMessage;
-        notifyListeners();
-      }
+    if (messages == null) return;
+
+    final messageIndex = messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex == -1) return;
+
+    final message = messages[messageIndex];
+    final updatedReactions = List<MessageReaction>.from(message.reactions);
+
+    // Check if reaction already exists from this user with same emoji
+    final existingIndex = updatedReactions.indexWhere(
+      (r) => r.userId == reaction.userId && r.emoji == reaction.emoji
+    );
+
+    if (existingIndex != -1) {
+      // Remove existing reaction (toggle off)
+      updatedReactions.removeAt(existingIndex);
+    } else {
+      // Add new reaction
+      updatedReactions.add(reaction);
+    }
+
+    final updatedMessage = message.copyWith(
+      reactions: updatedReactions,
+      updatedAt: DateTime.now(),
+    );
+
+    _chatMessages[chatId]![messageIndex] = updatedMessage;
+    notifyListeners();
+  }
+
+  void updateMessagePinStatus(String chatId, String messageId, bool isPinned) {
+    final messages = _chatMessages[chatId];
+    if (messages == null) return;
+
+    final messageIndex = messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex == -1) return;
+
+    // Update pinned messages tracking
+    if (isPinned) {
+      _pinnedMessages[chatId] = messageId;
+    } else if (_pinnedMessages[chatId] == messageId) {
+      _pinnedMessages.remove(chatId);
+    }
+
+    final updatedMessage = messages[messageIndex].copyWith(
+      isPinned: isPinned,
+      updatedAt: DateTime.now(),
+    );
+
+    _chatMessages[chatId]![messageIndex] = updatedMessage;
+    notifyListeners();
+  }
+
+  // Additional helper methods for socket integration
+  void updateMessageEditStatus(String chatId, String messageId, String newContent) {
+    final messages = _chatMessages[chatId];
+    if (messages == null) return;
+
+    final messageIndex = messages.indexWhere((m) => m.id == messageId);
+    if (messageIndex == -1) return;
+
+    final updatedMessage = messages[messageIndex].copyWith(
+      content: newContent,
+      isEdited: true,
+      editedAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    _chatMessages[chatId]![messageIndex] = updatedMessage;
+    notifyListeners();
+  }
+
+  // Method to handle typing indicators (can be extended)
+  void handleTypingIndicator(String chatId, String userId, bool isTyping) {
+    // This can be implemented to show typing indicators
+    // For now, just notify listeners if needed
+    debugPrint('User $userId is ${isTyping ? 'typing' : 'stopped typing'} in chat $chatId');
+  }
+
+  // Clean up method for when leaving a chat
+  void clearChatData(String chatId) {
+    _chatMessages.remove(chatId);
+    _loadingStates.remove(chatId);
+    _errors.remove(chatId);
+    _currentPages.remove(chatId);
+    _hasMoreMessages.remove(chatId);
+    _pinnedMessages.remove(chatId);
+    notifyListeners();
+  }
+
+  // Method to refresh a specific chat's messages
+  Future<void> refreshChat(String chatId) async {
+    await loadMessages(chatId, refresh: true);
+  }
+
+  // Method to check if a message exists in local storage
+  bool messageExists(String chatId, String messageId) {
+    final messages = _chatMessages[chatId];
+    return messages?.any((m) => m.id == messageId) ?? false;
+  }
+
+  // Method to get a specific message
+  Message? getMessage(String chatId, String messageId) {
+    final messages = _chatMessages[chatId];
+    if (messages == null) return null;
+    
+    try {
+      return messages.firstWhere((m) => m.id == messageId);
+    } catch (e) {
+      return null;
     }
   }
 
-  void updateMessagePinnedStatus(String chatId, String messageId, bool isPinned) {
+  // Method to update message read status (if needed)
+  void markMessagesAsRead(String chatId, List<String> messageIds) {
     final messages = _chatMessages[chatId];
-    if (messages != null) {
-      final index = messages.indexWhere((m) => m.id == messageId);
-      if (index != -1) {
-        if (isPinned) {
-          _pinnedMessages[chatId] = messageId;
-        } else if (_pinnedMessages[chatId] == messageId) {
-          _pinnedMessages.remove(chatId);
-        }
+    if (messages == null) return;
 
-        final updatedMessage = messages[index].copyWith(
-          isPinned: isPinned,
-          updatedAt: DateTime.now(),
-        );
-        _chatMessages[chatId]![index] = updatedMessage;
-        notifyListeners();
+    bool hasUpdates = false;
+    for (int i = 0; i < messages.length; i++) {
+      if (messageIds.contains(messages[i].id)) {
+        // Update read status if your Message model supports it
+        hasUpdates = true;
       }
+    }
+
+    if (hasUpdates) {
+      notifyListeners();
     }
   }
 }

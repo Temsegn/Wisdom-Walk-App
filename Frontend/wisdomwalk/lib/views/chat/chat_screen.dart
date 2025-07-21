@@ -28,6 +28,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final LocalStorageService _localStorageService = LocalStorageService();
   bool _isInitialLoad = true;
   String? _currentUserId;
+  SocketService? _socketService;
   
   late AnimationController _animationController;
   late AnimationController _fabAnimationController;
@@ -80,34 +81,38 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       context.read<MessageProvider>().loadMessages(widget.chat.id);
     }
   }
-Future<void> _loadInitialMessages() async {
-  await context.read<MessageProvider>().loadMessages(
-    widget.chat.id,
-    refresh: true, 
-  );
-  setState(() => _isInitialLoad = false);
-  
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (_scrollController.hasClients) {
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-    }
-  });
-}
-void _markChatAsRead() {
+
+  Future<void> _loadInitialMessages() async {
+    await context.read<MessageProvider>().loadMessages(
+      widget.chat.id,
+      refresh: true, 
+    );
+    setState(() => _isInitialLoad = false);
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
+  }
+
+  void _markChatAsRead() {
     context.read<ChatProvider>().markChatAsRead(widget.chat.id);
   }
 
   Future<void> _connectToSocket() async {
     final token = await _localStorageService.getAuthToken();
-    if (token != null) {
-      final socketService = SocketService(context);
-      socketService.connect(token);
-      socketService.joinChat(widget.chat.id);
+    if (token != null && mounted) {
+      _socketService = SocketService(context);
+      _socketService!.connect(token);
+      _socketService!.joinChat(widget.chat.id); // Fixed: Join chat after connection
     }
   }
 
   @override
   void dispose() {
+    _socketService?.leaveChat(widget.chat.id);
+    _socketService?.disconnect();
     _scrollController.dispose();
     _messageController.dispose();
     _animationController.dispose();
@@ -311,71 +316,72 @@ void _markChatAsRead() {
       ],
     );
   }
-Widget _buildMessageList() {
-  return Consumer<MessageProvider>(
-    builder: (context, messageProvider, child) {
-      final messages = messageProvider.getChatMessages(widget.chat.id);
-      final isLoading = messageProvider.isLoading(widget.chat.id);
-      final error = messageProvider.getError(widget.chat.id);
 
-      if (_isInitialLoad && messages.isEmpty) {
-        return _buildShimmerLoading();
-      }
+  Widget _buildMessageList() {
+    return Consumer<MessageProvider>(
+      builder: (context, messageProvider, child) {
+        final messages = messageProvider.getChatMessages(widget.chat.id);
+        final isLoading = messageProvider.isLoading(widget.chat.id);
+        final error = messageProvider.getError(widget.chat.id);
 
-      if (error != null) {
-        return _buildErrorState(error, messageProvider);
-      }
+        if (_isInitialLoad && messages.isEmpty) {
+          return _buildShimmerLoading();
+        }
 
-      if (messages.isEmpty) {
-        return _buildEmptyState();
-      }
+        if (error != null) {
+          return _buildErrorState(error, messageProvider);
+        }
 
-      return Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(32),
-            topRight: Radius.circular(32),
+        if (messages.isEmpty) {
+          return _buildEmptyState();
+        }
+
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(32),
+              topRight: Radius.circular(32),
+            ),
           ),
-        ),
-        child: ListView.builder(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-          reverse: true, // This ensures new messages appear at bottom
-          itemCount: messages.length + (isLoading ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index == messages.length) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: CircularProgressIndicator(
-                    color: Color(0xFF10B981),
+          child: ListView.builder(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+            reverse: true,
+            itemCount: messages.length + (isLoading ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == messages.length) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF10B981),
+                    ),
                   ),
-                ),
+                );
+              }
+
+              final message = messages[messages.length - 1 - index];
+              final isCurrentUser = message.sender.id == _currentUserId;
+
+              return MessageBubble(
+                message: message,
+                isCurrentUser: isCurrentUser,
+                onReply: () => _setReplyMessage(message),
+                onEdit: () => _editMessage(message),
+                onDelete: () => _deleteMessage(message),
+                onReact: (emoji) => _addReaction(message, emoji),
+                onPin: () => _pinMessage(message),
+                onForward: () => _forwardMessage(message),
               );
-            }
+            },
+          ),
+        );
+      },
+    );
+  }
 
-            // Access messages in reverse order
-            final message = messages[messages.length - 1 - index];
-            final isCurrentUser = message.sender.id == _currentUserId;
-
-            return MessageBubble(
-              message: message,
-              isCurrentUser: isCurrentUser,
-              onReply: () => _setReplyMessage(message),
-              onEdit: () => _editMessage(message),
-              onDelete: () => _deleteMessage(message),
-              onReact: (emoji) => _addReaction(message, emoji),
-              onPin: () => _pinMessage(message),
-              onForward: () => _forwardMessage(message),
-            );
-          },
-        ),
-      );
-    },
-  );
-}
   Widget _buildShimmerLoading() {
     return Container(
       decoration: const BoxDecoration(
@@ -502,16 +508,12 @@ Widget _buildMessageList() {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
-                  ).colors.first.withOpacity(0.1) != null 
-                    ? LinearGradient(
-                        colors: [
-                          const Color(0xFF10B981).withOpacity(0.1),
-                          const Color(0xFF06B6D4).withOpacity(0.05),
-                        ],
-                      )
-                    : const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF06B6D4)]),
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF10B981).withOpacity(0.1),
+                      const Color(0xFF06B6D4).withOpacity(0.05),
+                    ],
+                  ),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: const Icon(
@@ -556,16 +558,12 @@ Widget _buildMessageList() {
           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
-            ).colors.first.withOpacity(0.1) != null 
-              ? LinearGradient(
-                  colors: [
-                    const Color(0xFF10B981).withOpacity(0.1),
-                    const Color(0xFF06B6D4).withOpacity(0.05),
-                  ],
-                )
-              : const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF06B6D4)]),
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF10B981).withOpacity(0.1),
+                const Color(0xFF06B6D4).withOpacity(0.05),
+              ],
+            ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: const Color(0xFF10B981).withOpacity(0.2),
@@ -654,16 +652,12 @@ Widget _buildMessageList() {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
-        ).colors.first.withOpacity(0.1) != null 
-          ? LinearGradient(
-              colors: [
-                const Color(0xFFF59E0B).withOpacity(0.1),
-                const Color(0xFFEF4444).withOpacity(0.05),
-              ],
-            )
-          : const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFEF4444)]),
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF59E0B).withOpacity(0.1),
+            const Color(0xFFEF4444).withOpacity(0.05),
+          ],
+        ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: const Color(0xFFF59E0B).withOpacity(0.2),
@@ -766,6 +760,7 @@ Widget _buildMessageList() {
             message.id,
             newContent,
           );
+          _socketService?.emitMessageEdited(widget.chat.id, message);
         },
       ),
     );
@@ -794,6 +789,7 @@ Widget _buildMessageList() {
               onPressed: () {
                 Navigator.pop(context);
                 context.read<MessageProvider>().deleteMessage(message.id);
+                _socketService?.emitMessageDeleted(widget.chat.id, message.id);
               },
               child: const Text(
                 'Delete',
@@ -808,10 +804,12 @@ Widget _buildMessageList() {
 
   void _addReaction(Message message, String emoji) {
     context.read<MessageProvider>().addReaction(message.id, emoji);
+    _socketService?.addReaction(widget.chat.id, message.id, emoji);
   }
 
   void _pinMessage(Message message) {
     context.read<MessageProvider>().pinMessage(widget.chat.id, message.id);
+    _socketService?.pinMessage(widget.chat.id, message.id);
   }
 
   void _forwardMessage(Message message) {
@@ -841,27 +839,28 @@ Widget _buildMessageList() {
       ),
     );
   }
-  Future<void> _sendMessage(String content) async {
-  if (content.trim().isEmpty) return;
-  
-  final messageProvider = context.read<MessageProvider>();
-  await messageProvider.sendMessage(
-    chatId: widget.chat.id,
-    content: content.trim(),
-  );
-  
-  _messageController.clear();
-  
-  if (_scrollController.hasClients) {
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
-  }
-}
 
-Future<void> _attachFile() async {
+  Future<void> _sendMessage(String content) async {
+    if (content.trim().isEmpty) return;
+    
+    final messageProvider = context.read<MessageProvider>();
+    await messageProvider.sendMessage(
+      chatId: widget.chat.id,
+      content: content.trim(),
+    );
+    
+    _messageController.clear();
+    
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  Future<void> _attachFile() async {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
