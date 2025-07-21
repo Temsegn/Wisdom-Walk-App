@@ -1199,7 +1199,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       request.headers['Authorization'] = 'Bearer $token';
       request.headers['Content-Type'] = 'multipart/form-data';
       final multipartFile = await http.MultipartFile.fromPath(
-        'file',
+        'profilePicture',
         image.path,
         filename: image.name,
       );
