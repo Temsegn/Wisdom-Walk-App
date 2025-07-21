@@ -3,20 +3,25 @@ const path = require("path");
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
+ const fileFilter = (req, file, cb) => {
+  const extname = /\.(jpg|jpeg|png|gif)$/i.test(file.originalname);
 
-// File filter function
-const fileFilter = (req, file, cb) => {
-  // Check file type
-  const allowedTypes = /jpeg|jpg|png|gif/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
+  // Accept if mimetype matches image types OR is 'application/octet-stream' (generic binary),
+  // but only if file extension is image type.
+  const mimetypeOk =
+    /image\/(jpeg|png|gif)/.test(file.mimetype) || file.mimetype === "application/octet-stream";
 
-  if (mimetype && extname) {
-    return cb(null, true);
+  console.log("file.originalname:", file.originalname);
+  console.log("file.mimetype:", file.mimetype);
+
+  if (extname && mimetypeOk) {
+    cb(null, true);
   } else {
     cb(new Error("Only images (JPEG, JPG, PNG, GIF) are allowed"));
   }
 };
+
+
 
 // Configure multer
 const upload = multer({
