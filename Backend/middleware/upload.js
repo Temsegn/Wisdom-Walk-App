@@ -3,20 +3,20 @@ const path = require("path");
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
+ const fileFilter = (req, file, cb) => {
+  const extname = /\.(jpg|jpeg|png|gif)$/i.test(file.originalname); // ✅ check extension
+  const mimetype = /image\/(jpeg|png|gif)/.test(file.mimetype);     // ✅ check MIME
 
-// File filter function
-const fileFilter = (req, file, cb) => {
-  // Check file type
-  const allowedTypes = /jpeg|jpg|png|gif/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
+  console.log('file.originalname:', file.originalname);  // 🔍 Debug
+  console.log('file.mimetype:', file.mimetype);          // 🔍 Debug
 
   if (mimetype && extname) {
-    return cb(null, true);
+    cb(null, true);
   } else {
     cb(new Error("Only images (JPEG, JPG, PNG, GIF) are allowed"));
   }
 };
+
 
 // Configure multer
 const upload = multer({
