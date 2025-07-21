@@ -206,6 +206,42 @@ const deleteGroup = async (req, res) => {
     });
   }
 };
+const getGroupMembers = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.groupId)
+      .populate("members.user", "firstName lastName email avatar");
+
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: "Group not found",
+      });
+    }
+
+    const members = group.members.map((member) => ({
+      id: member._id,
+      role: member.role,
+      isMuted: member.isMuted,
+      joinedAt: member.joinedAt,
+      name: `${member.user?.firstName ?? ''} ${member.user?.lastName ?? ''}`.trim(),
+      email: member.user?.email ?? '',
+      avatar: member.user?.avatar ?? '',
+    }));
+
+    res.status(200).json({
+      success: true,
+      members,
+    });
+  } catch (error) {
+    console.error("Error fetching group members:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch group members",
+      members: [],
+    });
+  }
+};
+
 
 // Group Membership Management
 const joinGroupViaLink = async (req, res) => {
@@ -932,5 +968,6 @@ module.exports = {
   generateInviteLink,
   muteGroup,
   unmuteGroup,
-  getAllGroups
+  getAllGroups,
+  getGroupMembers
 };
