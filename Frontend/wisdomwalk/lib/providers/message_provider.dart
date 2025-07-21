@@ -192,10 +192,13 @@ class MessageProvider with ChangeNotifier {
 
       // Create updated reactions list
       List<MessageReaction> updatedReactions;
+      bool isAdding;
+      
       if (existingReactionIndex >= 0) {
         // Remove existing reaction
         updatedReactions = List.from(messages[messageIndex].reactions);
         updatedReactions.removeAt(existingReactionIndex);
+        isAdding = false;
       } else {
         // Add new reaction
         final newReaction = MessageReaction(
@@ -204,6 +207,7 @@ class MessageProvider with ChangeNotifier {
           createdAt: DateTime.now(),
         );
         updatedReactions = [...messages[messageIndex].reactions, newReaction];
+        isAdding = true;
       }
 
       // Optimistic update
@@ -214,11 +218,12 @@ class MessageProvider with ChangeNotifier {
       _chatMessages[chatId]![messageIndex] = updatedMessage;
       notifyListeners();
 
-      // Send to server
+      // Send to server - the server will broadcast to all clients including this one
+      // But we've already updated optimistically
       await apiService.addReaction(messageId, emoji);
     } catch (e) {
       debugPrint('Error adding reaction: $e');
-      // Optionally: Revert optimistic update on error
+      // Revert optimistic update on error
       notifyListeners();
       rethrow;
     }
@@ -226,16 +231,15 @@ class MessageProvider with ChangeNotifier {
 
   Future<void> pinMessage(String chatId, String messageId) async {
     try {
-      // Check if this message is already pinned
-      final isCurrentlyPinned = _pinnedMessages[chatId] == messageId;
-      final shouldPin = !isCurrentlyPinned;
-
       // Find the message
       final messages = _chatMessages[chatId];
       if (messages == null) return;
 
       final messageIndex = messages.indexWhere((m) => m.id == messageId);
       if (messageIndex == -1) return;
+
+      final currentMessage = messages[messageIndex];
+      final shouldPin = !currentMessage.isPinned;
 
       // Optimistic update
       if (shouldPin) {
@@ -244,7 +248,7 @@ class MessageProvider with ChangeNotifier {
         _pinnedMessages.remove(chatId);
       }
 
-      final updatedMessage = messages[messageIndex].copyWith(
+      final updatedMessage = currentMessage.copyWith(
         isPinned: shouldPin,
         updatedAt: DateTime.now(),
       );
@@ -259,7 +263,7 @@ class MessageProvider with ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Error pinning message: $e');
-      // Optionally: Revert optimistic update on error
+      // Revert optimistic update on error
       notifyListeners();
       rethrow;
     }
@@ -297,8 +301,8 @@ class MessageProvider with ChangeNotifier {
     _removeMessageFromChats(messageId);
   }
 
-  void handleMessageReaction(String chatId, String messageId, MessageReaction reaction) {
-    updateMessageReaction(chatId, messageId, reaction);
+  void handleMessageReaction(String chatId, String messageId, MessageReaction reaction, bool isAdding) {
+    updateMessageReaction(chatId, messageId, reaction, isAdding);
   }
 
   void handleMessagePinned(String chatId, String messageId) {
@@ -338,7 +342,7 @@ class MessageProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void updateMessageReaction(String chatId, String messageId, MessageReaction reaction) {
+  void updateMessageReaction(String chatId, String messageId, MessageReaction reaction, bool isAdding) {
     final messages = _chatMessages[chatId];
     if (messages == null) return;
 
@@ -348,17 +352,19 @@ class MessageProvider with ChangeNotifier {
     final message = messages[messageIndex];
     final updatedReactions = List<MessageReaction>.from(message.reactions);
 
-    // Check if reaction already exists from this user with same emoji
-    final existingIndex = updatedReactions.indexWhere(
-      (r) => r.userId == reaction.userId && r.emoji == reaction.emoji
-    );
-
-    if (existingIndex != -1) {
-      // Remove existing reaction (toggle off)
-      updatedReactions.removeAt(existingIndex);
+    if (isAdding) {
+    // Add reaction if not already present
+      final existingIndex = updatedReactions.indexWhere(
+        (r) => r.userId == reaction.userId && r.emoji == reaction.emoji
+      );
+      if (existingIndex == -1) {
+        updatedReactions.add(reaction);
+      }
     } else {
-      // Add new reaction
-      updatedReactions.add(reaction);
+      // Remove reaction
+      updatedReactions.removeWhere(
+        (r) => r.userId == reaction.userId && r.emoji == reaction.emoji
+      );
     }
 
     final updatedMessage = message.copyWith(

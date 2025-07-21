@@ -105,7 +105,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     if (token != null && mounted) {
       _socketService = SocketService(context);
       _socketService!.connect(token);
-      _socketService!.joinChat(widget.chat.id); // Fixed: Join chat after connection
+      
+      // Wait a bit for connection to establish, then join chat
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        if (mounted && _socketService?.isConnected == true) {
+          _socketService!.joinChat(widget.chat.id);
+        }
+      });
     }
   }
 
@@ -253,13 +259,31 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                                 color: Colors.white.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: Text(
-                                widget.chat.isOnline == true ? 'Online' : 'Last seen recently',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_socketService?.isConnected == true) ...[
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.green,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                  ],
+                                  Text(
+                                    _socketService?.isConnected == true 
+                                        ? 'Online' 
+                                        : 'Connecting...',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -634,80 +658,78 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildPinnedMessageIndicator() {
-    final pinnedMessageId = context.read<MessageProvider>().getPinnedMessageId(widget.chat.id);
-    if (pinnedMessageId == null) return const SizedBox.shrink();
+    return Consumer<MessageProvider>(
+      builder: (context, messageProvider, child) {
+        final pinnedMessageId = messageProvider.getPinnedMessageId(widget.chat.id);
+        if (pinnedMessageId == null) return const SizedBox.shrink();
 
-    final messages = context.read<MessageProvider>().getChatMessages(widget.chat.id);
-    Message? pinnedMessage;
-    
-    try {
-      pinnedMessage = messages.firstWhere((m) => m.id == pinnedMessageId);
-    } catch (e) {
-      return const SizedBox.shrink();
-    }
+        final pinnedMessage = messageProvider.getMessage(widget.chat.id, pinnedMessageId);
+        if (pinnedMessage == null || pinnedMessage.content.isEmpty) {
+          return const SizedBox.shrink();
+        }
 
-    if (pinnedMessage.content.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFF59E0B).withOpacity(0.1),
-            const Color(0xFFEF4444).withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFF59E0B).withOpacity(0.2),
-          width: 2,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.push_pin_rounded,
-              color: Colors.white,
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Pinned Message',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    color: Color(0xFFF59E0B),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  pinnedMessage.content,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFFF59E0B).withOpacity(0.1),
+                const Color(0xFFEF4444).withOpacity(0.05),
               ],
             ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFFF59E0B).withOpacity(0.2),
+              width: 2,
+            ),
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.push_pin_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Pinned Message',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: Color(0xFFF59E0B),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      pinnedMessage.content,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -760,7 +782,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             message.id,
             newContent,
           );
-          _socketService?.emitMessageEdited(widget.chat.id, message);
+          _socketService?.emitMessageEdited(widget.chat.id, message.id, newContent);
         },
       ),
     );
