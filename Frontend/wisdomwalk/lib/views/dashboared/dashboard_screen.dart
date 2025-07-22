@@ -2749,17 +2749,10 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                           return;
                         }
                         if (userId == 'current_user') {
-                          _showLoginPrompt(context, 'view your profile');
+                          _showLoginPrompt(context, 'view profiles');
                           return;
                         }
-                        if (prayer.userId != userId) {
-                          _showErrorSnackBar(
-                            context,
-                            'You can only view your own profile',
-                          );
-                          return;
-                        }
-                        context.push('/profile');
+                        context.push('/profile/${prayer.userId}');
                       },
                       child: Container(
                         padding: const EdgeInsets.all(16),
@@ -2778,7 +2771,9 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                               prayer.isAnonymous || prayer.userAvatar == null
                                   ? null
                                   : DecorationImage(
-                                    image: NetworkImage(prayer.userAvatar!),
+                                    image: NetworkImage(
+                                      '${prayer.userAvatar!}?t=${DateTime.now().millisecondsSinceEpoch}',
+                                    ),
                                     fit: BoxFit.cover,
                                   ),
                         ),
@@ -2908,7 +2903,7 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                       _buildActionButton(
                         icon: Icons.comment_outlined,
                         label: '${prayer.comments.length}',
-                        color: const Color(0xFF1DA1F2), // X's blue color
+                        color: const Color(0xFF1DA1F2),
                         isActive: showCommentSection,
                         onPressed: () {
                           HapticFeedback.lightImpact();
@@ -2968,8 +2963,6 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                         isActive: false,
                         onPressed: () async {
                           HapticFeedback.lightImpact();
-
-                          // Check if user is logged in
                           final authProvider = Provider.of<AuthProvider>(
                             context,
                             listen: false,
@@ -2978,8 +2971,6 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                             _showLoginPrompt(context, 'start a chat');
                             return;
                           }
-
-                          // Check if the prayer is anonymous
                           if (prayer.isAnonymous) {
                             _showErrorSnackBar(
                               context,
@@ -2987,14 +2978,6 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                             );
                             return;
                           }
-
-                          // Prevent chatting with self       //////////////////////////////////////////
-                          // if (prayer.userId == authProvider.userId) {
-                          //   _showErrorSnackBar(context, 'You cannot chat with yourself');
-                          //   return;
-                          // }
-
-                          // Check if the target user is blocked
                           final userProvider = Provider.of<UserProvider>(
                             context,
                             listen: false,
@@ -3010,14 +2993,11 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                             );
                             return;
                           }
-
                           try {
                             final chatProvider = Provider.of<ChatProvider>(
                               context,
                               listen: false,
                             );
-
-                            // Check for existing chat or create a new one
                             Chat? chat = await chatProvider.getExistingChat(
                               prayer.userId,
                             );
@@ -3029,7 +3009,6 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                                         '👋 Hi! I saw your prayer request "${prayer.title ?? prayer.content.substring(0, min(prayer.content.length, 20))}..." and wanted to connect.',
                                   );
                             }
-
                             if (chat == null || !context.mounted) {
                               _showErrorSnackBar(
                                 context,
@@ -3037,14 +3016,7 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                               );
                               return;
                             }
-
-                            // Navigate to the chat tab in DashboardScreen
-                            context.go(
-                              '/dashboard',
-                              extra: {'tab': 5},
-                            ); // Select chat tab (index 5)
-
-                            // Push ChatScreen after a slight delay to ensure tab switch
+                            context.go('/dashboard', extra: {'tab': 5});
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               if (context.mounted) {
                                 Navigator.push(
@@ -3073,8 +3045,7 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                   const SizedBox(height: 16),
                   Container(
                     decoration: BoxDecoration(
-                      color:
-                          Colors.grey[100], // Light gray like X's reply field
+                      color: Colors.grey[100],
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.grey[300]!, width: 1),
                     ),
@@ -3086,20 +3057,18 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                             controller: commentController,
                             decoration: const InputDecoration(
                               hintText: 'Reply to this prayer…',
-                              hintStyle: TextStyle(
-                                color: Color(0xFF657786),
-                              ), // X's hint color
+                              hintStyle: TextStyle(color: Color(0xFF657786)),
                               border: InputBorder.none,
                               contentPadding: EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 12,
                               ),
                             ),
-                            maxLines: null, // Expand as needed
+                            maxLines: null,
                             minLines: 1,
                             style: const TextStyle(
                               fontSize: 14,
-                              color: Color(0xFF14171A), // X's text color
+                              color: Color(0xFF14171A),
                             ),
                           ),
                         ),
@@ -3107,7 +3076,7 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                           margin: const EdgeInsets.only(right: 8),
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Color(0xFF1DA1F2), // X's blue
+                            color: Color(0xFF1DA1F2),
                             boxShadow: [
                               BoxShadow(
                                 color: Color(0x331DA1F2),
@@ -3195,21 +3164,18 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                             GestureDetector(
                               onTap: () {
                                 HapticFeedback.lightImpact();
-                                if (userId == 'current_user') {
-                                  _showLoginPrompt(
-                                    context,
-                                    'view your profile',
-                                  );
-                                  return;
-                                }
-                                if (comment.userId != userId) {
+                                if (comment.isAnonymous) {
                                   _showErrorSnackBar(
                                     context,
-                                    'You can only view your own profile',
+                                    'Cannot view anonymous profiles',
                                   );
                                   return;
                                 }
-                                context.push('/profile');
+                                if (userId == 'current_user') {
+                                  _showLoginPrompt(context, 'view profiles');
+                                  return;
+                                }
+                                context.push('/profile/${comment.userId}');
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(8),
@@ -3228,7 +3194,7 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                                       comment.userAvatar != null
                                           ? DecorationImage(
                                             image: NetworkImage(
-                                              comment.userAvatar!,
+                                              '${comment.userAvatar!}?t=${DateTime.now().millisecondsSinceEpoch}',
                                             ),
                                             fit: BoxFit.cover,
                                           )
@@ -3254,9 +3220,7 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
-                                      color: Color(
-                                        0xFF14171A,
-                                      ), // X's text color
+                                      color: Color(0xFF14171A),
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -3264,9 +3228,7 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                                     comment.content,
                                     style: const TextStyle(
                                       fontSize: 14,
-                                      color: Color(
-                                        0xFF657786,
-                                      ), // X's secondary text
+                                      color: Color(0xFF657786),
                                       height: 1.4,
                                     ),
                                   ),
@@ -3282,7 +3244,7 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                       'No comments yet',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF657786), // X's secondary text
+                        color: Color(0xFF657786),
                         fontWeight: FontWeight.w500,
                       ),
                     ),

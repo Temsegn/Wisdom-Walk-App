@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:wisdomwalk/models/user_model.dart';
-import 'package:wisdomwalk/providers/auth_provider.dart';
-import 'package:wisdomwalk/providers/user_provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wisdomwalk/models/user_model.dart';
+import 'package:wisdomwalk/providers/user_provider.dart';
 import 'package:wisdomwalk/themes/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  final String? userId;
+
+  const ProfileScreen({Key? key, this.userId}) : super(key: key);
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -17,36 +18,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Fetch the current user when the screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<UserProvider>(
-        context,
-        listen: false,
-      ).fetchCurrentUser(context: context, forceRefresh: true);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (widget.userId != null) {
+        userProvider.fetchUserById(
+          context: context,
+          userId: widget.userId!,
+          forceRefresh: true,
+          skipRedirect: true,
+        );
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context);
-    final UserModel? user = userProvider.currentUser;
+    final user = userProvider.viewedUser;
+
+    if (widget.userId == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('User Profile')),
+        body: const Center(
+          child: Text(
+            'Invalid user ID',
+            style: TextStyle(fontSize: 16, color: Colors.red),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Profile'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () => context.push('/profile-settings'),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('User Profile')),
       body:
           userProvider.isLoading
               ? const Center(child: CircularProgressIndicator())
-              : user == null || user.id.isEmpty
-              ? const Center(child: Text('No profile data available'))
+              : user == null || user.id.isEmpty || user.id != widget.userId
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      userProvider.error ?? 'No profile data available',
+                      style: const TextStyle(fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        userProvider.fetchUserById(
+                          context: context,
+                          userId: widget.userId!,
+                          forceRefresh: true,
+                          skipRedirect: true,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE91E63),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                      ),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
               : SingleChildScrollView(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -60,7 +100,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           backgroundColor: Colors.grey.shade200,
                           backgroundImage:
                               user.avatarUrl != null
-                                  ? NetworkImage(user.avatarUrl!)
+                                  ? NetworkImage(
+                                    '${user.avatarUrl!}?t=${DateTime.now().millisecondsSinceEpoch}',
+                                  )
                                   : null,
                           child:
                               user.avatarUrl == null
@@ -129,7 +171,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 16),
                     // Bio
-
+                    if (user.id != null && user.id!.isNotEmpty)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Bio',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(user.id!, style: const TextStyle(fontSize: 16)),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
                     // Location
                     if (user.city != null || user.country != null)
                       Column(

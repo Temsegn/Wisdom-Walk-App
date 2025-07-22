@@ -466,7 +466,6 @@
 //     notifyListeners();
 //   }
 // }
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -480,6 +479,7 @@ import 'package:go_router/go_router.dart';
 class UserProvider with ChangeNotifier {
   final LocalStorageService _localStorageService;
   UserModel _currentUser = UserModel.empty();
+  UserModel _viewedUser = UserModel.empty(); // New field for viewed user
   String? _userId;
   final List<UserModel> _allUsers = [];
   List<UserModel> _searchResults = [];
@@ -494,6 +494,7 @@ class UserProvider with ChangeNotifier {
   }
 
   UserModel get currentUser => _currentUser;
+  UserModel get viewedUser => _viewedUser; // Getter for viewed user
   List<UserModel> get allUsers => List.unmodifiable(_allUsers);
   List<UserModel> get searchResults => List.unmodifiable(_searchResults);
   bool get isLoading => _isLoading;
@@ -514,6 +515,7 @@ class UserProvider with ChangeNotifier {
   Future<void> fetchCurrentUser({
     bool forceRefresh = false,
     BuildContext? context,
+    bool skipRedirect = false, // New parameter
   }) async {
     if (_userId == null) {
       _userId = await _localStorageService.getUserId();
@@ -521,12 +523,12 @@ class UserProvider with ChangeNotifier {
         _error = 'User ID not found';
         _isLoading = false;
         _currentUser = UserModel.empty();
-        if (context != null) {
+        if (context != null && !skipRedirect && context.mounted) {
           Provider.of<AuthProvider>(
             context,
             listen: false,
           ).setCurrentUser(null);
-          if (context.mounted) context.go('/login');
+          context.go('/login');
         }
         notifyListeners();
         return;
@@ -537,10 +539,11 @@ class UserProvider with ChangeNotifier {
         _lastFetchTime != null &&
         DateTime.now().difference(_lastFetchTime!) < cacheDuration) {
       if (context != null &&
+          !skipRedirect &&
           (!_currentUser.isVerified || _currentUser.isBlocked)) {
         Provider.of<AuthProvider>(context, listen: false).setCurrentUser(null);
         if (context.mounted) context.go('/pending-screen');
-      } else if (context != null) {
+      } else if (context != null && !skipRedirect) {
         Provider.of<AuthProvider>(
           context,
           listen: false,
@@ -558,9 +561,9 @@ class UserProvider with ChangeNotifier {
       _error = 'Authentication required';
       _isLoading = false;
       _currentUser = UserModel.empty();
-      if (context != null) {
+      if (context != null && !skipRedirect && context.mounted) {
         Provider.of<AuthProvider>(context, listen: false).setCurrentUser(null);
-        if (context.mounted) context.go('/login');
+        context.go('/login');
       }
       notifyListeners();
       return;
@@ -582,7 +585,7 @@ class UserProvider with ChangeNotifier {
           'avatarUrl: ${_currentUser.avatarUrl}',
         );
 
-        if (context != null) {
+        if (context != null && !skipRedirect) {
           Provider.of<AuthProvider>(
             context,
             listen: false,
@@ -620,7 +623,7 @@ class UserProvider with ChangeNotifier {
               'avatarUrl: ${_currentUser.avatarUrl}',
             );
 
-            if (context != null) {
+            if (context != null && !skipRedirect) {
               Provider.of<AuthProvider>(
                 context,
                 listen: false,
@@ -635,7 +638,7 @@ class UserProvider with ChangeNotifier {
           } else if (response.statusCode == 401) {
             _error = 'Session expired. Please log in again.';
             _currentUser = UserModel.empty();
-            if (context != null && context.mounted) {
+            if (context != null && !skipRedirect && context.mounted) {
               Provider.of<AuthProvider>(
                 context,
                 listen: false,
@@ -657,7 +660,7 @@ class UserProvider with ChangeNotifier {
           retryCount++;
           if (retryCount >= maxRetries) {
             _currentUser = UserModel.empty();
-            if (context != null && context.mounted) {
+            if (context != null && !skipRedirect && context.mounted) {
               Provider.of<AuthProvider>(
                 context,
                 listen: false,
@@ -669,6 +672,105 @@ class UserProvider with ChangeNotifier {
           await Future.delayed(const Duration(seconds: 2));
           debugPrint('Error in fetchCurrentUser HTTP call: $httpError');
         }
+      }
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> fetchUserById({
+    required BuildContext context,
+    required String userId,
+    bool forceRefresh = false,
+    bool skipRedirect = false, // New parameter
+  }) async {
+    if (!forceRefresh &&
+        _lastFetchTime != null &&
+        DateTime.now().difference(_lastFetchTime!) < cacheDuration &&
+        _viewedUser.id == userId) {
+      return;
+    }
+
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    final token = await _localStorageService.getAuthToken();
+    if (token == null) {
+      _error = 'Authentication required';
+      _isLoading = false;
+      _viewedUser = UserModel.empty();
+      if (!skipRedirect && context.mounted) {
+        Provider.of<AuthProvider>(context, listen: false).setCurrentUser(null);
+        context.go('/login');
+      }
+      notifyListeners();
+      return;
+    }
+
+    final url = 'https://wisdom-walk-app.onrender.com/api/users/$userId';
+    const maxRetries = 3;
+    int retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        final response = await http
+            .get(
+              Uri.parse(url),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+            )
+            .timeout(const Duration(seconds: 15));
+
+        debugPrint('fetchUserById Response: ${response.statusCode}');
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final userData = data['data'] ?? data;
+          _viewedUser = UserModel.fromJson(userData);
+          _lastFetchTime = DateTime.now();
+          debugPrint(
+            'Fetched user: ${_viewedUser.displayName}, '
+            'isAdminVerified: ${_viewedUser.isVerified}, '
+            'isBlocked: ${_viewedUser.isBlocked}, '
+            'avatarUrl: ${_viewedUser.avatarUrl}',
+          );
+          break;
+        } else if (response.statusCode == 401) {
+          _error = 'Session expired. Please log in again.';
+          _viewedUser = UserModel.empty();
+          if (!skipRedirect && context.mounted) {
+            Provider.of<AuthProvider>(
+              context,
+              listen: false,
+            ).setCurrentUser(null);
+            context.go('/login');
+          }
+          break;
+        } else if (response.statusCode == 404) {
+          _error = 'User not found';
+          _viewedUser = UserModel.empty();
+          break;
+        } else {
+          _error = 'Failed to fetch user: ${response.statusCode}';
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            _viewedUser = UserModel.empty();
+            break;
+          }
+          await Future.delayed(const Duration(seconds: 2));
+        }
+      } catch (e) {
+        _error = 'Error fetching user: ${e.toString()}';
+        retryCount++;
+        if (retryCount >= maxRetries) {
+          _viewedUser = UserModel.empty();
+          break;
+        }
+        await Future.delayed(const Duration(seconds: 2));
+        debugPrint('Error in fetchUserById HTTP call: $e');
       }
     }
 
