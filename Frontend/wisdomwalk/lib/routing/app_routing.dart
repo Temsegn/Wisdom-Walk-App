@@ -194,6 +194,7 @@ import 'package:wisdomwalk/views/profile/profile_screen.dart';
 import 'package:wisdomwalk/views/settings/settings_screen.dart';
 import 'package:wisdomwalk/views/notifications/notifications_screen.dart';
 import 'package:wisdomwalk/widgets/pending_screen.dart';
+import 'package:wisdomwalk/views/dashboared/AboutScreen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -339,6 +340,12 @@ class AppRouter {
             (context, state) => LocationRequestDetailScreen(
               requestId: state.pathParameters['id']!,
             ),
+      ),
+      GoRoute(
+        path: '/about',
+        builder: (context, state) {
+          return const AboutScreen();
+        },
       ),
     ],
     redirect: (context, state) async {

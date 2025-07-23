@@ -301,7 +301,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 }
 
-// Enhanced HomeTab Implementation
 class HomeTab extends StatefulWidget {
   const HomeTab({Key? key}) : super(key: key);
 
@@ -347,13 +346,11 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       CurvedAnimation(parent: _shimmerController!, curve: Curves.easeInOut),
     );
 
-    // Start animations with stagger
     _fadeController?.forward();
     Future.delayed(const Duration(milliseconds: 200), () {
       _slideController?.forward();
     });
 
-    // Fetch data
     Provider.of<EventProvider>(context, listen: false).fetchEvents();
     Provider.of<AnonymousShareProvider>(
       context,
@@ -392,6 +389,16 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             ),
           ),
         ),
+        leading: Builder(
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white, size: 28),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  Scaffold.of(context).openDrawer();
+                },
+              ),
+        ),
         title: ShaderMask(
           shaderCallback:
               (bounds) => const LinearGradient(
@@ -404,8 +411,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w800,
-              fontSize: 32,
-              letterSpacing: 1.5,
+              fontSize: 28,
+              letterSpacing: 1.2,
             ),
           ),
         ),
@@ -479,38 +486,186 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
               );
             },
           ),
-          Container(
-            margin: const EdgeInsets.only(right: 20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withOpacity(0.25),
-                  Colors.white.withOpacity(0.15),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.settings_outlined,
-                color: Colors.white,
-                size: 28,
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileSettingsScreen(),
-                  ),
-                );
-              },
+          //   Container(
+          //     margin: const EdgeInsets.only(right: 20),
+          //     decoration: BoxDecoration(
+          //       gradient: LinearGradient(
+          //         colors: [
+          //           Colors.white.withOpacity(0.25),
+          //           Colors.white.withOpacity(0.15),
+          //         ],
+          //       ),
+          //       borderRadius: BorderRadius.circular(16),
+          //       border: Border.all(
+          //         color: Colors.white.withOpacity(0.3),
+          //         width: 1,
+          //       ),
+          //     ),
+          //     child: IconButton(
+          //       icon: const Icon(
+          //         Icons.settings_outlined,
+          //         color: Colors.white,
+          //         size: 28,
+          //       ),
+          //       onPressed: () {
+          //         HapticFeedback.lightImpact();
+          //         context.push('/settings');
+          //       },
+          //     ),
+          //   ),
+          //
+          //
+        ],
+      ),
+      drawer: Drawer(
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFF8FAFF), Colors.white],
             ),
           ),
-        ],
+          child: Column(
+            children: [
+              DrawerHeader(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF6366F1),
+                      Color(0xFF8B5CF6),
+                      Color(0xFFA855F7),
+                    ],
+                    stops: [0.0, 0.5, 1.0],
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'WisdomWalk',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Empowering Women Through Faith',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.settings,
+                  color: Color(0xFF6C5CE7),
+                  size: 28,
+                ),
+                title: const Text(
+                  'Settings',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2D3436),
+                  ),
+                ),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.pop(context); // Close drawer
+                  context.push('/settings');
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.info_outline,
+                  color: Color(0xFF00B894),
+                  size: 28,
+                ),
+                title: const Text(
+                  'About',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2D3436),
+                  ),
+                ),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.pop(context); // Close drawer
+                  context.push('/about');
+                },
+              ),
+              const Spacer(),
+              Consumer<AuthProvider>(
+                builder: (context, authProvider, child) {
+                  final userId = authProvider.currentUser?.id ?? 'current_user';
+                  if (userId == 'current_user') {
+                    return ListTile(
+                      leading: const Icon(
+                        Icons.login,
+                        color: Color(0xFF10B981),
+                        size: 28,
+                      ),
+                      title: const Text(
+                        'Log In',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2D3436),
+                        ),
+                      ),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.pop(context);
+                        context.push('/login');
+                      },
+                    );
+                  }
+                  return ListTile(
+                    leading: const Icon(
+                      Icons.logout,
+                      color: Color(0xFFE17055),
+                      size: 28,
+                    ),
+                    title: const Text(
+                      'Log Out',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2D3436),
+                      ),
+                    ),
+                    onTap: () async {
+                      HapticFeedback.lightImpact();
+                      await authProvider.logout();
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        _showSuccessSnackBar(
+                          context,
+                          'Logged out successfully',
+                          const Color(0xFF10B981),
+                        );
+                        context.go('/login');
+                      }
+                    },
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
       ),
       body: FadeTransition(
         opacity: _fadeAnimation ?? const AlwaysStoppedAnimation(1.0),
@@ -1850,7 +2005,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                 ),
                 borderRadius: BorderRadius.circular(20),
               ),
-
               child: ElevatedButton(
                 onPressed: () async {
                   final reason = reasonController.text.trim();
@@ -2061,7 +2215,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       builder: (context, eventProvider, child) {
         final now = DateTime.now();
 
-        // Loading state
         if (eventProvider.isLoading) {
           return Container(
             height: 200,
@@ -2079,7 +2232,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           );
         }
 
-        // Error state
         if (eventProvider.error != null) {
           return Container(
             padding: const EdgeInsets.all(24),
@@ -2141,18 +2293,13 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           );
         }
 
-        // Filter upcoming events: those that haven't ended yet
-
         final upcomingEvents =
             eventProvider.events.where((event) {
               final duration = _getDuration(event.duration);
               final endTime = event.dateTime.add(duration);
-              return now.isBefore(
-                endTime,
-              ); // Only future or currently live events
+              return now.isBefore(endTime);
             }).toList();
 
-        // Empty state
         if (upcomingEvents.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(32),
@@ -2194,7 +2341,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           );
         }
 
-        // Upcoming events list
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2225,7 +2371,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
   }
 
   Duration _getDuration(Object? duration) {
-    // Helper function to safely cast duration or return default
     if (duration is Duration) {
       return duration;
     }
@@ -2267,7 +2412,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       badgeText = formatTimeLeft(timeLeft);
       badgeColor = const Color(0xFF0984E3);
     } else if (hasEnded) {
-      // No badge after event ended; you can change to "Ended" if you want
       badgeText = '';
       badgeColor = Colors.transparent;
     }
