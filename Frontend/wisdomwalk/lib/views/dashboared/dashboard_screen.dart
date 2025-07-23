@@ -2752,6 +2752,17 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                           _showLoginPrompt(context, 'view profiles');
                           return;
                         }
+                        if (prayer.userId == null || prayer.userId.isEmpty) {
+                          debugPrint('Invalid prayer userId: ${prayer.userId}');
+                          _showErrorSnackBar(
+                            context,
+                            'Cannot view profile: Invalid user ID',
+                          );
+                          return;
+                        }
+                        debugPrint(
+                          'Navigating to profile with userId: ${prayer.userId}',
+                        );
                         context.push('/profile/${prayer.userId}');
                       },
                       child: Container(
@@ -2978,6 +2989,14 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                             );
                             return;
                           }
+                          if (prayer.userId == null || prayer.userId.isEmpty) {
+                            debugPrint('Invalid chat userId: ${prayer.userId}');
+                            _showErrorSnackBar(
+                              context,
+                              'Cannot start chat: Invalid user ID',
+                            );
+                            return;
+                          }
                           final userProvider = Provider.of<UserProvider>(
                             context,
                             listen: false,
@@ -3164,17 +3183,31 @@ class _PrayerWallTabState extends State<PrayerWallTab>
                             GestureDetector(
                               onTap: () {
                                 HapticFeedback.lightImpact();
-                                if (comment.isAnonymous) {
+                                if (userId == 'current_user') {
+                                  _showLoginPrompt(context, 'view profiles');
+                                  return;
+                                }
+                                if (comment.isAnonymous == true) {
                                   _showErrorSnackBar(
                                     context,
                                     'Cannot view anonymous profiles',
                                   );
                                   return;
                                 }
-                                if (userId == 'current_user') {
-                                  _showLoginPrompt(context, 'view profiles');
+                                if (comment.userId == null ||
+                                    comment.userId.isEmpty) {
+                                  debugPrint(
+                                    'Invalid comment userId: ${comment.userId}',
+                                  );
+                                  _showErrorSnackBar(
+                                    context,
+                                    'Cannot view profile: Invalid user ID',
+                                  );
                                   return;
                                 }
+                                debugPrint(
+                                  'Navigating to profile with userId: ${comment.userId}',
+                                );
                                 context.push('/profile/${comment.userId}');
                               },
                               child: Container(

@@ -18,15 +18,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('ProfileScreen init with userId: ${widget.userId}');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      if (widget.userId != null) {
+      if (widget.userId != null && widget.userId!.isNotEmpty) {
         userProvider.fetchUserById(
           context: context,
           userId: widget.userId!,
           forceRefresh: true,
           skipRedirect: true,
         );
+      } else {
+        debugPrint('Invalid userId, redirecting to /dashboard');
+        context.go('/dashboard');
       }
     });
   }
@@ -36,7 +40,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final userProvider = Provider.of<UserProvider>(context);
     final user = userProvider.viewedUser;
 
-    if (widget.userId == null) {
+    if (widget.userId == null || widget.userId!.isEmpty) {
+      debugPrint('ProfileScreen build: Invalid userId: ${widget.userId}');
       return Scaffold(
         appBar: AppBar(title: const Text('User Profile')),
         body: const Center(
@@ -54,19 +59,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body:
           userProvider.isLoading
               ? const Center(child: CircularProgressIndicator())
-              : user == null || user.id.isEmpty || user.id != widget.userId
+              : user == null || user.id.isEmpty
               ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      userProvider.error ?? 'No profile data available',
+                      userProvider.error != null
+                          ? userProvider.error!.contains('404')
+                              ? 'User not found'
+                              : userProvider.error!
+                          : 'No profile data available',
                       style: const TextStyle(fontSize: 16),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () {
+                        debugPrint(
+                          'Retry fetchUserById for userId: ${widget.userId}',
+                        );
                         userProvider.fetchUserById(
                           context: context,
                           userId: widget.userId!,
@@ -83,6 +95,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       child: const Text('Retry'),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        context.go('/dashboard');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                      ),
+                      child: const Text('Back to Dashboard'),
                     ),
                   ],
                 ),
@@ -170,23 +197,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Bio
-                    if (user.id != null && user.id!.isNotEmpty)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Bio',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(user.id!, style: const TextStyle(fontSize: 16)),
-                          const SizedBox(height: 16),
-                        ],
-                      ),
                     // Location
                     if (user.city != null || user.country != null)
                       Column(

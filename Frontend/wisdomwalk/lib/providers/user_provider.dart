@@ -608,7 +608,7 @@ class UserProvider with ChangeNotifier {
                   'Authorization': 'Bearer $token',
                 },
               )
-              .timeout(const Duration(seconds: 15));
+              .timeout(const Duration(seconds: 45));
 
           debugPrint('fetchCurrentUser Response: ${response.statusCode}');
           if (response.statusCode == 200) {
@@ -723,7 +723,7 @@ class UserProvider with ChangeNotifier {
                 'Authorization': 'Bearer $token',
               },
             )
-            .timeout(const Duration(seconds: 15));
+            .timeout(const Duration(seconds: 45));
 
         debugPrint('fetchUserById Response: ${response.statusCode}');
         if (response.statusCode == 200) {

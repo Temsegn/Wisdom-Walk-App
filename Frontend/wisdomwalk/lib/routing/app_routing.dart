@@ -285,7 +285,11 @@ class AppRouter {
       ),
       GoRoute(
         path: '/profile/:userId',
-        builder: (context, state) => ProfileScreen(),
+        builder: (context, state) {
+          final userId = state.pathParameters['userId'];
+          debugPrint('AppRouter: Navigating to /profile/$userId');
+          return ProfileScreen(userId: userId);
+        },
       ),
       GoRoute(
         path: '/settings',
