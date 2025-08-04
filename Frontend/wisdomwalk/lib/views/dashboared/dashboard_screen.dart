@@ -1,16 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:wisdomwalk/providers/auth_provider.dart';
-
-import 'package:wisdomwalk/providers/event_provider.dart';
-import 'package:wisdomwalk/providers/reflection_provider.dart';
-
-import 'package:wisdomwalk/providers/anonymous_share_provider.dart';
-
-import 'package:wisdomwalk/services/local_storage_service.dart';
 import 'package:wisdomwalk/views/dashboared/anonymous_share_tab.dart';
 
 import 'package:wisdomwalk/views/dashboared/her_move_tab.dart';
@@ -19,15 +9,7 @@ import 'package:wisdomwalk/views/dashboared/home_tab.dart';
 import 'package:wisdomwalk/views/dashboared/prayer_wall_tab.dart';
 import 'package:wisdomwalk/views/dashboared/wisdom_circles_tab.dart';
 
-import 'package:wisdomwalk/widgets/booking_form.dart';
-import 'package:wisdomwalk/models/event_model.dart';
-
 import 'package:wisdomwalk/views/chat/chat_list_screen.dart';
-import 'dart:async';
-import 'package:wisdomwalk/models/anonymous_share_model.dart';
-import 'package:wisdomwalk/providers/notification_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
