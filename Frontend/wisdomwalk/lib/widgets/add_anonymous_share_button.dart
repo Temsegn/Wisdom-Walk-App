@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:wisdomwalk/providers/auth_provider.dart';
 import 'package:wisdomwalk/providers/prayer_provider.dart';

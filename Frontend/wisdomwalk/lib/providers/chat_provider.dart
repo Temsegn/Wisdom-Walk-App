@@ -22,7 +22,7 @@ class ChatProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get hasMoreChats => _hasMoreChats;
-  
+
   Future<void> loadChats({bool refresh = false}) async {
     if (_isLoading || (!refresh && !_hasMoreChats)) return;
 
@@ -62,14 +62,14 @@ class ChatProvider with ChangeNotifier {
   Future<Chat?> createDirectChat(String participantId) async {
     try {
       final chat = await apiService.createDirectChat(participantId);
-      
+
       // Add to the beginning of the list if it's new
       final existingIndex = _chats.indexWhere((c) => c.id == chat.id);
       if (existingIndex == -1) {
         _chats.insert(0, chat);
         notifyListeners();
       }
-      
+
       return chat;
     } catch (e) {
       _error = e.toString();
@@ -77,17 +77,19 @@ class ChatProvider with ChangeNotifier {
       return null;
     }
   }
- 
 
-Future<Chat?> createDirectChatWithGreeting(String participantId, {String greeting = "👋 Hi!"}) async {
+  Future<Chat?> createDirectChatWithGreeting(
+    String participantId, {
+    String greeting = "👋 Hi!",
+  }) async {
     try {
       // First create the chat
       final chat = await apiService.createDirectChat(participantId);
-      
+
       // Check if this is a new chat by trying to get messages
       try {
         final messages = await apiService.getChatMessages(chat.id, limit: 1);
-        
+
         // If no messages exist, send a greeting message
         if (messages.isEmpty) {
           await apiService.sendMessage(
@@ -104,14 +106,14 @@ Future<Chat?> createDirectChatWithGreeting(String participantId, {String greetin
           messageType: 'text',
         );
       }
-      
+
       // Add to the beginning of the list if it's new
       final existingIndex = _chats.indexWhere((c) => c.id == chat.id);
       if (existingIndex == -1) {
         _chats.insert(0, chat);
         notifyListeners();
       }
-      
+
       return chat;
     } catch (e) {
       _error = e.toString();
@@ -119,7 +121,7 @@ Future<Chat?> createDirectChatWithGreeting(String participantId, {String greetin
       return null;
     }
   }
- 
+
   void updateChatLastMessage(String chatId, Message message) {
     final chatIndex = _chats.indexWhere((c) => c.id == chatId);
     if (chatIndex != -1) {
@@ -185,12 +187,15 @@ Future<Chat?> createDirectChatWithGreeting(String participantId, {String greetin
     _error = null;
     notifyListeners();
   }
- Future<Chat?> getExistingChat(String userId) async {
+
+  Future<Chat?> getExistingChat(String userId) async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/chats/exists/$userId'),
-        headers: await _getAuthHeaders(),
-      ).timeout(const Duration(seconds: 3));
+      final response = await http
+          .get(
+            Uri.parse('${ApiService.baseUrl}/chats/exists/$userId'),
+            headers: await _getAuthHeaders(),
+          )
+          .timeout(const Duration(seconds: 3));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -204,57 +209,49 @@ Future<Chat?> createDirectChatWithGreeting(String participantId, {String greetin
       return null;
     }
   }
- 
- Future<Chat> startChatWithUser(UserModel user) async {
-  try {
-    // 1. Validate input
-    if (user.id.isEmpty) {
-      throw Exception('Invalid user ID');
+
+  Future<Chat> startChatWithUser(UserModel user) async {
+    try {
+      // 1. Validate input
+      if (user.id.isEmpty) {
+        throw Exception('Invalid user ID');
+      }
+
+      // 2. Get auth token safely
+      final token = await LocalStorageService().getAuthToken();
+      if (token == null) throw Exception('Not authenticated');
+
+      // 3. Make request with better timeout
+      final response = await http
+          .post(
+            Uri.parse('${ApiService.baseUrl}/chats/direct'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: json.encode({
+              'participantId': user.id,
+              'participantName': user.fullName, // Additional data
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      // 4. Parse response carefully
+      final data = json.decode(response.body);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return Chat.fromJson(data['data']);
+      } else {
+        throw Exception(data['message'] ?? 'Failed to create chat');
+      }
+    } on TimeoutException {
+      throw Exception('Server timeout. Try again later.');
+    } on SocketException {
+      throw Exception('No internet connection');
+    } catch (e) {
+      debugPrint('Chat creation error: $e');
+      rethrow;
     }
-
-    // 2. Get auth token safely
-    final token = await LocalStorageService().getAuthToken();
-    if (token == null) throw Exception('Not authenticated');
-
-    // 3. Make request with better timeout
-    final response = await http.post(
-      Uri.parse('${ApiService.baseUrl}/chats/direct'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: json.encode({
-        'participantId': user.id,
-        'participantName': user.fullName, // Additional data
-      }),
-    ).timeout(const Duration(seconds: 10));
-
-    // 4. Parse response carefully
-    final data = json.decode(response.body);
-    
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return Chat.fromJson(data['data']);
-    } else {
-      throw Exception(data['message'] ?? 'Failed to create chat');
-    }
-  } on TimeoutException {
-    throw Exception('Server timeout. Try again later.');
-  } on SocketException {
-    throw Exception('No internet connection');
-  } catch (e) {
-    debugPrint('Chat creation error: $e');
-    rethrow;
-  }
-}
-
-  void _addOrUpdateChat(Chat chat) {
-    final index = _chats.indexWhere((c) => c.id == chat.id);
-    if (index == -1) {
-      _chats.insert(0, chat);
-    } else {
-      _chats[index] = chat;
-    }
-    notifyListeners();
   }
 
   Future<Map<String, String>> _getAuthHeaders() async {
@@ -265,4 +262,3 @@ Future<Chat?> createDirectChatWithGreeting(String participantId, {String greetin
     };
   }
 }
-

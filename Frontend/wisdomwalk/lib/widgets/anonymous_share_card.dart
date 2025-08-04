@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import '../models/anonymous_share_model.dart';
-import '../providers/auth_provider.dart';
 import '../providers/anonymous_share_provider.dart';
 
 class AnonymousShareCard extends StatefulWidget {

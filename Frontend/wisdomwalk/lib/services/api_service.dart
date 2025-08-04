@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:wisdomwalk/services/local_storage_service.dart';
@@ -10,7 +9,7 @@ import '../../models/message_model.dart';
 class ApiService {
   static const String baseUrl = 'https://wisdom-walk-app.onrender.com/api';
   static const Duration timeoutDuration = Duration(seconds: 30);
-  
+
   final LocalStorageService _localStorageService = LocalStorageService();
   String? _authToken;
 
@@ -31,7 +30,7 @@ class ApiService {
       return null;
     }
   }
-  
+
   Future<List<Chat>> getUserChats({int page = 1, int limit = 20}) async {
     try {
       final token = await getAuthToken();
@@ -42,13 +41,15 @@ class ApiService {
       final url = Uri.parse('$baseUrl/chats?page=$page&limit=$limit');
       debugPrint('Fetching chats from: $url');
 
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(timeoutDuration);
+      final response = await http
+          .get(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(timeoutDuration);
 
       debugPrint('Chats response status: ${response.statusCode}');
       debugPrint('Chats response body: ${response.body}');
@@ -64,8 +65,10 @@ class ApiService {
         }
       } else {
         final errorData = json.decode(response.body);
-        throw Exception(errorData['message'] ?? 
-            'Failed to load chats. Status: ${response.statusCode}');
+        throw Exception(
+          errorData['message'] ??
+              'Failed to load chats. Status: ${response.statusCode}',
+        );
       }
     } on TimeoutException {
       throw Exception('Request timed out. Please check your connection.');
@@ -110,8 +113,6 @@ class ApiService {
       throw Exception('Error creating chat: $e');
     }
   }
-  
-  
 
   Future<List<Message>> getChatMessages(
     String chatId, {
@@ -124,29 +125,34 @@ class ApiService {
         throw Exception('Authentication required. Please login again.');
       }
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/chats/$chatId/messages?page=$page&limit=$limit'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .get(
+            Uri.parse(
+              '$baseUrl/chats/$chatId/messages?page=$page&limit=$limit',
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 30));
       debugPrint('Raw API response: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
           return (data['data'] as List?)
-              ?.map((json) {
-                try {
-                  return Message.fromJson(json);
-                } catch (e) {
-                  debugPrint('Failed to parse message: $e');
-                  return null;
-                }
-              })
-              .whereType<Message>()
-              .toList() ?? [];
+                  ?.map((json) {
+                    try {
+                      return Message.fromJson(json);
+                    } catch (e) {
+                      debugPrint('Failed to parse message: $e');
+                      return null;
+                    }
+                  })
+                  .whereType<Message>()
+                  .toList() ??
+              [];
         } else {
           throw Exception(data['message'] ?? 'Failed to load messages');
         }
@@ -155,8 +161,8 @@ class ApiService {
       } else {
         final errorData = json.decode(response.body);
         throw Exception(
-          errorData['message'] ?? 
-          'Failed to load messages (Status: ${response.statusCode})'
+          errorData['message'] ??
+              'Failed to load messages (Status: ${response.statusCode})',
         );
       }
     } on TimeoutException {
@@ -183,24 +189,28 @@ class ApiService {
         throw Exception('Authentication required. Please login again.');
       }
 
-         final url = Uri.parse('https://wisdom-walk-app.onrender.com/api/chats/$chatId/messages');
+      final url = Uri.parse(
+        'https://wisdom-walk-app.onrender.com/api/chats/$chatId/messages',
+      );
 
       debugPrint('Sending message to: $url');
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode({
-          'content': content,
-          'messageType': messageType,
-          if (replyToId != null) 'replyToId': replyToId,
-          if (attachments != null) 'attachments': attachments,
-          if (scripture != null) 'scripture': scripture,
-        }),
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: json.encode({
+              'content': content,
+              'messageType': messageType,
+              if (replyToId != null) 'replyToId': replyToId,
+              if (attachments != null) 'attachments': attachments,
+              if (scripture != null) 'scripture': scripture,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
 
       debugPrint('Send message response: ${response.statusCode}');
       debugPrint('Response body: ${response.body}');
@@ -216,8 +226,8 @@ class ApiService {
       } else {
         final errorData = json.decode(response.body);
         throw Exception(
-          errorData['message'] ?? 
-          'Failed to send message (Status: ${response.statusCode})'
+          errorData['message'] ??
+              'Failed to send message (Status: ${response.statusCode})',
         );
       }
     } on TimeoutException {

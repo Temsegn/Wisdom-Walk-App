@@ -9,7 +9,7 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
+    Provider.of<AuthProvider>(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),

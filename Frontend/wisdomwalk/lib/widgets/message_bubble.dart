@@ -29,7 +29,7 @@ class MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
       child: Column(
@@ -37,13 +37,17 @@ class MessageBubble extends StatelessWidget {
         children: [
           if (message.isPinned) _buildPinnedHeader(context),
           Row(
-            mainAxisAlignment: isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+            mainAxisAlignment:
+                isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               if (!isCurrentUser) const SizedBox(width: 16.0),
               Flexible(
                 child: Column(
-                  crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      isCurrentUser
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
                   children: [
                     if (!isCurrentUser) _buildSenderName(message.sender),
                     GestureDetector(
@@ -55,14 +59,23 @@ class MessageBubble extends StatelessWidget {
                         ),
                         padding: const EdgeInsets.all(12.0),
                         decoration: BoxDecoration(
-                          color: isCurrentUser
-                              ? (isDarkMode ? Colors.blue[800] : Colors.blue)
-                              : (isDarkMode ? Colors.grey[800] : Colors.grey[200]),
+                          color:
+                              isCurrentUser
+                                  ? (isDarkMode
+                                      ? Colors.blue[800]
+                                      : Colors.blue)
+                                  : (isDarkMode
+                                      ? Colors.grey[800]
+                                      : Colors.grey[200]),
                           borderRadius: BorderRadius.only(
                             topLeft: const Radius.circular(18.0),
                             topRight: const Radius.circular(18.0),
-                            bottomLeft: Radius.circular(isCurrentUser ? 18.0 : 4.0),
-                            bottomRight: Radius.circular(isCurrentUser ? 4.0 : 18.0),
+                            bottomLeft: Radius.circular(
+                              isCurrentUser ? 18.0 : 4.0,
+                            ),
+                            bottomRight: Radius.circular(
+                              isCurrentUser ? 4.0 : 18.0,
+                            ),
                           ),
                         ),
                         child: _buildMessageContent(),
@@ -79,11 +92,13 @@ class MessageBubble extends StatelessWidget {
       ),
     );
   }
+
   Widget _buildPinnedHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Row(
-        mainAxisAlignment: isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -112,126 +127,110 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-void _handleDoubleTap(BuildContext context) {
+  void _handleDoubleTap(BuildContext context) {
     if (onReact != null) {
       _showQuickReactions(context);
     }
   }
-void _showQuickReactions(BuildContext context) {
+
+  void _showQuickReactions(BuildContext context) {
     final overlay = Overlay.of(context);
     final renderBox = context.findRenderObject() as RenderBox;
     final position = renderBox.localToGlobal(Offset.zero);
 
     late OverlayEntry overlayEntry;
     overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        left: position.dx + renderBox.size.width / 2 - 100,
-        top: position.dy - 50,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(8.0),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(24.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 8.0,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: ['❤️', '👍', '😂', '😮', '😢', '😡'].map((emoji) {
-                return GestureDetector(
-                  onTap: () {
-                    overlayEntry.remove();
-                    onReact?.call(emoji);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: Text(
-                      emoji,
-                      style: const TextStyle(fontSize: 24.0),
+      builder:
+          (context) => Positioned(
+            left: position.dx + renderBox.size.width / 2 - 100,
+            top: position.dy - 50,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                padding: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(24.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 8.0,
+                      offset: const Offset(0, 4),
                     ),
-                  ),
-                );
-              }).toList(),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children:
+                      ['❤️', '👍', '😂', '😮', '😢', '😡'].map((emoji) {
+                        return GestureDetector(
+                          onTap: () {
+                            overlayEntry.remove();
+                            onReact?.call(emoji);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4.0,
+                            ),
+                            child: Text(
+                              emoji,
+                              style: const TextStyle(fontSize: 24.0),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                ),
+              ),
             ),
           ),
-        ),
-      ),
     );
     overlay.insert(overlayEntry);
     Future.delayed(const Duration(seconds: 2), () {
       if (overlayEntry.mounted) overlayEntry.remove();
     });
   }
+
   Widget _buildReactions() {
     // Group reactions by emoji and count
     final reactionGroups = <String, int>{};
     for (final reaction in message.reactions) {
-      reactionGroups[reaction.emoji] = (reactionGroups[reaction.emoji] ?? 0) + 1;
+      reactionGroups[reaction.emoji] =
+          (reactionGroups[reaction.emoji] ?? 0) + 1;
     }
 
     return Wrap(
       spacing: 4.0,
       runSpacing: 4.0,
       alignment: WrapAlignment.end,
-      children: reactionGroups.entries.map((entry) {
-        return GestureDetector(
-          onTap: () => onReact?.call(entry.key),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 6.0,
-              vertical: 2.0,
-            ),
-            decoration: BoxDecoration(
-              color:   Colors.black.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12.0),
-            ),
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: entry.key),
-                  if (entry.value > 1) TextSpan(
-                    text: ' ${entry.value}',
-                    style: const TextStyle(fontSize: 10.0),
-                  ),
-                ],
-              ),
-              style: const TextStyle(fontSize: 12.0),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-
-
-  Widget _buildUserAvatar(UserModel user) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: CircleAvatar(
-        radius: 16.0,
-        backgroundColor: Colors.grey[300],
-        backgroundImage: user.profilePicture != null
-            ? NetworkImage(user.profilePicture!)
-            : null,
-        child: user.profilePicture == null
-            ? Text(
-                user.initials ?? 'N',
-                style: const TextStyle(
-                  fontSize: 12.0,
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
+      children:
+          reactionGroups.entries.map((entry) {
+            return GestureDetector(
+              onTap: () => onReact?.call(entry.key),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6.0,
+                  vertical: 2.0,
                 ),
-              )
-            : null,
-      ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: entry.key),
+                      if (entry.value > 1)
+                        TextSpan(
+                          text: ' ${entry.value}',
+                          style: const TextStyle(fontSize: 10.0),
+                        ),
+                    ],
+                  ),
+                  style: const TextStyle(fontSize: 12.0),
+                ),
+              ),
+            );
+          }).toList(),
     );
   }
 
@@ -257,10 +256,7 @@ void _showQuickReactions(BuildContext context) {
         if (message.forwardedFrom != null) _buildForwardIndicator(),
         if (message.isPinned) _buildPinnedIndicator(),
         if (message.attachments.isNotEmpty) ..._buildAttachments(),
-        Text(
-          message.content,
-          style: const TextStyle(fontSize: 16.0),
-        ),
+        Text(message.content, style: const TextStyle(fontSize: 16.0)),
         if (message.reactions.isNotEmpty) _buildReactions(),
       ],
     );
@@ -279,10 +275,7 @@ void _showQuickReactions(BuildContext context) {
         children: [
           Text(
             'Replying to ${message.replyTo!.sender.displayName}',
-            style: const TextStyle(
-              fontSize: 12.0,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4.0),
           Text(
@@ -303,10 +296,7 @@ void _showQuickReactions(BuildContext context) {
         const SizedBox(width: 4.0),
         Text(
           'Forwarded from ${message.forwardedFrom!.sender.displayName}',
-          style: const TextStyle(
-            fontSize: 12.0,
-            fontStyle: FontStyle.italic,
-          ),
+          style: const TextStyle(fontSize: 12.0, fontStyle: FontStyle.italic),
         ),
       ],
     );
@@ -319,10 +309,7 @@ void _showQuickReactions(BuildContext context) {
         const SizedBox(width: 4.0),
         const Text(
           'Pinned',
-          style: TextStyle(
-            fontSize: 12.0,
-            fontStyle: FontStyle.italic,
-          ),
+          style: TextStyle(fontSize: 12.0, fontStyle: FontStyle.italic),
         ),
       ],
     );
@@ -348,10 +335,11 @@ void _showQuickReactions(BuildContext context) {
                   color: Colors.grey[300],
                   child: Center(
                     child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
+                      value:
+                          loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
                     ),
                   ),
                 );
@@ -393,7 +381,7 @@ void _showQuickReactions(BuildContext context) {
       }
     }).toList();
   }
- 
+
   Widget _buildMessageStatus() {
     return Padding(
       padding: const EdgeInsets.only(top: 4.0),
@@ -402,10 +390,7 @@ void _showQuickReactions(BuildContext context) {
         children: [
           Text(
             _formatTime(message.createdAt),
-            style: TextStyle(
-              fontSize: 10.0,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 10.0, color: Colors.grey[500]),
           ),
           if (message.isEdited) ...[
             const SizedBox(width: 4.0),
@@ -483,7 +468,10 @@ void _showQuickReactions(BuildContext context) {
               if (onPin != null)
                 _buildOptionTile(
                   context,
-                  icon: message.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                  icon:
+                      message.isPinned
+                          ? Icons.push_pin
+                          : Icons.push_pin_outlined,
                   label: message.isPinned ? 'Unpin' : 'Pin',
                   onTap: () {
                     Navigator.pop(context);
@@ -532,7 +520,7 @@ void _showQuickReactions(BuildContext context) {
 
   void _showReactionPicker(BuildContext context) {
     final reactions = ['👍', '❤️', '😂', '😮', '😢', '😡'];
-    
+
     showDialog(
       context: context,
       builder: (context) {
@@ -542,18 +530,16 @@ void _showQuickReactions(BuildContext context) {
             spacing: 12.0,
             runSpacing: 12.0,
             alignment: WrapAlignment.center,
-            children: reactions.map((emoji) {
-              return GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                  onReact?.call(emoji);
-                },
-                child: Text(
-                  emoji,
-                  style: const TextStyle(fontSize: 28.0),
-                ),
-              );
-            }).toList(),
+            children:
+                reactions.map((emoji) {
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      onReact?.call(emoji);
+                    },
+                    child: Text(emoji, style: const TextStyle(fontSize: 28.0)),
+                  );
+                }).toList(),
           ),
         );
       },

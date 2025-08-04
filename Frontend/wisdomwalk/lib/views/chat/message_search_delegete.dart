@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:wisdomwalk/models/message_model.dart';
 import 'package:wisdomwalk/providers/message_provider.dart';
-import 'package:wisdomwalk/services/api_service.dart';
 import 'package:wisdomwalk/services/local_storage_service.dart';
 import 'package:wisdomwalk/views/chat/chat_screen.dart';
 import 'package:wisdomwalk/widgets/message_bubble.dart';
@@ -76,9 +75,7 @@ class MessageSearchDelegate extends SearchDelegate {
   Widget _buildSearchResults(BuildContext context) {
     if (query.isEmpty) {
       return Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFFF8FAFC),
-        ),
+        decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -86,16 +83,20 @@ class MessageSearchDelegate extends SearchDelegate {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
-                  ).colors.first.withOpacity(0.1) != null 
-                    ? LinearGradient(
-                        colors: [
-                          const Color(0xFF10B981).withOpacity(0.1),
-                          const Color(0xFF06B6D4).withOpacity(0.05),
-                        ],
-                      )
-                    : const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF06B6D4)]),
+                  gradient:
+                      const LinearGradient(
+                                colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
+                              ).colors.first.withOpacity(0.1) !=
+                              null
+                          ? LinearGradient(
+                            colors: [
+                              const Color(0xFF10B981).withOpacity(0.1),
+                              const Color(0xFF06B6D4).withOpacity(0.05),
+                            ],
+                          )
+                          : const LinearGradient(
+                            colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
+                          ),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: const Icon(
@@ -116,10 +117,7 @@ class MessageSearchDelegate extends SearchDelegate {
               const SizedBox(height: 12),
               const Text(
                 'Enter a search query to find messages',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF94A3B8),
-                ),
+                style: TextStyle(fontSize: 16, color: Color(0xFF94A3B8)),
               ),
             ],
           ),
@@ -132,22 +130,16 @@ class MessageSearchDelegate extends SearchDelegate {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
-            ),
+            decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
             child: const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF10B981),
-              ),
+              child: CircularProgressIndicator(color: Color(0xFF10B981)),
             ),
           );
         }
-        
+
         if (snapshot.hasError) {
           return Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
-            ),
+            decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.all(40),
@@ -190,13 +182,11 @@ class MessageSearchDelegate extends SearchDelegate {
             ),
           );
         }
-        
+
         final messages = snapshot.data ?? [];
         if (messages.isEmpty) {
           return Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
-            ),
+            decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.all(40),
@@ -206,16 +196,26 @@ class MessageSearchDelegate extends SearchDelegate {
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
-                        ).colors.first.withOpacity(0.1) != null 
-                          ? LinearGradient(
-                              colors: [
-                                const Color(0xFF10B981).withOpacity(0.1),
-                                const Color(0xFF06B6D4).withOpacity(0.05),
-                              ],
-                            )
-                          : const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF06B6D4)]),
+                        gradient:
+                            const LinearGradient(
+                                      colors: [
+                                        Color(0xFF10B981),
+                                        Color(0xFF06B6D4),
+                                      ],
+                                    ).colors.first.withOpacity(0.1) !=
+                                    null
+                                ? LinearGradient(
+                                  colors: [
+                                    const Color(0xFF10B981).withOpacity(0.1),
+                                    const Color(0xFF06B6D4).withOpacity(0.05),
+                                  ],
+                                )
+                                : const LinearGradient(
+                                  colors: [
+                                    Color(0xFF10B981),
+                                    Color(0xFF06B6D4),
+                                  ],
+                                ),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: const Icon(
@@ -236,10 +236,7 @@ class MessageSearchDelegate extends SearchDelegate {
                     const SizedBox(height: 12),
                     const Text(
                       'Try searching with different keywords',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFF94A3B8),
-                      ),
+                      style: TextStyle(fontSize: 16, color: Color(0xFF94A3B8)),
                     ),
                   ],
                 ),
@@ -247,11 +244,9 @@ class MessageSearchDelegate extends SearchDelegate {
             ),
           );
         }
-        
+
         return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFFF8FAFC),
-          ),
+          decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
           child: ListView.separated(
             reverse: true,
             padding: const EdgeInsets.all(24),
@@ -273,11 +268,14 @@ class MessageSearchDelegate extends SearchDelegate {
                 ),
                 child: MessageBubble(
                   message: message,
-                  isCurrentUser: message.sender.id == LocalStorageService().getCurrentUserId(),
+                  isCurrentUser:
+                      message.sender.id ==
+                      LocalStorageService().getCurrentUserId(),
                   onReply: () => messageProvider.setReplyToMessage(message),
                   onEdit: () => _editMessage(context, message),
                   onDelete: () => _deleteMessage(context, message),
-                  onReact: (emoji) => messageProvider.addReaction(message.id, emoji),
+                  onReact:
+                      (emoji) => messageProvider.addReaction(message.id, emoji),
                   onPin: () => messageProvider.pinMessage(chatId, message.id),
                   onForward: () => _forwardMessage(context, message),
                 ),
@@ -292,75 +290,84 @@ class MessageSearchDelegate extends SearchDelegate {
   void _editMessage(BuildContext context, Message message) {
     showDialog(
       context: context,
-      builder: (context) => EditMessageDialog(
-        message: message,
-        onEdit: (newContent) {
-          messageProvider.editMessage(message.id, newContent);
-        },
-      ),
+      builder:
+          (context) => EditMessageDialog(
+            message: message,
+            onEdit: (newContent) {
+              messageProvider.editMessage(message.id, newContent);
+            },
+          ),
     );
   }
 
   void _deleteMessage(BuildContext context, Message message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Delete Message'),
-        content: const Text('Are you sure you want to delete this message?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
-              ),
-              borderRadius: BorderRadius.circular(12),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                messageProvider.deleteMessage(message.id);
-              },
-              child: const Text(
-                'Delete',
-                style: TextStyle(color: Colors.white),
-              ),
+            title: const Text('Delete Message'),
+            content: const Text(
+              'Are you sure you want to delete this message?',
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    messageProvider.deleteMessage(message.id);
+                  },
+                  child: const Text(
+                    'Delete',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   void _forwardMessage(BuildContext context, Message message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Forward Message'),
-        content: const Text('Feature coming soon!'),
-        actions: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
-              ),
-              borderRadius: BorderRadius.circular(12),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'OK',
-                style: TextStyle(color: Colors.white),
+            title: const Text('Forward Message'),
+            content: const Text('Feature coming soon!'),
+            actions: [
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF10B981), Color(0xFF06B6D4)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
     );
   }
 }

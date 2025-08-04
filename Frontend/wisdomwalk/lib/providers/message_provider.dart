@@ -9,7 +9,7 @@ import 'package:wisdomwalk/services/local_storage_service.dart';
 class MessageProvider with ChangeNotifier {
   final ApiService apiService = ApiService();
   final LocalStorageService localStorageService = LocalStorageService();
-  
+
   // Chat messages storage
   final Map<String, List<Message>> _chatMessages = {};
   final Map<String, bool> _loadingStates = {};
@@ -17,10 +17,10 @@ class MessageProvider with ChangeNotifier {
   final Map<String, int> _currentPages = {};
   final Map<String, bool> _hasMoreMessages = {};
   final Map<String, String> _pinnedMessages = {}; // chatId: messageId
-  
+
   // Reply functionality
   Message? _replyToMessage;
-  
+
   // Getters
   List<Message> getChatMessages(String chatId) => _chatMessages[chatId] ?? [];
   bool isLoading(String chatId) => _loadingStates[chatId] ?? false;
@@ -68,9 +68,8 @@ class MessageProvider with ChangeNotifier {
       } else {
         final currentMessages = _chatMessages[chatId] ?? [];
         // Keep messages in chronological order (oldest first)
-        _chatMessages[chatId] = refresh
-            ? newMessages
-            : [...currentMessages, ...newMessages];
+        _chatMessages[chatId] =
+            refresh ? newMessages : [...currentMessages, ...newMessages];
         _currentPages[chatId] = (_currentPages[chatId] ?? 1) + 1;
       }
       _errors.remove(chatId);
@@ -187,18 +186,17 @@ class MessageProvider with ChangeNotifier {
       if (messageIndex == -1) return;
 
       // Check if user already reacted with this emoji
-      final existingReactionIndex = messages[messageIndex].reactions
-          .indexWhere((r) => r.userId == currentUserId && r.emoji == emoji);
+      final existingReactionIndex = messages[messageIndex].reactions.indexWhere(
+        (r) => r.userId == currentUserId && r.emoji == emoji,
+      );
 
       // Create updated reactions list
       List<MessageReaction> updatedReactions;
-      bool isAdding;
-      
+
       if (existingReactionIndex >= 0) {
         // Remove existing reaction
         updatedReactions = List.from(messages[messageIndex].reactions);
         updatedReactions.removeAt(existingReactionIndex);
-        isAdding = false;
       } else {
         // Add new reaction
         final newReaction = MessageReaction(
@@ -207,7 +205,6 @@ class MessageProvider with ChangeNotifier {
           createdAt: DateTime.now(),
         );
         updatedReactions = [...messages[messageIndex].reactions, newReaction];
-        isAdding = true;
       }
 
       // Optimistic update
@@ -301,7 +298,12 @@ class MessageProvider with ChangeNotifier {
     _removeMessageFromChats(messageId);
   }
 
-  void handleMessageReaction(String chatId, String messageId, MessageReaction reaction, bool isAdding) {
+  void handleMessageReaction(
+    String chatId,
+    String messageId,
+    MessageReaction reaction,
+    bool isAdding,
+  ) {
     updateMessageReaction(chatId, messageId, reaction, isAdding);
   }
 
@@ -342,7 +344,12 @@ class MessageProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void updateMessageReaction(String chatId, String messageId, MessageReaction reaction, bool isAdding) {
+  void updateMessageReaction(
+    String chatId,
+    String messageId,
+    MessageReaction reaction,
+    bool isAdding,
+  ) {
     final messages = _chatMessages[chatId];
     if (messages == null) return;
 
@@ -353,9 +360,9 @@ class MessageProvider with ChangeNotifier {
     final updatedReactions = List<MessageReaction>.from(message.reactions);
 
     if (isAdding) {
-    // Add reaction if not already present
+      // Add reaction if not already present
       final existingIndex = updatedReactions.indexWhere(
-        (r) => r.userId == reaction.userId && r.emoji == reaction.emoji
+        (r) => r.userId == reaction.userId && r.emoji == reaction.emoji,
       );
       if (existingIndex == -1) {
         updatedReactions.add(reaction);
@@ -363,7 +370,7 @@ class MessageProvider with ChangeNotifier {
     } else {
       // Remove reaction
       updatedReactions.removeWhere(
-        (r) => r.userId == reaction.userId && r.emoji == reaction.emoji
+        (r) => r.userId == reaction.userId && r.emoji == reaction.emoji,
       );
     }
 
@@ -400,7 +407,11 @@ class MessageProvider with ChangeNotifier {
   }
 
   // Additional helper methods for socket integration
-  void updateMessageEditStatus(String chatId, String messageId, String newContent) {
+  void updateMessageEditStatus(
+    String chatId,
+    String messageId,
+    String newContent,
+  ) {
     final messages = _chatMessages[chatId];
     if (messages == null) return;
 
@@ -422,7 +433,9 @@ class MessageProvider with ChangeNotifier {
   void handleTypingIndicator(String chatId, String userId, bool isTyping) {
     // This can be implemented to show typing indicators
     // For now, just notify listeners if needed
-    debugPrint('User $userId is ${isTyping ? 'typing' : 'stopped typing'} in chat $chatId');
+    debugPrint(
+      'User $userId is ${isTyping ? 'typing' : 'stopped typing'} in chat $chatId',
+    );
   }
 
   // Clean up method for when leaving a chat
@@ -451,7 +464,7 @@ class MessageProvider with ChangeNotifier {
   Message? getMessage(String chatId, String messageId) {
     final messages = _chatMessages[chatId];
     if (messages == null) return null;
-    
+
     try {
       return messages.firstWhere((m) => m.id == messageId);
     } catch (e) {

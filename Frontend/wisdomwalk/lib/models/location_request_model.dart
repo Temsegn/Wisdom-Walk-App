@@ -1,6 +1,3 @@
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-
 class LocationRequestModel {
   final String? id; // Made nullable to handle null _id
   final String? userId; // Made nullable to handle null user
