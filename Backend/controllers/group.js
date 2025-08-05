@@ -66,29 +66,27 @@ const createGroup = async (req, res) => {
     });
   }
 };
-
 const getAllGroups = async (req, res) => {
   try {
-    // If user is admin, fetch all groups; otherwise, fetch only groups where user is a member
-    const query = req.user.role === 'admin' ? {} : { "members.user": req.user._id };
-    const groups = await Group.find(query)
+    const groups = await Group.find({})
       .populate("creator", "firstName lastName avatar")
       .populate("members.user", "firstName lastName avatar")
       .populate("admins", "firstName lastName avatar");
 
     res.status(200).json({
       success: true,
-      groups: groups || [] // Ensure this matches what your frontend expects
+      groups: groups || []
     });
   } catch (error) {
     console.error("Error fetching groups:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch groups",
-      groups: [] // Return empty array on error
+      groups: []
     });
   }
 };
+
 
 const getGroupDetails = async (req, res) => {
   try {
