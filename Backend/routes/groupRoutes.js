@@ -11,7 +11,7 @@ router.use(authenticateToken)
 // ===== GROUP MEMBERSHIP ROUTES =====
 // Get user's joined groups 
 router.get("/my-groups", groupController.getUserGroups)
-
+router.get("/get-groups", groupController.getAvailableGroups)
 // Join/leave group types
 router.post("/join", groupController.joinGroup)
 router.post("/leave", groupController.leaveGroup)

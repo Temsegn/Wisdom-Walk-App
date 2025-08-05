@@ -100,6 +100,51 @@ const getUserGroups = async (req, res) => {
     })
   }
 }
+// Get all available groups for users to join
+const getAvailableGroups = async (req, res) => {
+  try {
+    // Fetch distinct group types (assuming groups are defined by groupType)
+    const distinctGroupTypes = await User.distinct("joinedGroups.groupType")
+
+    const groups = await Promise.all(
+      distinctGroupTypes.map(async (groupType) => {
+        // Get member count for each group
+        const memberCount = await User.countDocuments({
+          "joinedGroups.groupType": groupType,
+          isEmailVerified: true,
+          isAdminVerified: true,
+          status: "active",
+        })
+
+        // Get group creation date (assume first user who joined created it)
+        const groupCreator = await User.findOne({
+          "joinedGroups.groupType": groupType,
+        }).select("joinedGroups.$")
+
+        return {
+          groupType,
+          createdAt: groupCreator?.joinedGroups[0]?.joinedAt || null,
+          memberCount,
+        }
+      })
+    )
+
+    res.json({
+      success: true,
+      data: {
+        groups,
+        totalGroups: groups.length,
+      },
+    })
+  } catch (error) {
+    console.error("Get available groups error:", error)
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch available groups",
+      error: error.message,
+    })
+  }
+}
 
 // Join a group type
 const joinGroup = async (req, res) => {
@@ -1353,4 +1398,5 @@ module.exports = {
 
   // Group posts
   togglePinPost,
+  getAvailableGroups
 }
