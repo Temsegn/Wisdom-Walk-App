@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/anonymous_share_model.dart';
 import '../services/anonymous_share_service.dart';
-import '../providers/auth_provider.dart';
 import '../services/local_storage_service.dart';
 
 class AnonymousShareProvider extends ChangeNotifier {

@@ -31,8 +31,11 @@ class _MultiStepRegistrationState extends State<MultiStepRegistration> {
   void _nextStep(Map<String, String> data) {
     setState(() {
       _formData.addAll(data);
-      print('Step $_currentStep -> Received data: $data, Updated _formData: $_formData'); // Enhanced debug log
-      if (_currentStep == 0 && (_formData['firstName']?.trim().isEmpty ?? true || _formData['lastName']?.trim().isEmpty ?? true)) {
+      print(
+        'Step $_currentStep -> Received data: $data, Updated _formData: $_formData',
+      ); // Enhanced debug log
+      if (_currentStep == 0 &&
+          (_formData['firstName']?.trim().isEmpty ?? true ?? true)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('First name and last name are required'),
@@ -54,7 +57,8 @@ class _MultiStepRegistrationState extends State<MultiStepRegistration> {
 
   Future<void> _completeRegistration() async {
     print('Completing registration with: $_formData'); // Debug log
-    if (_formData['firstName']!.trim().isEmpty || _formData['lastName']!.trim().isEmpty) {
+    if (_formData['firstName']!.trim().isEmpty ||
+        _formData['lastName']!.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('First name and last name are required'),
@@ -66,7 +70,9 @@ class _MultiStepRegistrationState extends State<MultiStepRegistration> {
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     try {
-      print('Sending to AuthProvider: firstName=${_formData['firstName']}, lastName=${_formData['lastName']}, email=${_formData['email']}, password=${_formData['password']}'); // Debug log
+      print(
+        'Sending to AuthProvider: firstName=${_formData['firstName']}, lastName=${_formData['lastName']}, email=${_formData['email']}, password=${_formData['password']}',
+      ); // Debug log
       final success = await authProvider.register(
         firstName: _formData['firstName'].trim(),
         lastName: _formData['lastName'].trim(),
@@ -197,20 +203,22 @@ class _MultiStepRegistrationState extends State<MultiStepRegistration> {
           decoration: BoxDecoration(
             color: isActive ? const Color(0xFFD4A017) : const Color(0xFFE8E2DB),
             borderRadius: BorderRadius.circular(15),
-            border: isCurrent
-                ? Border.all(color: const Color(0xFFD4A017), width: 2)
-                : null,
+            border:
+                isCurrent
+                    ? Border.all(color: const Color(0xFFD4A017), width: 2)
+                    : null,
           ),
           child: Center(
-            child: isActive
-                ? const Icon(Icons.check, color: Colors.white, size: 16)
-                : Text(
-                    '${step + 1}',
-                    style: const TextStyle(
-                      color: Color(0xFF757575),
-                      fontWeight: FontWeight.bold,
+            child:
+                isActive
+                    ? const Icon(Icons.check, color: Colors.white, size: 16)
+                    : Text(
+                      '${step + 1}',
+                      style: const TextStyle(
+                        color: Color(0xFF757575),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
           ),
         ),
         const SizedBox(height: 4),

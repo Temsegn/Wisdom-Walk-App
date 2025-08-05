@@ -1,7 +1,5 @@
 import 'package:wisdomwalk/models/user_model.dart';
 
-import 'user_model.dart';
-
 class Comment {
   final String id;
   final String postId;
@@ -41,9 +39,11 @@ class Comment {
       content: json['content'] ?? '',
       parentCommentId: json['parentComment'],
       replies: (json['replies'] as List<dynamic>?)?.cast<String>() ?? [],
-      likes: (json['likes'] as List<dynamic>?)
-          ?.map((e) => CommentLike.fromJson(e))
-          .toList() ?? [],
+      likes:
+          (json['likes'] as List<dynamic>?)
+              ?.map((e) => CommentLike.fromJson(e))
+              .toList() ??
+          [],
       isModerated: json['isModerated'] ?? false,
       moderatedById: json['moderatedBy'],
       isHidden: json['isHidden'] ?? false,
@@ -76,10 +76,7 @@ class CommentLike {
   final String userId;
   final DateTime createdAt;
 
-  CommentLike({
-    required this.userId,
-    required this.createdAt,
-  });
+  CommentLike({required this.userId, required this.createdAt});
 
   factory CommentLike.fromJson(Map<String, dynamic> json) {
     return CommentLike(
@@ -89,9 +86,6 @@ class CommentLike {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'user': userId,
-      'createdAt': createdAt.toIso8601String(),
-    };
+    return {'user': userId, 'createdAt': createdAt.toIso8601String()};
   }
 }
