@@ -320,6 +320,47 @@ const leaveGroup = async (req, res) => {
     });
   }
 };
+const joinGroup = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.groupId);
+
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: "Group not found"
+      });
+    }
+
+    // Check if user is already a member
+    const isAlreadyMember = group.members.some(
+      member => member.user.toString() === req.user._id.toString()
+    );
+
+    if (isAlreadyMember) {
+      return res.status(400).json({
+        success: false,
+        message: "You are already a member of this group"
+      });
+    }
+
+    // Add user to members
+    group.members.push({ user: req.user._id });
+
+    await group.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Joined group successfully"
+    });
+  } catch (error) {
+    console.error("Error joining group:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to join group"
+    });
+  }
+};
+
 
 const addMember = async (req, res) => {
   try {
@@ -954,6 +995,7 @@ module.exports = {
   updateGroup,
   deleteGroup,
   joinGroupViaLink,
+  joinGroup,
   leaveGroup,
   addMember,
   removeMember,

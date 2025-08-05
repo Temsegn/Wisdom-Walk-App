@@ -19,6 +19,7 @@ router.delete("/:groupId", groupController.deleteGroup);
 // Members
 router.post("/join/:inviteLink", groupController.joinGroupViaLink);
 router.post("/:groupId/leave", groupController.leaveGroup);
+router.post("/:groupId/join", groupController.joinGroup);
 router.post("/:groupId/members", groupController.addMember);
 router.delete("/:groupId/members/:userId", groupController.removeMember);
 router.get("/:groupId/members", groupController.getGroupMembers);
