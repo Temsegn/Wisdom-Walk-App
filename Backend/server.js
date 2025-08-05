@@ -20,7 +20,7 @@ const reportRoutes = require("./routes/reportRoutes")
 const movementRoutes = require("./routes/movementRoute")
 const bookingRoutes = require("./routes/bookingRoute")
 const eventRoutes = require("./routes/eventRoutes")
-const groupRoutes = require("./routes/group")
+const groupRoutes = require("./routes/groupRoutes")
 
 const app = express()
 const server = http.createServer(app)
