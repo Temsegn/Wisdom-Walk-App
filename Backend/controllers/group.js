@@ -607,20 +607,39 @@ const getChatMessages = async (req, res) => {
 const sendMessage = async (req, res) => {
   try {
     const { content, replyTo } = req.body;
-    const group = await Group.findById(req.params.groupId);
-    
+    const group = await Group.findById(req.params.groupId).populate("members.user");
+
     if (!group) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Group not found" 
+        message: "Group not found"
       });
     }
 
-    // Allow sending if user is member or system admin
-    // if (!isGroupMember(group, req.user._id) && req.user.role !== 'admin') {
-    //   return res.status(403).json({ 
+    // Ensure chat exists for the group
+    if (!group.chat) {
+      const participantIds = group.members.map(m => m.user._id);
+
+      const newChat = new Chat({
+        participants: participantIds,
+        type: "group",
+        groupName: group.name,
+        groupDescription: group.description,
+        groupAdmin: group.creator,
+      });
+
+      await newChat.save();
+
+      group.chat = newChat._id;
+      await group.save();
+    }
+
+    // Optional: Uncomment to enforce access control
+    // const isMember = group.members.some(m => m.user.toString() === req.user._id.toString());
+    // if (!isMember && req.user.role !== 'admin') {
+    //   return res.status(403).json({
     //     success: false,
-    //     message: "Access denied. Not a group member" 
+    //     message: "Access denied. Not a group member"
     //   });
     // }
 
@@ -628,11 +647,11 @@ const sendMessage = async (req, res) => {
       m => m.user.toString() === req.user._id.toString()
     );
 
-    // Check if user is muted (only applies to non-admins)
+    // Check if user is muted (non-admins only)
     if (member && member.isMuted && req.user.role !== 'admin') {
-      return res.status(403).json({ 
+      return res.status(403).json({
         success: false,
-        message: "You are muted in this group" 
+        message: "You are muted in this group"
       });
     }
 
@@ -650,7 +669,7 @@ const sendMessage = async (req, res) => {
 
     await message.save();
 
-    // Update chat's last message
+    // Update chat
     await Chat.findByIdAndUpdate(group.chat, {
       $push: { messages: message._id },
       lastMessage: message._id,
@@ -662,15 +681,15 @@ const sendMessage = async (req, res) => {
       { path: "replyTo", populate: { path: "sender", select: "firstName lastName" } }
     ]);
 
-    res.status(201).json({ 
+    res.status(201).json({
       success: true,
-      message: populatedMessage 
+      message: populatedMessage
     });
   } catch (error) {
     console.error("Error sending message:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: "Failed to send message" 
+      message: "Failed to send message"
     });
   }
 };
